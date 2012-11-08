@@ -79,12 +79,17 @@ test_that("translation from parsed objects to XPath works", {
                 equals("div[@id = 'container']/descendant-or-self::*/p"))
 
     # Invalid characters in XPath element names
-    expect_that(xpath('di\ua0v'),
-                equals("*[name() = 'di v']")) # div\ua0v
+
+    # Only do the following tests on other platforms.
+    # Windows does not parse the characters correctly as unicode
+    if (.Platform$OS.type != "windows") {
+        expect_that(xpath('di\ua0v'),
+                    equals("*[name() = 'di v']")) # div\ua0v
+        expect_that(xpath('[h\ua0ref]'),
+                    equals("*[attribute::*[name() = 'h ref']]")) # h\ua0ref
+    }
     expect_that(xpath('di\\[v'),
                 equals("*[name() = 'di[v']"))
-    expect_that(xpath('[h\ua0ref]'),
-                equals("*[attribute::*[name() = 'h ref']]")) # h\ua0ref
     expect_that(xpath('[h\\]ref]'),
                 equals("*[attribute::*[name() = 'h]ref']]"))
 

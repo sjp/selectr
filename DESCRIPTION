@@ -1,8 +1,8 @@
 Package: selectr
 Type: Package
 Title: Translate CSS Selectors to XPath Expressions
-Version: 0.1-0
-Date: 2012-11-07
+Version: 0.1-1
+Date: 2012-11-09
 Authors@R: c(person("Simon", "Potter",
                     role = c("aut", "trl", "cre"),
                     email = "simon.potter@auckland.ac.nz"),

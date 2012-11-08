@@ -2,6 +2,18 @@
 \title{NEWS file for the selectr package}
 \encoding{UTF-8}
 
+\section{Changes in version 0.1-1}{
+  \subsection{BUG FIXES}{
+    \itemize{
+
+      \item Now testing unicode only in non-Windows platforms on package
+      check. Output should still be consistent, just depends on the
+      current charset being unicode.
+
+    }
+  }
+}
+
 \section{Changes in version 0.1-0}{
   \subsection{NEW FEATURES}{
     \itemize{
