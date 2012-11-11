@@ -169,7 +169,7 @@ GenericTranslator <- setRefClass("GenericTranslator",
                      "xpath_checked_pseudo")
         method <- sprintf("xpath_%s_pseudo", gsub("-", "_", pseudo$ident))
         if (! exists(method))
-            stop(sprintf("The pseudo-class :%s is unknown", fn$ident))
+            stop(sprintf("The pseudo-class :%s is unknown", pseudo$ident))
         do.call(method, list(xpath(pseudo$selector)))
     },
     xpath_attrib = function(selector) {
