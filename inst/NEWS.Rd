@@ -2,6 +2,18 @@
 \title{NEWS file for the selectr package}
 \encoding{UTF-8}
 
+\section{Changes in version 0.2-0}{
+  \subsection{NEW FEATURES}{
+    \itemize{
+
+      \item Introduced new functions 'querySelectorNS()' and
+      'querySelectorAllNS()' to ease the use of namespaces within a
+      document. Previously this would have required knowledge of XPath.
+
+    }
+  }
+}
+
 \section{Changes in version 0.1-1}{
   \subsection{BUG FIXES}{
     \itemize{

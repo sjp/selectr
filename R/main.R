@@ -39,3 +39,29 @@ querySelectorAll <- function(doc, selector, ns = NULL, ...) {
         getNodeSet(doc, xpath)
     }
 }
+
+querySelectorNS <- function(doc, selector, ns = NULL,
+                            prefix = "descendant-or-self::", ...) {
+    if (! length(ns) || length(ns) > 1)
+        stop("A single namespace must be provided.")
+    # Handle both names vectors and lists
+    nsNames <- names(ns)
+    ns <- unlist(ns)
+    names(ns) <- nsNames
+    # Call qs
+    querySelector(doc, selector, ns,
+                  prefix = sprintf(paste0("//%s:*/", prefix), names(ns)), ...)
+}
+
+querySelectorAllNS <- function(doc, selector, ns = NULL,
+                               prefix = "descendant-or-self::", ...) {
+    if (! length(ns) || length(ns) > 1)
+        stop("A single namespace must be provided.")
+    # Handle both names vectors and lists
+    nsNames <- names(ns)
+    ns <- unlist(ns)
+    names(ns) <- nsNames
+    # Call qs
+    querySelectorAll(doc, selector, ns,
+                     prefix = sprintf(paste0("//%s:*/", prefix), names(ns)), ...)
+}
