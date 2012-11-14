@@ -19,9 +19,9 @@
 \usage{
 querySelector(doc, selector, ns = NULL, ...)
 querySelectorAll(doc, selector, ns = NULL, ...)
-querySelectorNS(doc, selector, ns = NULL,
+querySelectorNS(doc, selector, ns,
                 prefix = "descendant-or-self::", ...)
-querySelectorAllNS(doc, selector, ns = NULL,
+querySelectorAllNS(doc, selector, ns,
                    prefix = "descendant-or-self::", ...)
 }
 \arguments{
@@ -36,7 +36,7 @@ querySelectorAllNS(doc, selector, ns = NULL,
     The namespace that the query will be filtered to. This is a named
     list or vector which has as its name a namespace, and its value is
     the namespace URI. This can be ignored for the un-namespaced
-    functions. This must be of length one.
+    functions.
   }
   \item{prefix}{
     The prefix to apply to the resulting XPath expression. The default
@@ -50,7 +50,7 @@ querySelectorAllNS(doc, selector, ns = NULL,
   The \code{querySelectorNS} and \code{querySelectorAllNS} functions are
   convenience functions for working with namespaced documents. They
   filter out all content that does not belong within the given
-  namespace. Note that when searching for particular elements in a
+  namespaces. Note that when searching for particular elements in a
   selector, they must have a namespace prefix, e.g. \code{"svg|g"}.
 
   The namespace argument, \code{ns}, is simply passed on to
@@ -105,4 +105,8 @@ querySelectorAllNS(doc, selector, ns = NULL,
                   c(math = "http://www.w3.org/1998/Math/MathML"))
   querySelectorAllNS(svgdoc, "math|mtext",
                      c(math = "http://www.w3.org/1998/Math/MathML"))
+  # Search for *both* SVG and MathML content
+  querySelectorAllNS(svgdoc, "svg|script, math|mo",
+                     c(svg = "http://www.w3.org/2000/svg",
+                       math = "http://www.w3.org/1998/Math/MathML"))
 }

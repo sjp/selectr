@@ -40,28 +40,34 @@ querySelectorAll <- function(doc, selector, ns = NULL, ...) {
     }
 }
 
-querySelectorNS <- function(doc, selector, ns = NULL,
+querySelectorNS <- function(doc, selector, ns,
                             prefix = "descendant-or-self::", ...) {
-    if (! length(ns) || length(ns) > 1)
-        stop("A single namespace must be provided.")
-    # Handle both names vectors and lists
-    nsNames <- names(ns)
-    ns <- unlist(ns)
-    names(ns) <- nsNames
-    # Call qs
-    querySelector(doc, selector, ns,
-                  prefix = sprintf(paste0("//%s:*/", prefix), names(ns)), ...)
+    if (missing(ns) || ! length(ns))
+        stop("A namespace must be provided.")
+    ns <- formatNS(ns)
+    prefix <- formatNSPrefix(ns, prefix)
+    querySelector(doc, selector, ns, prefix = prefix, ...)
 }
 
-querySelectorAllNS <- function(doc, selector, ns = NULL,
+querySelectorAllNS <- function(doc, selector, ns,
                                prefix = "descendant-or-self::", ...) {
-    if (! length(ns) || length(ns) > 1)
-        stop("A single namespace must be provided.")
-    # Handle both names vectors and lists
+    if (missing(ns) || ! length(ns))
+        stop("A namespace must be provided.")
+    ns <- formatNS(ns)
+    prefix <- formatNSPrefix(ns, prefix)
+    querySelectorAll(doc, selector, ns, prefix = prefix, ...)
+}
+
+# Takes a named vector or list and gives a named vector back
+formatNS <- function(ns) {
     nsNames <- names(ns)
     ns <- unlist(ns)
     names(ns) <- nsNames
-    # Call qs
-    querySelectorAll(doc, selector, ns,
-                     prefix = sprintf(paste0("//%s:*/", prefix), names(ns)), ...)
+    ns
+}
+
+formatNSPrefix <- function(ns, prefix) {
+    filters <- paste0(sprintf("//%s:*", names(ns)), collapse = "|")
+    prefix <- paste0("(", filters, ")/", prefix)
+    prefix
 }
