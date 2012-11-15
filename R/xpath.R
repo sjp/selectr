@@ -375,7 +375,7 @@ GenericTranslator <- setRefClass("GenericTranslator",
         xpath
     },
     xpath_empty_pseudo = function(xpath) {
-        xpath$add_condition("not(*) and not(normalize-space())")
+        xpath$add_condition("not(*) and not(string-length())")
         xpath
     },
     pseudo_never_matches = function(xpath) {

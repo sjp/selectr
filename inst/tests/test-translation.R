@@ -48,9 +48,9 @@ test_that("translation from parsed objects to XPath works", {
     expect_that(xpath('e:only-of-type'),
                 equals("e[last() = 1]"))            
     expect_that(xpath('e:empty'),
-                equals("e[not(*) and not(normalize-space())]"))
+                equals("e[not(*) and not(string-length())]"))
     expect_that(xpath('e:EmPTY'),
-                equals("e[not(*) and not(normalize-space())]"))
+                equals("e[not(*) and not(string-length())]"))
     expect_that(xpath('e:root'),
                 equals("e[not(parent::*)]"))
     expect_that(xpath('e:hover'),

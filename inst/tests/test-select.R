@@ -117,7 +117,7 @@ test_that("selection works correctly on a large barrage of tests", {
     #self.assertRaises(ExpressionError, pcss, 'p *:only-of-type')
     expect_that(pcss('p:only-of-type'), equals('paragraph'))
     expect_that(pcss('a:empty', 'a:EMpty'), equals('name-anchor'))
-    expect_that(pcss('li:empty'), equals(c('third-li', 'fourth-li', 'fifth-li', 'sixth-li', 'seventh-li')))
+    expect_that(pcss('li:empty'), equals(c('third-li', 'fourth-li', 'fifth-li', 'sixth-li')))
     expect_that(pcss(':root', 'html:root'), equals('html'))
     expect_that(pcss('li:root', '* :root'), equals(NULL))
     expect_that(pcss('*:contains("link")', ':CONtains("link")'), equals(c('html', 'nil', 'outer-div', 'tag-anchor', 'nofollow-anchor')))
