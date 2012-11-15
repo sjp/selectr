@@ -326,11 +326,7 @@ GenericTranslator <- setRefClass("GenericTranslator",
                          fn$arguments[[1]]$repr()))
         }
         value <- fn$arguments[[1]]$value
-        xpath$add_condition(sprintf(paste0("ancestor-or-self::*[@lang][1][starts-with(concat(",
-                                           "translate(@%s, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
-                                                          "'abcdefghijklmnopqrstuvwxyz'), ",
-                                           "'-'), %s)]", collapse = ""),
-                                    lang_attribute, xpath_literal(paste0(tolower(value), "-"))))
+        xpath$add_condition(sprintf("lang(%s)", xpath_literal(value)))
         xpath
     },
     xpath_root_pseudo = function(xpath) {
@@ -484,6 +480,19 @@ HTMLTranslator <- setRefClass("HTMLTranslator",
                    "(@checked ",
                    "and (name(.) = 'input' or name(.) = 'command')",
                    "and (@type = 'checkbox' or @type = 'radio'))"))
+        xpath
+    },
+    xpath_lang_function = function(xpath, fn) {
+        if (! (fn$argument_types() %in% c("STRING", "IDENT"))) {
+            stop(sprintf("Expected a single string or ident for :lang(), got %s",
+                         fn$arguments[[1]]$repr()))
+        }
+        value <- fn$arguments[[1]]$value
+        xpath$add_condition(sprintf(paste0("ancestor-or-self::*[@lang][1][starts-with(concat(",
+                                           "translate(@%s, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
+                                                          "'abcdefghijklmnopqrstuvwxyz'), ",
+                                           "'-'), %s)]", collapse = ""),
+                                    lang_attribute, xpath_literal(paste0(tolower(value), "-"))))
         xpath
     },
     xpath_link_pseudo = function(xpath) {
