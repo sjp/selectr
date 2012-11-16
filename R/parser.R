@@ -352,6 +352,9 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
         } else if (token_equality(peek, "DELIM", ".")) {
             stream$nxt()
             result <- Class$new(result, stream$next_ident())
+        } else if (token_equality(peek, "DELIM", "|")) {
+            stream$nxt()
+            result <- Element$new(element = stream$next_ident())
         } else if (token_equality(peek, "DELIM", "[")) {
             stream$nxt()
             result <- parse_attrib(result, stream)
