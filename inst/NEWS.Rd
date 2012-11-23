@@ -12,6 +12,19 @@
 
     }
   }
+  \subsection{BUG FIXES}{
+    \itemize{
+
+      \item Fix meaning of ':empty', whitespace is not empty.
+
+      \item Use 'lang()' for XML documents with the ':lang() CSS
+      selector'.
+
+      \item '|ident' no longer produces a parsing error, but is now
+      equivalent to just 'ident'.
+
+    }
+  }
 }
 
 \section{Changes in version 0.1-1}{

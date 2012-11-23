@@ -80,9 +80,7 @@ test_that("translation from parsed objects to XPath works", {
 
     # Invalid characters in XPath element names
 
-    # Only do the following tests on other platforms.
-    # Windows does not parse the characters correctly as unicode
-    if (.Platform$OS.type != "windows") {
+    if (localeToCharset()[1] == "UTF-8") {
         expect_that(xpath('di\ua0v'),
                     equals("*[name() = 'di v']")) # div\ua0v
         expect_that(xpath('[h\ua0ref]'),
