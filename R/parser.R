@@ -34,6 +34,9 @@ Selector <- setRefClass("Selector",
         if (! is.null(pseudo_element))
             specs[3] <- specs[3] + 1
         specs
+    },
+    show = function() {
+        cat(.self$repr(), "\n")
     }))
 
 Class <- setRefClass("Class",
@@ -53,6 +56,9 @@ Class <- setRefClass("Class",
         specs <- selector$specificity()
         specs[2] <- specs[2] + 1
         specs
+    },
+    show = function() {
+        cat(.self$repr(), "\n")
     }))
 
 Function <- setRefClass("Function",
@@ -85,6 +91,9 @@ Function <- setRefClass("Function",
         specs <- selector$specificity()
         specs[2] <- specs[2] + 1
         specs
+    },
+    show = function() {
+        cat(.self$repr(), "\n")
     }))
 
 Pseudo <- setRefClass("Pseudo",
@@ -102,6 +111,9 @@ Pseudo <- setRefClass("Pseudo",
         specs <- selector$specificity()
         specs[2] <- specs[2] + 1
         specs
+    },
+    show = function() {
+        cat(.self$repr(), "\n")
     }))
 
 Negation <- setRefClass("Negation",
@@ -119,6 +131,9 @@ Negation <- setRefClass("Negation",
         specs <- selector$specificity()
         sub_specs <- subselector$specificity()
         specs + sub_specs
+    },
+    show = function() {
+        cat(.self$repr(), "\n")
     }))
 
 Attrib <- setRefClass("Attrib",
@@ -149,6 +164,9 @@ Attrib <- setRefClass("Attrib",
         specs <- selector$specificity()
         specs[2] <- specs[2] + 1
         specs
+    },
+    show = function() {
+        cat(.self$repr(), "\n")
     }))
 
 Element <- setRefClass("Element",
@@ -159,7 +177,7 @@ Element <- setRefClass("Element",
         element <<- element
     },
     repr = function() {
-        el <- 
+        el <-
             if (! is.null(.self$element))
                 .self$element
             else
@@ -174,6 +192,9 @@ Element <- setRefClass("Element",
             c(0, 0, 1)
         else
             rep(0, 3)
+    },
+    show = function() {
+        cat(.self$repr(), "\n")
     }))
 
 Hash <- setRefClass("Hash",
@@ -191,6 +212,9 @@ Hash <- setRefClass("Hash",
         specs <- selector$specificity()
         specs[1] <- specs[1] + 1
         specs
+    },
+    show = function() {
+        cat(.self$repr(), "\n")
     }))
 
 CombinedSelector <- setRefClass("CombinedSelector",
@@ -216,6 +240,9 @@ CombinedSelector <- setRefClass("CombinedSelector",
         specs <- selector$specificity()
         sub_specs <- subselector$specificity()
         specs + sub_specs
+    },
+    show = function() {
+        cat(.self$repr(), "\n")
     }))
 
 #### Parser
@@ -339,7 +366,7 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
     while (TRUE) {
         peek <- stream$peek()
         if (any(peek$type == c("S", "EOF")) ||
-            peek$is_delim(c(",", "+", ">", "~")) || 
+            peek$is_delim(c(",", "+", ">", "~")) ||
             (inside_negation && token_equality(peek, "DELIM", ")"))) {
             break
         }
@@ -361,7 +388,7 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
         } else if (token_equality(peek, "DELIM", ":") ||
                    token_equality(peek, "DELIM", "::")) {
             if (token_equality(peek, "DELIM", "::")) {
-                stream$nxt()   
+                stream$nxt()
                 pseudo_element <- stream$next_ident()
                 next
             } else {
@@ -396,7 +423,7 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
                 if (length(argument_pseudo_element) &&
                     nchar(argument_pseudo_element)) {
                     stop(sprintf("Got pseudo-element ::%s inside :not() at %s",
-                                 argument_pseudo_element, nt$pos)) 
+                                 argument_pseudo_element, nt$pos))
                 }
                 if (! token_equality(nt, "DELIM", ")")) {
                     stop(sprintf("Expected ')', got %s", nt$value))
@@ -537,6 +564,9 @@ Token <- setRefClass("Token",
     },
     is_delim = function(values) {
         type == "DELIM" && value %in% values
+    },
+    show = function() {
+        cat(.self$repr(), "\n")
     }))
 
 EOFToken <- setRefClass("EOFToken",
@@ -547,6 +577,9 @@ EOFToken <- setRefClass("EOFToken",
     },
     repr = function() {
         sprintf("<%s at %i>", type, pos)
+    },
+    show = function() {
+        cat(.self$repr(), "\n")
     }))
 
 compile_ <- function(pattern) {
@@ -678,7 +711,7 @@ tokenize <- function(s) {
         pos1 <- pos + 1
         if (substring(s, pos, pos1) == "/*") {
             rel_pos <- str_locate(ss, "\\*/")[1]
-            pos <- 
+            pos <-
                 if (is.na(pos)) {
                     len_s
                 } else {

@@ -6,7 +6,7 @@ XPathExpr <- setRefClass("XPathExpr",
         element <<- element
         condition <<- condition
         star_prefix <<- star_prefix
-    },        
+    },
     str = function() {
         p <- paste0(path, element)
         if (nchar(condition))
@@ -40,6 +40,9 @@ XPathExpr <- setRefClass("XPathExpr",
         element <<- other$element
         condition <<- other$condition
         .self
+    },
+    show = function() {
+        cat(.self$repr(), "\n")
     }))
 
 is_safe_name <- function(name) {
@@ -77,21 +80,20 @@ GenericTranslator <- setRefClass("GenericTranslator",
     },
     css_to_xpath = function(css, prefix = "descendant-or-self::") {
         selectors <- parse(css)
-    
+
         lapply(selectors, function(selector) {
             if (class(selector) == "Selector" && ! is.null(selector$pseudo_element))
                 stop("Pseudo-elements are not supported.")
         })
-    
+
         char_selectors <-
-            if (is.list(selectors)) {
-                lapply(selectors, function(selector) {
+            if (is.list(selectors))
+                sapply(selectors, function(selector) {
                     selector_to_xpath(selector, prefix)
                 })
-            } else {
+            else
                 selector_to_xpath(selectors, prefix)
-            }
-    
+
         paste0(char_selectors, collapse = " | ")
     },
     selector_to_xpath = function(selector, prefix = "descendant-or-self::") {
@@ -104,7 +106,7 @@ GenericTranslator <- setRefClass("GenericTranslator",
     xpath_literal = function(s) {
         lenseq <- 1:nchar(s)
         split_chars <- substring(s, lenseq, lenseq)
-    
+
         if (! any(split_chars == "'")) {
             s <- paste0("'", s, "'")
         } else if (! any(split_chars == '"')) {
@@ -114,11 +116,11 @@ GenericTranslator <- setRefClass("GenericTranslator",
             sq_inds <- which(split_chars != "'")
             split_chars[dq_inds] <- paste0('"', split_chars[dq_inds], '"')
             split_chars[sq_inds] <- paste0("'", split_chars[sq_inds], "'")
-    
+
             literal <- paste(split_chars, collapse = ",")
             s <- sprintf("concat(%s)", literal)
         }
-    
+
         s
     },
     xpath = function(parsed_selector) {
@@ -393,7 +395,7 @@ GenericTranslator <- setRefClass("GenericTranslator",
     xpath_enabled_pseudo = function(xpath) { xpath$add_condition("0") ; xpath },
     xpath_disabled_pseudo = function(xpath) { xpath$add_condition("0") ; xpath },
     xpath_checked_pseudo = function(xpath) { xpath$add_condition("0") ; xpath },
-    
+
     xpath_attrib_exists = function(xpath, name, value) {
         xpath$add_condition(name)
         xpath
