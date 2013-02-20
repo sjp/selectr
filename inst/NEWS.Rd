@@ -2,6 +2,30 @@
 \title{NEWS file for the selectr package}
 \encoding{UTF-8}
 
+\section{Changes in version 0.2-1}{
+  \subsection{MINOR FEATURES}{
+    \itemize{
+
+      \item Added a 'CITATION' file which cites a technical report on
+      the package.
+
+      \item 'show()' methods are now available on internal objects,
+      making interactive extensibility and bug-fixing easier. This is
+      simply wrapping the 'repr()' methods (mirroring the Python source)
+      that the same objects have.
+
+    }
+  }
+  \subsection{BUG FIXES}{
+    \itemize{
+
+      \item Use the session character encoding to determine whether to
+      run unicode tests. Tests break in non-unicode sessions otherwise.
+
+    }
+  }
+}
+
 \section{Changes in version 0.2-0}{
   \subsection{NEW FEATURES}{
     \itemize{
@@ -17,8 +41,8 @@
 
       \item Fix meaning of ':empty', whitespace is not empty.
 
-      \item Use 'lang()' for XML documents with the ':lang() CSS
-      selector'.
+      \item Use 'lang()' for XML documents with the ':lang()' CSS
+      selector.
 
       \item '|ident' no longer produces a parsing error, but is now
       equivalent to just 'ident'.
