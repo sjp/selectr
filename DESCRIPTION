@@ -1,18 +1,17 @@
 Package: selectr
 Type: Package
 Title: Translate CSS Selectors to XPath Expressions
-Version: 0.2-1
-Date: 2013-02-21
+Version: 0.2-2
+Date: 2013-09-05
 Authors@R: c(person("Simon", "Potter",
                     role = c("aut", "trl", "cre"),
                     email = "simon.potter@auckland.ac.nz"),
              person("Simon", "Sapin", role = "aut"),
              person("Ian", "Bicking", role = "aut"))
-License: BSD
+License: BSD_3_clause
 Depends: R (>= 2.15.2)
 Imports: methods, XML, stringr
 Suggests: testthat
-Enhances: XML
 Description: Translates a CSS3 selector into an equivalent XPath
   expression. This allows us to use CSS selectors when working with
   the XML package as it can only evaluate XPath expressions. Also

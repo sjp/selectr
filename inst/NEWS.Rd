@@ -2,6 +2,23 @@
 \title{NEWS file for the selectr package}
 \encoding{UTF-8}
 
+\section{Changes in version 0.2-2}{
+  \subsection{MINOR CHANGES}{
+    \itemize{
+
+      \item Corrected licence to BSD 3 clause. This was the licence in
+      use previously, but has now been made more explicit.
+
+      \item Removed 'Enhances' field because we import functions from
+      'XML'. This choice is made because 'XML' is a *required* package,
+      rather than an optional package that can be worked with. This and
+      the previous change have been made to keep up with recent changes
+      in R-devel.
+
+    }
+  }
+}
+
 \section{Changes in version 0.2-1}{
   \subsection{MINOR FEATURES}{
     \itemize{
