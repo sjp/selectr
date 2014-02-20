@@ -8,7 +8,7 @@ Authors@R: c(person("Simon", "Potter",
                     email = "simon.potter@auckland.ac.nz"),
              person("Simon", "Sapin", role = "aut"),
              person("Ian", "Bicking", role = "aut"))
-License: BSD_3_clause
+License: BSD_3_clause + file LICENCE
 Depends: R (>= 2.15.2)
 Imports: methods, XML, stringr
 Suggests: testthat
