@@ -92,7 +92,7 @@ querySelectorAllNS(doc, selector, ns,
 
   # Read in a document where two namespaces are being set:
   # SVG and MathML
-  svgdoc <- xmlParse(system.file("tests/svg-mathml.svg",
+  svgdoc <- xmlParse(system.file("demos/svg-mathml.svg",
                                  package = "selectr"))
   # Search for <script/> elements in the SVG namespace
   querySelectorNS(svgdoc, "svg|script",
