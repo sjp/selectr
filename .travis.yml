@@ -1,22 +1,21 @@
-# Change when R support is available on Travis CI
-language: python
+language: c
 
-env:
-  - R_LIBS_USER=~/R
+before_install:
+  - curl -OL http://raw.github.com/craigcitro/r-travis/master/scripts/travis-tool.sh
+  - chmod 755 ./travis-tool.sh
+  - ./travis-tool.sh bootstrap
 
-# Install dependencies
 install:
-  - sudo apt-add-repository -y 'deb http://cran.rstudio.com/bin/linux/ubuntu precise/'
-  - sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E084DAB9
-  - sudo apt-add-repository -y ppa:marutter/c2d4u
-  - sudo apt-get update
-  - sudo apt-get install r-base-dev r-cran-xml qpdf texinfo texlive-latex-extra texlive-fonts-recommended texlive-fonts-extra
-  - "[ ! -d ~/R ] && mkdir ~/R"
-  - R --version
-  - R -e '.libPaths(); sessionInfo()'
-  - Rscript -e 'install.packages("selectr", dep = TRUE, repos = "http://cran.rstudio.org")'
+  - ./travis-tool.sh r_binary_install XML stringr
+  - ./travis-tool.sh install_deps
 
-# Run package checks
 script:
-  - make install
-  - make check
+  - ./travis-tool.sh run_tests
+
+on_failure:
+  - ./travis-tool.sh dump_logs
+
+notifications:
+  email:
+    on_success: change
+    on_failure: change
