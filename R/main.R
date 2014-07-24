@@ -1,24 +1,16 @@
 css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator = "generic") {
-    ns <- length(selector)
-    np <- length(prefix)
-    nt <- length(translator)
-    n <- max(ns, np, nt)
-    selector <- rep(selector, length.out = n)
-    prefix <- rep(prefix, length.out = n)
-    translator <- rep(translator, length.out = n)
-    results <- character(n)
-    for (i in 1:n) {
-        tran <-
-            if (translator[i] == "html") {
-                HTMLTranslator$new()
-            } else if (translator[i] == "xhtml") {
-                HTMLTranslator$new(xhtml = TRUE)
-            } else {
-                GenericTranslator$new()
-            }
-        results[i] <- tran$css_to_xpath(selector[i], prefix = prefix[i])
-    }
-    results
+    n <- max(vapply(list(selector,prefix,translator),length,integer(1L)))
+    results <- Map(function(i,selector,prefix,translator) {
+      tran <- if (translator == "html") {
+        HTMLTranslator$new()
+      } else if (translator == "xhtml") {
+        HTMLTranslator$new(xhtml = TRUE)
+      } else {
+        GenericTranslator$new()
+      }
+      tran$css_to_xpath(selector, prefix = prefix)
+    }, 1L:n, selector, prefix, translator)
+    as.character(results)
 }
 
 querySelector <- function(doc, selector, ns = NULL, ...) {
