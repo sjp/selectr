@@ -1,6 +1,5 @@
 css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator = "generic") {
-    n <- max(vapply(list(selector, prefix, translator), length, 1L))
-    results <- Map(function(i, selector, prefix, translator) {
+    results <- Map(function(selector, prefix, translator) {
         tran <- if (translator == "html") {
             HTMLTranslator$new()
         } else if (translator == "xhtml") {
@@ -9,7 +8,7 @@ css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator =
             GenericTranslator$new()
         }
         tran$css_to_xpath(selector, prefix = prefix)
-    }, seq_len(n), selector, prefix, translator)
+    }, selector, prefix, translator)
     as.character(results)
 }
 
