@@ -2,6 +2,16 @@
 \title{NEWS file for the selectr package}
 \encoding{UTF-8}
 
+\section{Changes in version 0.2-3}{
+  \subsection{MINOR CHANGES}{
+    \itemize{
+
+      \item Code cleanup contributed by Kun Ren (#1).
+
+    }
+  }
+}
+
 \section{Changes in version 0.2-2}{
   \subsection{MINOR CHANGES}{
     \itemize{

@@ -1,15 +1,15 @@
 css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator = "generic") {
-    n <- max(vapply(list(selector,prefix,translator),length,integer(1L)))
-    results <- Map(function(i,selector,prefix,translator) {
-      tran <- if (translator == "html") {
-        HTMLTranslator$new()
-      } else if (translator == "xhtml") {
-        HTMLTranslator$new(xhtml = TRUE)
-      } else {
-        GenericTranslator$new()
-      }
-      tran$css_to_xpath(selector, prefix = prefix)
-    }, 1L:n, selector, prefix, translator)
+    n <- max(vapply(list(selector, prefix, translator), length, 1L))
+    results <- Map(function(i, selector, prefix, translator) {
+        tran <- if (translator == "html") {
+            HTMLTranslator$new()
+        } else if (translator == "xhtml") {
+            HTMLTranslator$new(xhtml = TRUE)
+        } else {
+            GenericTranslator$new()
+        }
+        tran$css_to_xpath(selector, prefix = prefix)
+    }, seq_len(n), selector, prefix, translator)
     as.character(results)
 }
 
