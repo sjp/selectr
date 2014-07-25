@@ -1,5 +1,5 @@
 css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator = "generic") {
-    results <- Map(function(selector,prefix,translator) {
+    results <- Map(function(selector, prefix, translator) {
       tran <- if (translator == "html") {
         HTMLTranslator$new()
       } else if (translator == "xhtml") {
