@@ -10,6 +10,15 @@
 
     }
   }
+  \subsection{BUG FIXES}{
+    \itemize{
+
+      \item Fix behaviour for nth-*(an+b) pseudo-class selectors for
+      negative a's. Contributed to cssselect by Paul Tremberth,
+      ported to R.
+
+    }
+  }
 }
 
 \section{Changes in version 0.2-2}{

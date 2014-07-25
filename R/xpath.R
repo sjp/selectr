@@ -258,32 +258,80 @@ GenericTranslator <- setRefClass("GenericTranslator",
             xpath$add_name_test()
         }
         xpath$add_star_prefix()
-        if (a == 0) {
-            if (last) {
-                b <- sprintf("last() - %s", b)
-            }
-            xpath$add_condition(sprintf("position() = %s", b))
-            return(xpath)
-        }
-        if (last) {
-            # FIXME: I'm not sure if this is right
-            a <- -a
-            b <- -b
-        }
+        # non-last
+        # --------
+        #    position() = an+b
+        # -> position() - b = an
+        #
+        # if a < 0:
+        #    position() - b < 0
+        # -> position() < b
+        #
+        # last
+        # ----
+        #    last() - position() = an+b -1
+        # -> last() - position() - b +1 = an
+        #
+        # if a < 0:
+        #    last() - position() - b +1 < 0
+        # -> position() > last() - b +1
+        #
         if (b > 0) {
             b_neg <- as.character(-b)
         } else {
             b_neg <- sprintf("+%s", -b)
         }
+        if (a == 0) {
+            if (last) {
+                # http://www.w3.org/TR/selectors/#nth-last-child-pseudo
+                # The :nth-last-child(an+b) pseudo-class notation represents
+                # an element that has an+b-1 siblings after it in the document tree
+                #
+                #    last() - position() = an+b-1
+                # -> position() = last() -b +1 (for a==0)
+                #
+                if (b == 1) {
+                    b <- "last()"
+                } else {
+                    b <- sprintf("last() %s +1", b_neg)
+                }
+            }
+            xpath$add_condition(sprintf("position() = %s", b))
+            return(xpath)
+        }
         if (a != 1) {
-            expr <- sprintf("(position() %s) mod %s = 0", b_neg, a)
+            if (last) {
+                if (b == 0) {
+                    expr <- sprintf("(last() - position() +1) mod %s = 0", a)
+                } else {
+                    expr <- sprintf("(last() - position() %s +1) mod %s = 0",
+                                    b_neg, a)
+                }
+            } else {
+                if (b == 0) {
+                    expr <- sprintf("position() mod %s = 0", a)
+                } else {
+                    expr <- sprintf("(position() %s) mod %s = 0", b_neg, a)
+                }
+            }
         } else {
             expr <- character(0)
         }
-        if (b >= 0) {
-            expr <- c(expr, sprintf("position() >= %s", b))
-        } else if (b < 0 && last) {
-            expr <- c(expr, sprintf("position() < (last() %s)", b))
+        if (last) {
+            tmpop <- if (a > 0) "<=" else ">="
+            if (b == 0) {
+                expr <- c(expr, sprintf("(position() %s last() +1)", tmpop))
+            } else {
+                expr <- c(expr, sprintf("position() %s (last() %s +1)", tmpop, b_neg))
+            }
+        } else {
+            tmpop <- if (a > 0) ">=" else "<="
+            if (b > 0) {
+                # position() > 0 so if b < 0, position() > b, always
+                expr <- c(expr, sprintf("position() %s %s", tmpop, b))
+            } else if (b == 0) {
+                expr <- c(expr, "position()")
+            }
         }
         expr <- paste0(expr, collapse = " and ")
         if (length(expr)) {

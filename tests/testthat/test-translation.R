@@ -25,16 +25,24 @@ test_that("translation from parsed objects to XPath works", {
                 equals("e[@hreflang and (@hreflang = 'en' or starts-with(@hreflang, 'en-'))]"))
     expect_that(xpath('e:nth-child(1)'),
                 equals("*/*[name() = 'e' and (position() = 1)]"))
+    expect_that(xpath('e:nth-child(3n+2)'),
+                equals("*/*[name() = 'e' and ((position() -2) mod 3 = 0 and position() >= 2)]"))
+    expect_that(xpath('e:nth-child(3n-2)'),
+                equals("*/*[name() = 'e' and ((position() +2) mod 3 = 0)]"))
+    expect_that(xpath('e:nth-child(-n+6)'),
+                equals("*/*[name() = 'e' and ((position() -6) mod -1 = 0 and position() <= 6)]"))
     expect_that(xpath('e:nth-last-child(1)'),
-                equals("*/*[name() = 'e' and (position() = last() - 1)]"))
+                equals("*/*[name() = 'e' and (position() = last())]"))
+    expect_that(xpath('e:nth-last-child(2n)'),
+                equals("*/*[name() = 'e' and ((last() - position() +1) mod 2 = 0 and (position() <= last() +1))]"))
     expect_that(xpath('e:nth-last-child(2n+2)'),
-                equals("*/*[name() = 'e' and ((position() +2) mod -2 = 0 and position() < (last() -2))]"))
+                equals("*/*[name() = 'e' and ((last() - position() -2 +1) mod 2 = 0 and position() <= (last() -2 +1))]"))
     expect_that(xpath('e:nth-of-type(1)'),
                 equals("*/e[position() = 1]"))
     expect_that(xpath('e:nth-last-of-type(1)'),
-                equals("*/e[position() = last() - 1]"))
+                equals("*/e[position() = last()]"))
     expect_that(xpath('div e:nth-last-of-type(1) .aclass'),
-                equals("div/descendant-or-self::*/e[position() = last() - 1]/descendant-or-self::*/*[@class and contains(concat(' ', normalize-space(@class), ' '), ' aclass ')]"))
+                equals("div/descendant-or-self::*/e[position() = last()]/descendant-or-self::*/*[@class and contains(concat(' ', normalize-space(@class), ' '), ' aclass ')]"))
     expect_that(xpath('e:first-child'),
                 equals("*/*[name() = 'e' and (position() = 1)]"))
     expect_that(xpath('e:last-child'),
