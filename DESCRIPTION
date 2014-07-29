@@ -5,7 +5,7 @@ Version: 0.2-3
 Date: 2014-02-21
 Authors@R: c(person("Simon", "Potter",
                     role = c("aut", "trl", "cre"),
-                    email = "simon.potter@auckland.ac.nz"),
+                    email = "simon@sjp.co.nz"),
              person("Simon", "Sapin", role = "aut"),
              person("Ian", "Bicking", role = "aut"))
 License: BSD_3_clause + file LICENCE
