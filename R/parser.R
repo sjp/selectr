@@ -590,7 +590,7 @@ compile_ <- function(pattern) {
 
 delims_2ch <- c('~=', '|=', '^=', '$=', '*=', '::', '!=')
 delims_1ch <- c('>', '+', '~', ',', '.', '*', '=', '[', ']', '(', ')', '|', ':', '#')
-delim_escapes <- paste0(delims_1ch, collapse = "|")
+delim_escapes <- paste0("\\", delims_1ch, collapse = "|")
 match_whitespace <- compile_('[ \t\r\n\f]+')
 match_number <- compile_('[+-]?(?:[0-9]*\\.[0-9]+|[0-9]+)')
 match_hash <- compile_(sprintf("^#([_a-zA-Z0-9-]|%s|\\\\(?:%s))+", nonascii, delim_escapes))#sprintf('#(?:%s)+', TokenMacros$nmchar))
