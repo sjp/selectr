@@ -8,6 +8,9 @@
 
       \item Code cleanup contributed by Kun Ren (#1).
 
+      \item Updated DESCRIPTION to include URL and BugReports fields.
+      Also update email address.
+
     }
   }
   \subsection{BUG FIXES}{
@@ -16,6 +19,10 @@
       \item Fix behaviour for nth-*(an+b) pseudo-class selectors for
       negative a's. Contributed to cssselect by Paul Tremberth,
       ported to R.
+
+      \item Escape delimiting characters to support new version of the
+      stringr package. Probably should have been done in the first place.
+      Reported by Hadley Wickham (#5).
 
     }
   }
