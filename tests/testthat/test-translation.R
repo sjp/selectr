@@ -70,9 +70,9 @@ test_that("translation from parsed objects to XPath works", {
     expect_that(xpath('e:hover'),
                 equals("e[0]")) #never matches
     expect_that(xpath('e:contains("foo")'),
-                equals("e[contains(string(.), 'foo')]"))
+                equals("e[contains(., 'foo')]"))
     expect_that(xpath('e:ConTains(foo)'),
-                equals("e[contains(string(.), 'foo')]"))
+                equals("e[contains(., 'foo')]"))
     expect_that(xpath('e.warning'),
                 equals("e[@class and contains(concat(' ', normalize-space(@class), ' '), ' warning ')]"))
     expect_that(xpath('e#myid'),

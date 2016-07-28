@@ -410,7 +410,7 @@ GenericTranslator <- setRefClass("GenericTranslator",
                          paste0("(", paste0(fn$argument_types(), collapse = ", "), ")")))
         }
         value <- fn$arguments[[1]]$value
-        xpath$add_condition(sprintf("contains(string(.), %s)", xpath_literal(value)))
+        xpath$add_condition(sprintf("contains(., %s)", xpath_literal(value)))
         xpath
     },
     xpath_lang_function = function(xpath, fn) {
