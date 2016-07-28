@@ -96,12 +96,13 @@ test_that("selection works correctly on a large barrage of tests", {
     # ... :lang() is not.
     expect_that(pcss(':lang("EN")', '*:lang(en-US)', html_only=TRUE), equals(c('second-li', 'li-div')))
     expect_that(pcss(':lang("e")', html_only=TRUE), equals(NULL))
+    expect_that(pcss('li:nth-child(-n)'), equals(NULL))
+    expect_that(pcss('li:nth-child(n)'), equals(c('first-li', 'second-li', 'third-li', 'fourth-li', 'fifth-li', 'sixth-li', 'seventh-li')))
     expect_that(pcss('li:nth-child(3)'), equals('third-li'))
     expect_that(pcss('li:nth-child(10)'), equals(NULL))
     expect_that(pcss('li:nth-child(2n)', c('li:nth-child(even)', 'li:nth-child(2n+0)')), equals(c('second-li', 'fourth-li', 'sixth-li')))
     expect_that(pcss('li:nth-child(+2n+1)', 'li:nth-child(odd)'), equals(c('first-li', 'third-li', 'fifth-li', 'seventh-li')))
     expect_that(pcss('li:nth-child(2n+4)'), equals(c('fourth-li', 'sixth-li')))
-    ## FIXME: I'm not 100% sure this is right:
     expect_that(pcss('li:nth-child(3n+1)'), equals(c('first-li', 'fourth-li', 'seventh-li')))
     expect_that(pcss('li:nth-child(-n+3)'), equals(c('first-li', 'second-li', 'third-li')))
     expect_that(pcss('li:nth-child(-2n+4)'), equals(c('second-li', 'fourth-li')))

@@ -24,37 +24,43 @@ test_that("translation from parsed objects to XPath works", {
     expect_that(xpath('e[hreflang|="en"]'),
                 equals("e[@hreflang and (@hreflang = 'en' or starts-with(@hreflang, 'en-'))]"))
     expect_that(xpath('e:nth-child(1)'),
-                equals("*/*[name() = 'e' and (position() = 1)]"))
+                equals("e[count(preceding-sibling::*) = 0]"))
     expect_that(xpath('e:nth-child(3n+2)'),
-                equals("*/*[name() = 'e' and ((position() -2) mod 3 = 0 and position() >= 2)]"))
+                equals("e[count(preceding-sibling::*) >= 1 and (count(preceding-sibling::*) +2) mod 3 = 0]"))
     expect_that(xpath('e:nth-child(3n-2)'),
-                equals("*/*[name() = 'e' and ((position() +2) mod 3 = 0)]"))
+                equals("e[count(preceding-sibling::*) mod 3 = 0]"))
     expect_that(xpath('e:nth-child(-n+6)'),
-                equals("*/*[name() = 'e' and ((position() -6) mod -1 = 0 and position() <= 6)]"))
+                equals("e[count(preceding-sibling::*) <= 5]"))
     expect_that(xpath('e:nth-last-child(1)'),
-                equals("*/*[name() = 'e' and (position() = last())]"))
+                equals("e[count(following-sibling::*) = 0]"))
     expect_that(xpath('e:nth-last-child(2n)'),
-                equals("*/*[name() = 'e' and ((last() - position() +1) mod 2 = 0 and (position() <= last() +1))]"))
+                equals("e[(count(following-sibling::*) +1) mod 2 = 0]"))
+    expect_that(xpath('e:nth-last-child(2n+1)'),
+                equals("e[count(following-sibling::*) mod 2 = 0]"))
     expect_that(xpath('e:nth-last-child(2n+2)'),
-                equals("*/*[name() = 'e' and ((last() - position() -2 +1) mod 2 = 0 and position() <= (last() -2 +1))]"))
+                equals("e[count(following-sibling::*) >= 1 and (count(following-sibling::*) +1) mod 2 = 0]"))
+    expect_that(xpath('e:nth-last-child(3n+1)'),
+                equals("e[count(following-sibling::*) mod 3 = 0]"))
+    expect_that(xpath('e:nth-last-child(-n+2)'),
+                equals("e[count(following-sibling::*) <= 1]"))
     expect_that(xpath('e:nth-of-type(1)'),
-                equals("*/e[position() = 1]"))
+                equals("e[count(preceding-sibling::e) = 0]"))
     expect_that(xpath('e:nth-last-of-type(1)'),
-                equals("*/e[position() = last()]"))
+                equals("e[count(following-sibling::e) = 0]"))
     expect_that(xpath('div e:nth-last-of-type(1) .aclass'),
-                equals("div/descendant-or-self::*/e[position() = last()]/descendant-or-self::*/*[@class and contains(concat(' ', normalize-space(@class), ' '), ' aclass ')]"))
+                equals("div/descendant::e[count(following-sibling::e) = 0]/descendant::*[@class and contains(concat(' ', normalize-space(@class), ' '), ' aclass ')]"))
     expect_that(xpath('e:first-child'),
-                equals("*/*[name() = 'e' and (position() = 1)]"))
+                equals("e[count(preceding-sibling::*) = 0]"))
     expect_that(xpath('e:last-child'),
-                equals("*/*[name() = 'e' and (position() = last())]"))
+                equals("e[count(following-sibling::*) = 0]"))
     expect_that(xpath('e:first-of-type'),
-                equals("*/e[position() = 1]"))
+                equals("e[count(preceding-sibling::e) = 0]"))
     expect_that(xpath('e:last-of-type'),
-                equals("*/e[position() = last()]"))
+                equals("e[count(following-sibling::e) = 0]"))
     expect_that(xpath('e:only-child'),
-                equals("*/*[name() = 'e' and (last() = 1)]"))
+                equals("e[count(parent::*/child::*) = 1]"))
     expect_that(xpath('e:only-of-type'),
-                equals("e[last() = 1]"))            
+                equals("e[count(parent::*/child::e) = 1]"))
     expect_that(xpath('e:empty'),
                 equals("e[not(*) and not(string-length())]"))
     expect_that(xpath('e:EmPTY'),
@@ -72,19 +78,21 @@ test_that("translation from parsed objects to XPath works", {
     expect_that(xpath('e#myid'),
                 equals("e[@id = 'myid']"))
     expect_that(xpath('e:not(:nth-child(odd))'),
-                equals("e[not((position() -1) mod 2 = 0 and position() >= 1)]"))
+                equals("e[not(count(preceding-sibling::*) mod 2 = 0)]"))
     expect_that(xpath('e:nOT(*)'),
                 equals("e[0]")) # never matches        
     expect_that(xpath('e f'),
-                equals("e/descendant-or-self::*/f"))
+                equals("e/descendant::f"))
     expect_that(xpath('e > f'),
                 equals("e/f"))
     expect_that(xpath('e + f'),
                 equals("e/following-sibling::*[name() = 'f' and (position() = 1)]"))
     expect_that(xpath('e ~ f'),
                 equals("e/following-sibling::f"))
+    expect_that(xpath('e ~ f:nth-child(3)'),
+                equals("e/following-sibling::f[count(preceding-sibling::*) = 2]"))
     expect_that(xpath('div#container p'),
-                equals("div[@id = 'container']/descendant-or-self::*/p"))
+                equals("div[@id = 'container']/descendant::p"))
 
     # Invalid characters in XPath element names
 
