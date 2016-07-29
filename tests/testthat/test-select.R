@@ -44,7 +44,7 @@ test_that("selection works correctly on a large barrage of tests", {
         if (! n)
             return(NULL)
         result <- character(n)
-        for (i in 1:n) {
+        for (i in seq_len(n)) {
             element <- items[[i]]
             tmp <- xmlAttrs(element)["id"]
             if (is.null(tmp))
@@ -58,7 +58,7 @@ test_that("selection works correctly on a large barrage of tests", {
         result <- select_ids(main, html_only)
         if (! is.null(selectors) && length(selectors)) {
             n <- length(selectors)
-            for (i in 1:n) {
+            for (i in seq_len(n)) {
                 tmp_res <- select_ids(selectors[i], html_only = html_only)
                 if (! is.null(result) && ! is.null(tmp_res) &&
                     tmp_res != result)

@@ -104,7 +104,7 @@ GenericTranslator <- setRefClass("GenericTranslator",
         paste0(if (! is.null(prefix)) prefix else "", xpath$str())
     },
     xpath_literal = function(s) {
-        lenseq <- 1:nchar(s)
+        lenseq <- seq_len(nchar(s))
         split_chars <- substring(s, lenseq, lenseq)
 
         if (! any(split_chars == "'")) {

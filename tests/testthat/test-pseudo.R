@@ -5,7 +5,7 @@ test_that("parser parses canonical pseudo element expressions", {
         selectors <- lapply(css, function(x) parse(x))
         n <- length(selectors)
         results <- list()
-        for (i in 1:n) {
+        for (i in seq_len(n)) {
             selector <- selectors[[i]]
             if (is.list(selector)) {
                 results[[i]] <- lapply(selector,
@@ -21,7 +21,10 @@ test_that("parser parses canonical pseudo element expressions", {
                 results[[i]] <- list(list(selector$repr(), pseudo))
             }
         }
-        results[[1:n]]
+        if (n)
+            results[[seq_len(n)]]
+        else
+            results
     }
 
     parse_one <- function(css) {

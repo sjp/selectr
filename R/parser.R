@@ -656,7 +656,7 @@ tokenize <- function(s) {
             next
         }
         # Testing presence of two char delims
-        nc_inds <- 1:nchar(ss)
+        nc_inds <- seq_len(nchar(ss))
         if (length(nc_inds) %% 2 == 1)
             nc_inds <- c(nc_inds, length(nc_inds) + 1)
         split_ss_2ch <- substring(ss, nc_inds[(nc_inds %% 2) == 1],
@@ -686,7 +686,7 @@ tokenize <- function(s) {
             matching_quotes <- which(split_chars == quote)
             is_escaped <- logical(length(matching_quotes))
             if (length(matching_quotes)) {
-                for (j in 1:length(matching_quotes)) {
+                for (j in seq_along(matching_quotes)) {
                     end_quote <- matching_quotes[j]
                     if (end_quote > 1) {
                         is_escaped[j] <- split_chars[end_quote - 1] == "\\"

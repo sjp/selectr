@@ -5,7 +5,7 @@ test_that("parser parses canonical test expressions", {
         selectors <- lapply(css, function(x) parse(x))
         n <- length(selectors)
         results <- list()
-        for (i in 1:n) {
+        for (i in seq_len(n)) {
             selector <- selectors[[i]]
             if (is.list(selector)) {
                 results[[i]] <- unlist(lapply(selector, function(x) x$repr()))#$parsed_tree$repr()
@@ -13,7 +13,10 @@ test_that("parser parses canonical test expressions", {
                 results[[i]] <- selector$repr()
             }
         }
-        unlist(results)
+        if (n)
+            unlist(results)
+        else
+            character(0)
     }
 
     expect_that(parse_many("*"), equals("Element[*]"))

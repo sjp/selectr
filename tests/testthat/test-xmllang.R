@@ -22,7 +22,7 @@ test_that("xml lang function matches correct elements", {
         if (! n)
             return(NULL)
         result <- character(n)
-        for (i in 1:n) {
+        for (i in seq_len(n)) {
             element <- items[[i]]
             tmp <- xmlAttrs(element)["id"]
             if (is.null(tmp))
