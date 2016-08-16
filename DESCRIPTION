@@ -2,7 +2,7 @@ Package: selectr
 Type: Package
 Title: Translate CSS Selectors to XPath Expressions
 Version: 0.2-4
-Date: 2014-12-24
+Date: 2016-08-24
 Authors@R: c(person("Simon", "Potter",
                     role = c("aut", "trl", "cre"),
                     email = "simon@sjp.co.nz"),
@@ -10,8 +10,8 @@ Authors@R: c(person("Simon", "Potter",
              person("Ian", "Bicking", role = "aut"))
 License: BSD_3_clause + file LICENCE
 Depends: R (>= 2.15.2)
-Imports: methods, XML, stringr
-Suggests: testthat
+Imports: methods, stringr
+Suggests: testthat, XML, xml2
 URL: https://sjp.co.nz/projects/selectr
 BugReports: https://github.com/sjp/selectr/issues
 Description: Translates a CSS3 selector into an equivalent XPath
@@ -19,4 +19,4 @@ Description: Translates a CSS3 selector into an equivalent XPath
   the XML package as it can only evaluate XPath expressions. Also
   provided are convenience functions useful for using CSS selectors on
   XML nodes. This package is a port of the Python package "cssselect"
-  (http://packages.python.org/cssselect/).
+  (https://pythonhosted.org/cssselect/).

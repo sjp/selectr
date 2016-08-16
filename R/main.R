@@ -13,6 +13,47 @@ css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator =
 }
 
 querySelector <- function(doc, selector, ns = NULL, ...) {
+    tryLoadNamespaces()
+    UseMethod("querySelector", doc)
+}
+
+querySelectorAll <- function(doc, selector, ns = NULL, ...) {
+    tryLoadNamespaces()
+    UseMethod("querySelectorAll", doc)
+}
+
+querySelectorNS <- function(doc, selector, ns,
+                            prefix = "descendant-or-self::", ...) {
+    tryLoadNamespaces()
+    UseMethod("querySelectorNS", doc)
+}
+
+querySelectorAllNS <- function(doc, selector, ns,
+                               prefix = "descendant-or-self::", ...) {
+    tryLoadNamespaces()
+    UseMethod("querySelectorAllNS", doc)
+}
+
+querySelector.default <- function(doc, selector, ns = NULL, ...) {
+    stop("The object given to querySelector() is not an 'XML' or 'xml2' document or node.")
+}
+
+querySelectorAll.default <- function(doc, selector, ns = NULL, ...) {
+    stop("The object given to querySelectorAll() is not an 'XML' or 'xml2' document or node.")
+}
+
+querySelectorNS.default <- function(doc, selector, ns,
+                                    prefix = "descendant-or-self::", ...) {
+    stop("The object given to querySelectorNS() is not an 'XML' or 'xml2' document or node.")
+}
+
+querySelectorAllNS.default <- function(doc, selector, ns,
+                                    prefix = "descendant-or-self::", ...) {
+    stop("The object given to querySelectorAllNS() is not an 'XML' or 'xml2' document or node.")
+}
+
+querySelector.XMLInternalNode     <-
+querySelector.XMLInternalDocument <- function(doc, selector, ns = NULL, ...) {
     results <- querySelectorAll(doc, selector, ns, ...)
     if (length(results))
         results[[1]]
@@ -20,19 +61,27 @@ querySelector <- function(doc, selector, ns = NULL, ...) {
         NULL
 }
 
-querySelectorAll <- function(doc, selector, ns = NULL, ...) {
-    if (inherits(doc, "XMLInternalDocument"))
-        doc <- xmlRoot(doc)
+querySelectorAll.XMLInternalNode <- function(doc, selector, ns = NULL, ...) {
+    if (!requireNamespace("XML"))
+        stop("The 'XML' package is required to query this object.")
     xpath <- css_to_xpath(selector, ...)
     if (! is.null(ns)) {
-        getNodeSet(doc, xpath, ns)
+        XML::getNodeSet(doc, xpath, ns)
     } else {
-        getNodeSet(doc, xpath)
+        XML::getNodeSet(doc, xpath)
     }
 }
 
-querySelectorNS <- function(doc, selector, ns,
-                            prefix = "descendant-or-self::", ...) {
+querySelectorAll.XMLInternalDocument <- function(doc, selector, ns = NULL, ...) {
+    if (!requireNamespace("XML"))
+        stop("The 'XML' package is required to query this object.")
+    doc <- XML::xmlRoot(doc)
+    querySelectorAll(doc, selector, ns, ...)
+}
+
+querySelectorNS.XMLInternalNode     <-
+querySelectorNS.XMLInternalDocument <- function(doc, selector, ns,
+                                                prefix = "descendant-or-self::", ...) {
     if (missing(ns) || ! length(ns))
         stop("A namespace must be provided.")
     ns <- formatNS(ns)
@@ -40,8 +89,45 @@ querySelectorNS <- function(doc, selector, ns,
     querySelector(doc, selector, ns, prefix = prefix, ...)
 }
 
-querySelectorAllNS <- function(doc, selector, ns,
-                               prefix = "descendant-or-self::", ...) {
+querySelectorAllNS.XMLInternalNode     <-
+querySelectorAllNS.XMLInternalDocument <- function(doc, selector, ns,
+                                                   prefix = "descendant-or-self::", ...) {
+    if (missing(ns) || ! length(ns))
+        stop("A namespace must be provided.")
+    ns <- formatNS(ns)
+    prefix <- formatNSPrefix(ns, prefix)
+    querySelectorAll(doc, selector, ns, prefix = prefix, ...)
+}
+
+querySelector.xml_node <- function(doc, selector, ns = NULL, ...) {
+    if (is.null(ns))
+        ns <- xml2::xml_ns(doc)
+    xpath <- css_to_xpath(selector, ...)
+    result <- xml2::xml_find_first(doc, xpath, ns)
+    if (length(result))
+        result
+    else
+        NULL
+}
+
+querySelectorAll.xml_node <- function(doc, selector, ns = NULL, ...) {
+    if (is.null(ns))
+        ns <- xml2::xml_ns(doc)
+    xpath <- css_to_xpath(selector, ...)
+    xml2::xml_find_all(doc, xpath, ns)
+}
+
+querySelectorNS.xml_node <- function(doc, selector, ns,
+                                     prefix = "descendant-or-self::", ...) {
+    if (missing(ns) || ! length(ns))
+        stop("A namespace must be provided.")
+    ns <- formatNS(ns)
+    prefix <- formatNSPrefix(ns, prefix)
+    querySelector(doc, selector, ns, prefix = prefix, ...)
+}
+
+querySelectorAllNS.xml_node <- function(doc, selector, ns,
+                                        prefix = "descendant-or-self::", ...) {
     if (missing(ns) || ! length(ns))
         stop("A namespace must be provided.")
     ns <- formatNS(ns)
