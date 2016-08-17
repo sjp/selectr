@@ -2,6 +2,31 @@
 \title{NEWS file for the selectr package}
 \encoding{UTF-8}
 
+\section{Changes in version 0.3-0}{
+  \subsection{MAJOR CHANGES}{
+    \itemize{
+
+      \item Added support for documents from the xml2 package.
+
+      \item selectr now also does not strictly depend on the XML
+      package. If either the XML or xml2 packages are present
+      (which are required for the \code{querySelector} methods to
+      work) then \code{querySelector} will begin to work for them.
+      This also enables selectr to be used for translation-only.
+
+    }
+  }
+
+  \subsection{BUG FIXES}{
+    \itemize{
+
+      \item Improve support for nth-*(an+b) selectors. Ported from
+      cssselect.
+
+    }
+  }
+}
+
 \section{Changes in version 0.2-3}{
   \subsection{MINOR CHANGES}{
     \itemize{
