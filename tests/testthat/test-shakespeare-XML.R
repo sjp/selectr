@@ -1,9 +1,10 @@
-context("shakespeare-test")
+context("shakespeare-test-XML")
 
 test_that("selection works correctly on a shakespearean document", {
-    HTML_SHAKESPEARE <-
-        c("<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"", 
-          "\t\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">", "<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\" lang=\"en\" debug=\"true\">", 
+    HTML_SHAKESPEARE <- paste(
+          "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"", 
+          "\t\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">",
+          "<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\" lang=\"en\" debug=\"true\">", 
           "<head>", "\t<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"/>", 
           "</head>", "<body>", "\t<div id=\"test\">", "\t<div class=\"dialog\">", 
           "\t<h2>As You Like It</h2>", "\t<div id=\"playwright\">", "\t  by William Shakespeare", 
@@ -199,7 +200,7 @@ test_that("selection works correctly on a shakespearean document", {
           "\t  <div id=\"scene1.3.137\">After my flight. Now go we in content</div>", 
           "\t  <div id=\"scene1.3.138\">To liberty and not to banishment.</div>", 
           "\t  <div class=\"direction\">Exeunt</div>", "\t  </div>", "\t</div>", 
-          "\t</div>", "</div>", "</body>", "</html>", collapse = "\n")
+          "\t</div>", "</div>", "</body>", "</html>", sep = "\n")
 
     library(XML)
     document <- xmlRoot(htmlParse(HTML_SHAKESPEARE))

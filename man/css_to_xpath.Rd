@@ -6,8 +6,8 @@
 \description{
   This function aims to create an XPath expression equivalent to what
   would be matched by the given CSS selector. The reason the translation
-  is required is because the XML package, being a libxml2 wrapper, can
-  only evaluate XPath expressions.
+  is required is because the XML and xml2 packages, being a libxml2
+  wrappers, can only evaluate XPath expressions.
 
   Using this function, it is possible to search an XML tree without the
   prerequisite of knowing XPath.
@@ -55,8 +55,8 @@ css_to_xpath(selector,
   A character vector of XPath expressions.
 }
 \references{
-  CSS3 Selectors \url{http://www.w3.org/TR/css3-selectors/}, XPath
-  \url{http://www.w3.org/TR/xpath/}.
+  CSS3 Selectors \url{https://www.w3.org/TR/css3-selectors/}, XPath
+  \url{https://www.w3.org/TR/xpath/}.
 }
 \author{
   Simon Potter

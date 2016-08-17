@@ -54,10 +54,10 @@ querySelectorAllNS(doc, selector, ns,
   selector, they must have a namespace prefix, e.g. \code{"svg|g"}.
 
   The namespace argument, \code{ns}, is simply passed on to
-  \code{\link[XML]{getNodeSet}} if it is necessary to use a namespace
-  present within the document. This can be ignored for content lacking a
-  namespace, which is usually the case when using \code{querySelector}
-  or \code{querySelectorAll}.
+  \code{\link[XML]{getNodeSet}} or \code{\link[xml2]{xml_find_all}} if
+  it is necessary to use a namespace present within the document. This
+  can be ignored for content lacking a namespace, which is usually the
+  case when using \code{querySelector} or \code{querySelectorAll}.
 }
 \value{
   For \code{querySelector}, the result is a single node that represents
@@ -71,8 +71,8 @@ querySelectorAllNS(doc, selector, ns,
   return the same type of content as their un-namespaced counterparts.
 }
 \references{
-  CSS3 Selectors \url{http://www.w3.org/TR/css3-selectors/}, XPath
-  \url{http://www.w3.org/TR/xpath/}, querySelectorAll
+  CSS3 Selectors \url{https://www.w3.org/TR/css3-selectors/}, XPath
+  \url{https://www.w3.org/TR/xpath/}, querySelectorAll
   \url{https://developer.mozilla.org/en-US/docs/DOM/Document.querySelectorAll}
   and \url{http://www.w3.org/TR/selectors-api/#interface-definitions}.
 }
@@ -80,8 +80,15 @@ querySelectorAllNS(doc, selector, ns,
   Simon Potter
 }
 \examples{
-  library(XML)
-  exdoc <- xmlParse(c('<a><b class="aclass"/><c id="anid"/></a>'))
+  hasXML <- require(XML)
+  hasxml2 <- require(xml2)
+
+  if (!hasXML && !hasxml2)
+    return() # can't demo without XML or xml2 packages present
+
+  parseFn <- if (hasXML) xmlParse else read_xml
+  # Demo for working with the XML package (if present, otherwise xml2)
+  exdoc <- parseFn('<a><b class="aclass"/><c id="anid"/></a>')
   querySelector(exdoc, "#anid")   # Returns the matching node
   querySelector(exdoc, ".aclass") # Returns the matching node
   querySelector(exdoc, "b, c")    # First match from grouped selection
@@ -92,7 +99,40 @@ querySelectorAllNS(doc, selector, ns,
 
   # Read in a document where two namespaces are being set:
   # SVG and MathML
-  svgdoc <- xmlParse(system.file("demos/svg-mathml.svg",
+  svgdoc <- parseFn(system.file("demos/svg-mathml.svg",
+                                package = "selectr"))
+  # Search for <script/> elements in the SVG namespace
+  querySelectorNS(svgdoc, "svg|script",
+                  c(svg = "http://www.w3.org/2000/svg"))
+  querySelectorAllNS(svgdoc, "svg|script",
+                     c(svg = "http://www.w3.org/2000/svg"))
+  # MathML content is *within* SVG content,
+  # search for <mtext> elements within the MathML namespace
+  querySelectorNS(svgdoc, "math|mtext",
+                  c(math = "http://www.w3.org/1998/Math/MathML"))
+  querySelectorAllNS(svgdoc, "math|mtext",
+                     c(math = "http://www.w3.org/1998/Math/MathML"))
+  # Search for *both* SVG and MathML content
+  querySelectorAllNS(svgdoc, "svg|script, math|mo",
+                     c(svg = "http://www.w3.org/2000/svg",
+                       math = "http://www.w3.org/1998/Math/MathML"))
+
+  if (!hasXML)
+    return() # already demo'd xml2
+
+  # Demo for working with the xml2 package
+  exdoc <- read_xml('<a><b class="aclass"/><c id="anid"/></a>')
+  querySelector(exdoc, "#anid")   # Returns the matching node
+  querySelector(exdoc, ".aclass") # Returns the matching node
+  querySelector(exdoc, "b, c")    # First match from grouped selection
+  querySelectorAll(exdoc, "b, c") # Grouped selection
+  querySelectorAll(exdoc, "b")    # A list of length one
+  querySelector(exdoc, "d")       # No match
+  querySelectorAll(exdoc, "d")    # No match
+
+  # Read in a document where two namespaces are being set:
+  # SVG and MathML
+  svgdoc <- read_xml(system.file("demos/svg-mathml.svg",
                                  package = "selectr"))
   # Search for <script/> elements in the SVG namespace
   querySelectorNS(svgdoc, "svg|script",

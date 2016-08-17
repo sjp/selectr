@@ -1,4 +1,4 @@
-context("querySelector")
+context("querySelector-XML")
 
 test_that("querySelector returns a single node or NULL", {
     library(XML)

@@ -1,4 +1,4 @@
-context("lang")
+context("lang-xml2")
 
 test_that("xml lang function matches correct elements", {
     xmlLangText <- paste0('<test>',
@@ -11,20 +11,20 @@ test_that("xml lang function matches correct elements", {
                           '<g id="seventh" xml:lang="de"><h id="eighth" xml:lang="zh" /></g>',
                           '</test>')
 
-    library(XML)
-    xmldoc <- xmlRoot(xmlParse(xmlLangText))
+    library(xml2)
+    xmldoc <- read_xml(xmlLangText)
     gt <- GenericTranslator$new()
 
     pid <- function(selector) {
         xpath <- gt$css_to_xpath(selector)
-        items <- getNodeSet(xmldoc, xpath)
+        items <- xml_find_all(xmldoc, xpath)
         n <- length(items)
-        if (! n)
+        if (!n)
             return(NULL)
         result <- character(n)
         for (i in seq_len(n)) {
             element <- items[[i]]
-            tmp <- xmlAttrs(element)["id"]
+            tmp <- xml_attrs(element)["id"]
             if (is.null(tmp))
                 tmp <- "nil"
             result[i] <- tmp
