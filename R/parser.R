@@ -14,7 +14,7 @@ Selector <- setRefClass("Selector",
                         methods = list(
     initialize = function(tree, pseudo_element = NULL) {
         parsed_tree <<- tree
-        if (! is.null(pseudo_element))
+        if (!is.null(pseudo_element))
             pseudo_element <<- tolower(pseudo_element)
         else
             pseudo_element <<- pseudo_element
@@ -31,7 +31,7 @@ Selector <- setRefClass("Selector",
     },
     specificity = function() {
         specs <- parsed_tree$specificity()
-        if (! is.null(pseudo_element))
+        if (!is.null(pseudo_element))
             specs[3] <- specs[3] + 1
         specs
     },
@@ -149,7 +149,7 @@ Attrib <- setRefClass("Attrib",
     },
     repr = function() {
         attr <-
-            if (! is.null(namespace))
+            if (!is.null(namespace))
                 sprintf("%s|%s", namespace, attrib)
             else
                 .self$attrib
@@ -178,17 +178,17 @@ Element <- setRefClass("Element",
     },
     repr = function() {
         el <-
-            if (! is.null(.self$element))
+            if (!is.null(.self$element))
                 .self$element
             else
                 "*"
-        if (! is.null(namespace))
+        if (!is.null(namespace))
             el <- sprintf("%s|%s", namespace, el)
         sprintf("%s[%s]",
                 class(.self), el)
     },
     specificity = function() {
-        if (! is.null(element))
+        if (!is.null(element))
             c(0, 0, 1)
         else
             rep(0, 3)
@@ -259,16 +259,16 @@ class_re <- '^[ \t\r\n\f]*([a-zA-Z]*)\\.([a-zA-Z][a-zA-Z0-9_-]*)[ \t\r\n\f]*$'
 parse <- function(css) {
     nc <- nchar(css)
     el_match <- str_match(css, el_re)[1, 2]
-    if (! is.na(el_match))
+    if (!is.na(el_match))
         return(Selector$new(Element$new(element = el_match)))
     id_match <- str_match(css, id_re)[1, 2:3]
-    if (! is.na(id_match[2]))
+    if (!is.na(id_match[2]))
         return(Selector$new(
                    Hash$new(
                        Element$new(element = if (nchar(id_match[1]) == 0) NULL else id_match[1]),
                        id_match[2])))
     class_match <- str_match(css, class_re)[1, 2:3]
-    if (! is.na(class_match[3]))
+    if (!is.na(class_match[3]))
         return(Selector$new(
                    Class$new(
                        Element$new(element = if (is.na(class_match[2])) NULL else class_match[2]),
@@ -320,7 +320,7 @@ parse_selector <- function(stream) {
         if (token_equality(peek, "EOF", NULL) || token_equality(peek, "DELIM", ",")) {
             break
         }
-        if (! is.null(pseudo_element) && nchar(pseudo_element)) {
+        if (!is.null(pseudo_element) && nchar(pseudo_element)) {
             stop(sprintf("Got pseudo-element ::%s not at the end of a selector",
                          pseudo_element))
         }
@@ -370,7 +370,7 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
             (inside_negation && token_equality(peek, "DELIM", ")"))) {
             break
         }
-        if (! is.null(pseudo_element)) {
+        if (!is.null(pseudo_element)) {
             stop(sprintf("Got pseudo-element ::%s not at the end of a selector",
                          pseudo_element))
         }
@@ -406,7 +406,7 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
                 pseudo_element <- ident
                 next
             }
-            if (! token_equality(stream$peek(), "DELIM", "(")) {
+            if (!token_equality(stream$peek(), "DELIM", "(")) {
                 result <- Pseudo$new(result, ident)
                 next
             }
@@ -425,7 +425,7 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
                     stop(sprintf("Got pseudo-element ::%s inside :not() at %s",
                                  argument_pseudo_element, nt$pos))
                 }
-                if (! token_equality(nt, "DELIM", ")")) {
+                if (!token_equality(nt, "DELIM", ")")) {
                     stop(sprintf("Expected ')', got %s", nt$value))
                 }
                 result <- Negation$new(result, argument)
@@ -464,7 +464,7 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
 parse_attrib <- function(selector, stream) {
     stream$skip_whitespace()
     attrib <- stream$next_ident_or_star()
-    if (is.null(attrib) && ! token_equality(stream$peek(), "DELIM", "|"))
+    if (is.null(attrib) && !token_equality(stream$peek(), "DELIM", "|"))
         stop(sprintf("Expected '|', got %s", stream$peek()$repr()))
     if (token_equality(stream$peek(), "DELIM", "|")) {
         stream$nxt()
@@ -495,12 +495,12 @@ parse_attrib <- function(selector, stream) {
     }
     stream$skip_whitespace()
     value <- stream$nxt()
-    if (! value$type %in% c("IDENT", "STRING")) {
+    if (!value$type %in% c("IDENT", "STRING")) {
         stop(sprintf("Expected string or ident, got %s", value$repr()))
     }
     stream$skip_whitespace()
     nt <- stream$nxt()
-    if (! token_equality(nt, "DELIM", "]")) {
+    if (!token_equality(nt, "DELIM", "]")) {
         stop(sprintf("Expected ']', got %s", nt$repr()))
     }
     Attrib$new(selector, namespace, attrib, op, value$value)
@@ -535,16 +535,16 @@ parse_series <- function(tokens) {
     b <- str_trim(ab[2])
 
     intb <- str_int(b)
-    if (! nzchar(a) && is.na(intb))
+    if (!nzchar(a) && is.na(intb))
         return(NULL)
 
-    if (! nzchar(a))
+    if (!nzchar(a))
         a <- 1
     else if (a == "-" || a == "+")
         a <- str_int(paste0(a, "1"))
     else
         a <- str_int(a)
-    if (! nzchar(b))
+    if (!nzchar(b))
         b <- 0
     else
         b <- str_int(b)
@@ -615,7 +615,7 @@ tokenize <- function(s) {
     while (pos <= len_s) {
         ss <- substring(s, pos, len_s)
         match <- match_whitespace(ss)
-        if (! is.na(match) && match[1] == 1) {
+        if (!is.na(match) && match[1] == 1) {
             results[[i]] <- Token$new("S", " ", pos)
             match_end <- match[2]
             pos <- pos + match_end
@@ -623,7 +623,7 @@ tokenize <- function(s) {
             next
         }
         match <- match_number(ss)
-        if (! is.na(match) && match[1] == 1) {
+        if (!is.na(match) && match[1] == 1) {
             match_start <- match[1]
             match_end <- max(match[1], match[2])
             value <- substring(ss, match_start, match_end)
@@ -633,7 +633,7 @@ tokenize <- function(s) {
             next
         }
         match <- match_ident(ss)
-        if (! is.na(match) && match[1] == 1) {
+        if (!is.na(match) && match[1] == 1) {
             match_start <- match[1]
             match_end <- max(match[1], match[2])
             value <- substring(ss, match_start, match_end)
@@ -644,7 +644,7 @@ tokenize <- function(s) {
             next
         }
         match <- match_hash(ss)
-        if (! is.na(match) && match[1] == 1) {
+        if (!is.na(match) && match[1] == 1) {
             match_start <- match[1]
             match_end <- max(match[1], match[2])
             value <- substring(ss, match_start, match_end)
@@ -695,7 +695,7 @@ tokenize <- function(s) {
                 if (all(is_escaped)) {
                     stop(sprintf("Unclosed string at %d", pos))
                 }
-                end_quote <- matching_quotes[min(which(! is_escaped))]
+                end_quote <- matching_quotes[min(which(!is_escaped))]
                 value <- substring(s, pos + 1, pos + end_quote - 1)
                 value <- sub_simple_escape(
                              sub_unicode_escape(
@@ -722,7 +722,7 @@ tokenize <- function(s) {
         # Because we always call 'next', if we're here there must have
         # been an error
         tmp <- substring(ss, 1, 1)
-        if (! tmp %in% c(delims_1ch, '"', "'")) {
+        if (!tmp %in% c(delims_1ch, '"', "'")) {
             stop(sprintf("Unexpected character '%s' found at position %d",
                          tmp, pos))
         }
@@ -760,7 +760,7 @@ TokenStream <- setRefClass("TokenStream",
         nt
     },
     peek = function() {
-        if (! peeking) {
+        if (!peeking) {
             peeked <<- next_token()
             peeking <<- TRUE
         }

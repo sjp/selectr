@@ -41,7 +41,7 @@ test_that("selection works correctly on a large barrage of tests", {
             items <- getNodeSet(document, xpath)
         }
         n <- length(items)
-        if (! n)
+        if (!n)
             return(NULL)
         result <- character(n)
         for (i in seq_len(n)) {
@@ -56,11 +56,11 @@ test_that("selection works correctly on a large barrage of tests", {
     
     pcss <- function(main, selectors = NULL, html_only = FALSE) {
         result <- select_ids(main, html_only)
-        if (! is.null(selectors) && length(selectors)) {
+        if (!is.null(selectors) && length(selectors)) {
             n <- length(selectors)
             for (i in seq_len(n)) {
                 tmp_res <- select_ids(selectors[i], html_only = html_only)
-                if (! is.null(result) && ! is.null(tmp_res) &&
+                if (!is.null(result) && !is.null(tmp_res) &&
                     tmp_res != result)
                     stop("Difference between results of selectors")
             }

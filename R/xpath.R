@@ -82,7 +82,7 @@ GenericTranslator <- setRefClass("GenericTranslator",
         selectors <- parse(css)
 
         lapply(selectors, function(selector) {
-            if (class(selector) == "Selector" && ! is.null(selector$pseudo_element))
+            if (class(selector) == "Selector" && !is.null(selector$pseudo_element))
                 stop("Pseudo-elements are not supported.")
         })
 
@@ -99,17 +99,17 @@ GenericTranslator <- setRefClass("GenericTranslator",
     selector_to_xpath = function(selector, prefix = "descendant-or-self::") {
         tree <- selector$parsed_tree
         xpath <- .self$xpath(tree)
-        if (! inherits(xpath, "XPathExpr"))
+        if (!inherits(xpath, "XPathExpr"))
             stop("'xpath' is not an instance of 'XPathExpr'")
-        paste0(if (! is.null(prefix)) prefix else "", xpath$str())
+        paste0(if (!is.null(prefix)) prefix else "", xpath$str())
     },
     xpath_literal = function(s) {
         lenseq <- seq_len(nchar(s))
         split_chars <- substring(s, lenseq, lenseq)
 
-        if (! any(split_chars == "'")) {
+        if (!any(split_chars == "'")) {
             s <- paste0("'", s, "'")
-        } else if (! any(split_chars == '"')) {
+        } else if (!any(split_chars == '"')) {
             s <- paste0('"', s, '"')
         } else {
             dq_inds <- which(split_chars == "'")
@@ -143,7 +143,7 @@ GenericTranslator <- setRefClass("GenericTranslator",
         xpath <- .self$xpath(negation$selector)
         sub_xpath <- .self$xpath(negation$subselector)
         sub_xpath$add_name_test()
-        if (! is.null(sub_xpath$condition) && nchar(sub_xpath$condition)) {
+        if (!is.null(sub_xpath$condition) && nchar(sub_xpath$condition)) {
             xpath$add_condition(sprintf("not(%s)", sub_xpath$condition))
         } else {
             xpath$add_condition("0")
@@ -155,7 +155,7 @@ GenericTranslator <- setRefClass("GenericTranslator",
                      "xpath_nth_child_function", "xpath_nth_last_child_function",
                      "xpath_nth_of_type_function", "xpath_nth_last_of_type_function")
         method <- sprintf("xpath_%s_function", gsub("-", "_", fn$name))
-        if (! exists(method))
+        if (!exists(method))
             stop(sprintf("The pseudo-class :%s() is unknown", fn$name))
         do.call(method, list(xpath(fn$selector), fn))
     },
@@ -170,7 +170,7 @@ GenericTranslator <- setRefClass("GenericTranslator",
                      "xpath_enabled_pseudo", "xpath_disabled_pseudo",
                      "xpath_checked_pseudo")
         method <- sprintf("xpath_%s_pseudo", gsub("-", "_", pseudo$ident))
-        if (! exists(method))
+        if (!exists(method))
             stop(sprintf("The pseudo-class :%s is unknown", pseudo$ident))
         do.call(method, list(xpath(pseudo$selector)))
     },
@@ -187,7 +187,7 @@ GenericTranslator <- setRefClass("GenericTranslator",
             name <- selector$attrib
         }
         safe <- is_safe_name(name)
-        if (! is.null(selector$namespace)) {
+        if (!is.null(selector$namespace)) {
             name <- sprintf("%s:%s", selector$namespace, name)
         }
         if (safe) {
@@ -224,14 +224,14 @@ GenericTranslator <- setRefClass("GenericTranslator",
             if (lower_case_element_names)
                 element <- tolower(element)
         }
-        if (! is.null(selector$namespace)) {
+        if (!is.null(selector$namespace)) {
             # Namespace prefixes are case-sensitive.
             # http://www.w3.org/TR/css3-namespace/#prefixes
             element <- sprintf("%s:%s", selector$namespace, element)
             safe <- safe && is_safe_name(selector$namespace)
         }
         xpath <- XPathExpr$new(element = element)
-        if (! safe)
+        if (!safe)
             xpath$add_name_test()
         xpath
     },
@@ -405,7 +405,7 @@ GenericTranslator <- setRefClass("GenericTranslator",
         xpath_nth_child_function(xpath, fn, last = TRUE, add_name_test = FALSE)
     },
     xpath_contains_function = function(xpath, fn) {
-        if (! (fn$argument_types() %in% c("STRING", "IDENT"))) {
+        if (!(fn$argument_types() %in% c("STRING", "IDENT"))) {
             stop(sprintf("Expected a single string or ident for :contains(), got %s",
                          paste0("(", paste0(fn$argument_types(), collapse = ", "), ")")))
         }
@@ -414,7 +414,7 @@ GenericTranslator <- setRefClass("GenericTranslator",
         xpath
     },
     xpath_lang_function = function(xpath, fn) {
-        if (! (fn$argument_types() %in% c("STRING", "IDENT"))) {
+        if (!(fn$argument_types() %in% c("STRING", "IDENT"))) {
             stop(sprintf("Expected a single string or ident for :lang(), got %s",
                          fn$arguments[[1]]$repr()))
         }
@@ -488,7 +488,7 @@ GenericTranslator <- setRefClass("GenericTranslator",
         xpath
     },
     xpath_attrib_different = function(xpath, name, value) {
-        if (! is.null(value)) {
+        if (!is.null(value)) {
             xpath$add_condition(sprintf("not(%s) or %s != %s",
                                         name, name, xpath_literal(value)))
         } else {
@@ -498,7 +498,7 @@ GenericTranslator <- setRefClass("GenericTranslator",
         xpath
     },
     xpath_attrib_includes = function(xpath, name, value) {
-        if (! is.null(value) && nzchar(value) &&
+        if (!is.null(value) && nzchar(value) &&
             grepl("^[^ \t\r\n\f]+$", value)) {
             xpath$add_condition(sprintf("%s and contains(concat(' ', normalize-space(%s), ' '), %s)",
                                         name, name, xpath_literal(paste0(" ", value, " "))))
@@ -508,7 +508,7 @@ GenericTranslator <- setRefClass("GenericTranslator",
         xpath
     },
     xpath_attrib_dashmatch = function(xpath, name, value) {
-        if (! is.null(value) && nzchar(value)) {
+        if (!is.null(value) && nzchar(value)) {
             xpath$add_condition(sprintf("%s and (%s = %s or starts-with(%s, %s))",
                                         name, name, xpath_literal(value),
                                         name, xpath_literal(paste0(value, "-"))))
@@ -518,7 +518,7 @@ GenericTranslator <- setRefClass("GenericTranslator",
         xpath
     },
     xpath_attrib_prefixmatch = function(xpath, name, value) {
-        if (! is.null(value) && nzchar(value)) {
+        if (!is.null(value) && nzchar(value)) {
             xpath$add_condition(sprintf("%s and starts-with(%s, %s)",
                                         name, name, xpath_literal(value)))
         } else {
@@ -528,7 +528,7 @@ GenericTranslator <- setRefClass("GenericTranslator",
     },
     # In XPath there is starts-with but not ends-with, hence the oddness
     xpath_attrib_suffixmatch = function(xpath, name, value) {
-        if (! is.null(value) && nzchar(value)) {
+        if (!is.null(value) && nzchar(value)) {
             xpath$add_condition(sprintf("%s and substring(%s, string-length(%s)-%s) = %s",
                                         name, name, name, nchar(value) - 1, xpath_literal(value)))
         } else {
@@ -537,7 +537,7 @@ GenericTranslator <- setRefClass("GenericTranslator",
         xpath
     },
     xpath_attrib_substringmatch = function(xpath, name, value) {
-        if (! is.null(value) && nzchar(value)) {
+        if (!is.null(value) && nzchar(value)) {
             xpath$add_condition(sprintf("%s and contains(%s, %s)",
                                         name, name, xpath_literal(value)))
         } else {
@@ -553,7 +553,7 @@ HTMLTranslator <- setRefClass("HTMLTranslator",
     initialize = function(xhtml = FALSE, ...) {
         callSuper(...)
         xhtml <<- xhtml
-        if (! xhtml) {
+        if (!xhtml) {
             lower_case_element_names <<- TRUE
             lower_case_attribute_names <<- TRUE
         }
@@ -568,7 +568,7 @@ HTMLTranslator <- setRefClass("HTMLTranslator",
         xpath
     },
     xpath_lang_function = function(xpath, fn) {
-        if (! (fn$argument_types() %in% c("STRING", "IDENT"))) {
+        if (!(fn$argument_types() %in% c("STRING", "IDENT"))) {
             stop(sprintf("Expected a single string or ident for :lang(), got %s",
                          fn$arguments[[1]]$repr()))
         }

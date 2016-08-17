@@ -19,7 +19,7 @@ test_that("xml lang function matches correct elements", {
         xpath <- gt$css_to_xpath(selector)
         items <- getNodeSet(xmldoc, xpath)
         n <- length(items)
-        if (! n)
+        if (!n)
             return(NULL)
         result <- character(n)
         for (i in seq_len(n)) {
