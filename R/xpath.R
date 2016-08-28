@@ -279,7 +279,7 @@ GenericTranslator <- setRefClass("GenericTranslator",
         #    count(following-sibling::<nodetest>) = an+b-1
         #
         # therefore,
-        #    count(...) - (b-1) ≡ 0 (mod a)
+        #    count(...) - (b-1) = 0 (mod a)
         #
         # if a == 0:
         # ~~~~~~~~~~
@@ -367,7 +367,7 @@ GenericTranslator <- setRefClass("GenericTranslator",
         # we we just did above.
         #
         if (abs(a) != 1) {
-            # count(***-sibling::***) - (b-1) ≡ 0 (mod a)
+            # count(***-sibling::***) - (b-1) = 0 (mod a)
             left <- siblings_count
 
             # apply "modulo a" on 2nd term, -(b-1),
