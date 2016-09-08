@@ -6,13 +6,14 @@ test_that("translation from parsed objects to XPath works", {
         gt$css_to_xpath(css, prefix = "")
     }
 
-    expect_that(xpath("*"), equals("*"))        
+    expect_that(xpath("*"), equals("*"))
     expect_that(xpath("e"), equals("e"))
     expect_that(xpath("*|e"), equals("e"))
     expect_that(xpath("e|f"), equals("e:f"))
     expect_that(xpath("e[foo]"), equals("e[@foo]"))
     expect_that(xpath("e[foo|bar]"), equals("e[@foo:bar]"))
     expect_that(xpath('e[foo="bar"]'), equals("e[@foo = 'bar']"))
+    expect_that(xpath('e[foo!="bar"]'), equals("e[not(@foo) or @foo != 'bar']"))
     expect_that(xpath('e[foo~="bar"]'),
                 equals("e[@foo and contains(concat(' ', normalize-space(@foo), ' '), ' bar ')]"))
     expect_that(xpath('e[foo^="bar"]'),
@@ -80,7 +81,7 @@ test_that("translation from parsed objects to XPath works", {
     expect_that(xpath('e:not(:nth-child(odd))'),
                 equals("e[not(count(preceding-sibling::*) mod 2 = 0)]"))
     expect_that(xpath('e:nOT(*)'),
-                equals("e[0]")) # never matches        
+                equals("e[0]")) # never matches
     expect_that(xpath('e f'),
                 equals("e/descendant::f"))
     expect_that(xpath('e > f'),
@@ -94,6 +95,17 @@ test_that("translation from parsed objects to XPath works", {
     expect_that(xpath('div#container p'),
                 equals("div[@id = 'container']/descendant::p"))
 
+    # expect that the following do nothing for the generic translator
+    expect_that(xpath('a:link'), equals("a[0]"))
+    expect_that(xpath('a:visited'), equals("a[0]"))
+    expect_that(xpath('a:hover'), equals("a[0]"))
+    expect_that(xpath('a:active'), equals("a[0]"))
+    expect_that(xpath('a:focus'), equals("a[0]"))
+    expect_that(xpath('a:target'), equals("a[0]"))
+    expect_that(xpath('a:enabled'), equals("a[0]"))
+    expect_that(xpath('a:disabled'), equals("a[0]"))
+    expect_that(xpath('a:checked'), equals("a[0]"))
+
     # Invalid characters in XPath element names
 
     if (localeToCharset()[1] == "UTF-8") {
@@ -106,18 +118,4 @@ test_that("translation from parsed objects to XPath works", {
                 equals("*[name() = 'di[v']"))
     expect_that(xpath('[h\\]ref]'),
                 equals("*[attribute::*[name() = 'h]ref']]"))
-
-    #expect_that(xpath(":fİrst-child"), throws_error())
-    #expect_that(xpath(":first-of-type"), throws_error())
-    #expect_that(xpath(":only-of-type"), throws_error())
-    #expect_that(xpath(":last-of-type"), throws_error())
-    #expect_that(xpath(":nth-of-type(1)"), throws_error())
-    #expect_that(xpath(":nth-last-of-type(1)"), throws_error())
-    #expect_that(xpath(":nth-child(n-)"), throws_error())
-    #expect_that(xpath(":after"), throws_error())
-    #expect_that(xpath(":lorem-ipsum"), throws_error())
-    #expect_that(xpath(":lorem(ipsum)"), throws_error())
-    #expect_that(xpath("::lorem-ipsum"), throws_error())
-    #expect_that({gt <- GenericTranslator$new() ; gt$css_to_xpath(4)}, throws_error())
-    #expect_that({gt <- GenericTranslator$new() ; gt$selector_to_xpath("foo") }, throws_error())
 })

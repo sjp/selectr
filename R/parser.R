@@ -35,9 +35,10 @@ Selector <- setRefClass("Selector",
             specs[3] <- specs[3] + 1
         specs
     },
-    show = function() {
+    show = function() { # nocov start
         cat(.self$repr(), "\n")
-    }))
+    } # nocov end
+    ))
 
 Class <- setRefClass("Class",
                      fields = c("selector", "class_name"),
@@ -57,9 +58,10 @@ Class <- setRefClass("Class",
         specs[2] <- specs[2] + 1
         specs
     },
-    show = function() {
+    show = function() { # nocov start
         cat(.self$repr(), "\n")
-    }))
+    } # nocov end
+    ))
 
 Function <- setRefClass("Function",
                         fields = c("selector", "name", "arguments"),
@@ -92,9 +94,10 @@ Function <- setRefClass("Function",
         specs[2] <- specs[2] + 1
         specs
     },
-    show = function() {
+    show = function() { # nocov start
         cat(.self$repr(), "\n")
-    }))
+    } # nocov end
+    ))
 
 Pseudo <- setRefClass("Pseudo",
                       fields = c("selector", "ident"),
@@ -112,9 +115,10 @@ Pseudo <- setRefClass("Pseudo",
         specs[2] <- specs[2] + 1
         specs
     },
-    show = function() {
+    show = function() { # nocov start
         cat(.self$repr(), "\n")
-    }))
+    } # nocov end
+    ))
 
 Negation <- setRefClass("Negation",
                         fields = c("selector", "subselector"),
@@ -132,9 +136,10 @@ Negation <- setRefClass("Negation",
         sub_specs <- subselector$specificity()
         specs + sub_specs
     },
-    show = function() {
+    show = function() { # nocov start
         cat(.self$repr(), "\n")
-    }))
+    } # nocov end
+    ))
 
 Attrib <- setRefClass("Attrib",
                       fields = c("selector", "namespace", "attrib",
@@ -165,9 +170,10 @@ Attrib <- setRefClass("Attrib",
         specs[2] <- specs[2] + 1
         specs
     },
-    show = function() {
+    show = function() { # nocov start
         cat(.self$repr(), "\n")
-    }))
+    } # nocov end
+    ))
 
 Element <- setRefClass("Element",
                        fields = c("namespace", "element"),
@@ -193,9 +199,10 @@ Element <- setRefClass("Element",
         else
             rep(0, 3)
     },
-    show = function() {
+    show = function() { # nocov start
         cat(.self$repr(), "\n")
-    }))
+    } # nocov end
+    ))
 
 Hash <- setRefClass("Hash",
                     fields = c("selector", "id"),
@@ -213,9 +220,10 @@ Hash <- setRefClass("Hash",
         specs[1] <- specs[1] + 1
         specs
     },
-    show = function() {
+    show = function() { # nocov start
         cat(.self$repr(), "\n")
-    }))
+    } # nocov end
+    ))
 
 CombinedSelector <- setRefClass("CombinedSelector",
                                 fields = c("selector", "combinator", "subselector"),
@@ -241,9 +249,10 @@ CombinedSelector <- setRefClass("CombinedSelector",
         sub_specs <- subselector$specificity()
         specs + sub_specs
     },
-    show = function() {
+    show = function() { # nocov start
         cat(.self$repr(), "\n")
-    }))
+    } # nocov end
+    ))
 
 #### Parser
 
@@ -260,19 +269,19 @@ parse <- function(css) {
     nc <- nchar(css)
     el_match <- str_match(css, el_re)[1, 2]
     if (!is.na(el_match))
-        return(Selector$new(Element$new(element = el_match)))
+        return(list(Selector$new(Element$new(element = el_match))))
     id_match <- str_match(css, id_re)[1, 2:3]
     if (!is.na(id_match[2]))
-        return(Selector$new(
-                   Hash$new(
-                       Element$new(element = if (nchar(id_match[1]) == 0) NULL else id_match[1]),
-                       id_match[2])))
+        return(list(Selector$new(
+                        Hash$new(
+                            Element$new(element = if (nchar(id_match[1]) == 0) NULL else id_match[1]),
+                            id_match[2]))))
     class_match <- str_match(css, class_re)[1, 2:3]
     if (!is.na(class_match[3]))
-        return(Selector$new(
-                   Class$new(
-                       Element$new(element = if (is.na(class_match[2])) NULL else class_match[2]),
-                       class_match[3])))
+        return(list(Selector$new(
+                        Class$new(
+                            Element$new(element = if (is.na(class_match[2])) NULL else class_match[2]),
+                            class_match[3]))))
     stream <- TokenStream$new(tokenize(css))
     stream$source_text <- css
     parse_selector_group(stream)
@@ -393,11 +402,6 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
                 next
             } else {
                 stream$nxt()
-                if (token_equality(stream$peek(), "DELIM", ":")) {
-                    stream$nxt()
-                    pseudo_element <- stream$next_ident()
-                    next
-                }
             }
             ident <- stream$next_ident()
             if (tolower(ident) %in% c("first-line", "first-letter", "before", "after")) {
@@ -419,6 +423,7 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
                 res <- parse_simple_selector(stream, inside_negation = TRUE)
                 argument <- res$result
                 argument_pseudo_element <- res$pseudo_element
+                stream$skip_whitespace()
                 nt <- stream$nxt()
                 if (length(argument_pseudo_element) &&
                     nchar(argument_pseudo_element)) {
@@ -468,15 +473,13 @@ parse_attrib <- function(selector, stream) {
         stop(sprintf("Expected '|', got %s", stream$peek()$repr()))
     if (token_equality(stream$peek(), "DELIM", "|")) {
         stream$nxt()
-        if (token_equality(stream$peek(), "DELIM", "=")) {
-            namespace <- NULL
-            stream$nxt()
-            op <- "|="
-        } else {
-            namespace <- attrib
-            attrib <- stream$next_ident()
-            op <- NULL
-        }
+        namespace <- attrib
+        attrib <- stream$next_ident()
+        op <- NULL
+    } else if (token_equality(stream$peek(), "DELIM", "|=")) {
+        namespace <- NULL
+        stream$nxt()
+        op <- "|="
     } else {
         namespace <- op <- NULL
     }
@@ -487,7 +490,7 @@ parse_attrib <- function(selector, stream) {
             return(Attrib$new(selector, namespace, attrib, "exists", NULL))
         } else if (token_equality(nt, "DELIM", "=")) {
             op <- "="
-        } else if (nt$is_delim(c("^=", "$=", "*=", "~=", "|=", "!="))) {# &&
+        } else if (nt$is_delim(c("^=", "$=", "*=", "~=", "|=", "!="))) {
             op <- nt$value
         } else {
             stop(sprintf("Operator expected, got %s", nt$repr()))
@@ -565,9 +568,10 @@ Token <- setRefClass("Token",
     is_delim = function(values) {
         type == "DELIM" && value %in% values
     },
-    show = function() {
+    show = function() { # nocov start
         cat(.self$repr(), "\n")
-    }))
+    } # nocov end
+    ))
 
 EOFToken <- setRefClass("EOFToken",
                         contains = "Token",
@@ -578,9 +582,10 @@ EOFToken <- setRefClass("EOFToken",
     repr = function() {
         sprintf("<%s at %i>", type, pos)
     },
-    show = function() {
+    show = function() { # nocov start
         cat(.self$repr(), "\n")
-    }))
+    } # nocov end
+    ))
 
 compile_ <- function(pattern) {
     function(x) {
@@ -593,10 +598,8 @@ delims_1ch <- c('>', '+', '~', ',', '.', '*', '=', '[', ']', '(', ')', '|', ':',
 delim_escapes <- paste0("\\", delims_1ch, collapse = "|")
 match_whitespace <- compile_('[ \t\r\n\f]+')
 match_number <- compile_('[+-]?(?:[0-9]*\\.[0-9]+|[0-9]+)')
-match_hash <- compile_(sprintf("^#([_a-zA-Z0-9-]|%s|\\\\(?:%s))+", nonascii, delim_escapes))#sprintf('#(?:%s)+', TokenMacros$nmchar))
-match_ident <- compile_(sprintf("^([_a-zA-Z0-9-]|%s|\\\\(?:%s))+", nonascii, delim_escapes))#"^[\\w_-]+")
-#match_ident <- compile_(sprintf('-?%s|%s*',
-#                                TokenMacros$nmstart, TokenMacros$nmchar))
+match_hash <- compile_(sprintf("^#([_a-zA-Z0-9-]|%s|\\\\(?:%s))+", nonascii, delim_escapes))
+match_ident <- compile_(sprintf("^([_a-zA-Z0-9-]|%s|\\\\(?:%s))+", nonascii, delim_escapes))
 match_string_by_quote <- list("'" = compile_(sprintf("([^\n\r\f\\']|%s)*",
                                                      TokenMacros$string_escape)),
                               '"' = compile_(sprintf('([^\n\r\f\\"]|%s)*',
@@ -712,8 +715,8 @@ tokenize <- function(s) {
         if (substring(s, pos, pos1) == "/*") {
             rel_pos <- str_locate(ss, "\\*/")[1]
             pos <-
-                if (is.na(pos)) {
-                    len_s
+                if (is.na(rel_pos)) {
+                    len_s + 1
                 } else {
                     pos + rel_pos + 1
                 }
@@ -775,9 +778,9 @@ TokenStream <- setRefClass("TokenStream",
     next_ident_or_star = function() {
         nt <- .self$nxt()
         if (nt$type == "IDENT")
-            return(nt$value)
+            nt$value
         else if (token_equality(nt, "DELIM", "*"))
-            return(NULL)
+            NULL
         else
             stop(sprintf("Expected ident or '*', got %s", nt$repr()))
     },

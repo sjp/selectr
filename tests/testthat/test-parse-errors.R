@@ -3,7 +3,7 @@ context("parse-errors")
 test_that("useful errors are returned", {
     get_error <- function(css) {
         parse(css)
-        return(NULL)
+        NULL
     }
 
     expect_that(get_error("attributes(href)/html/body/a"),
@@ -56,7 +56,11 @@ test_that("useful errors are returned", {
                 throws_error("Expected an argument, got <EOF at 9>"))
     expect_that(get_error(':contains("foo'),
                 throws_error("Unclosed string at 11"))
+    expect_that(get_error(':contains("foo\\"'),
+                throws_error("Unclosed string at 11"))
     expect_that(get_error("foo!"),
+                throws_error("Unexpected character"))
+    expect_that(get_error("a:not(b;)"),
                 throws_error("Unexpected character"))
 
     # Mis-placed pseudo-elements
@@ -66,6 +70,8 @@ test_that("useful errors are returned", {
                 throws_error("Got pseudo-element ::before not at the end of a selector"))
     expect_that(get_error(":not(:before)"),
                 throws_error("Got pseudo-element ::before inside :not\\(\\) at 13"))
+    expect_that(get_error(":not(a,)"),
+                throws_error("Expected ')', got .*"))
     expect_that(get_error(":not(:not(a))"),
                 throws_error("Got nested :not()"))
 })

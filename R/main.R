@@ -6,7 +6,7 @@ css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator =
         stop("The 'selector' argument must be a character vector")
     if (!is.character(prefix))
         stop("The 'prefix' argument must be a character vector")
-    if (!is.character(prefix))
+    if (!is.character(translator))
         stop("The 'translator' argument must be a character vector")
             
     if (anyNA(selector)) {
@@ -37,6 +37,10 @@ css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator =
         stop(sprintf("Zero length character vector found for the following argument%s: %s",
             plural, paste0(zeroLengthArgs, collapse = ",")))       
     }
+
+    translator <- sapply(translator, function(tran) {
+        match.arg(tolower(tran), c("generic", "html", "xhtml"))
+    })
 
     maxArgLength <- max(length(selector), length(prefix), length(translator))
     selector <- rep(selector, length.out = maxArgLength)
@@ -137,7 +141,7 @@ querySelectorNS.XMLInternalNode     <-
 querySelectorNS.XMLInternalDocument <- function(doc, selector, ns,
                                                 prefix = "descendant-or-self::", ...) {
     if (missing(selector))
-        stop("A valid selector (character vector) must be provided.")                                                
+        stop("A valid selector (character vector) must be provided.")
     if (missing(ns) || !length(ns))
         stop("A namespace must be provided.")
     ns <- formatNS(ns)
@@ -210,7 +214,7 @@ formatNS <- function(ns) {
     if (!is.list(ns) && !is.character(ns))
         stop("A namespace object must be either a named list or a named character vector.")
     nsNames <- names(ns)
-    if (is.null(nsNames) || anyNA(nsNames))
+    if (is.null(nsNames) || anyNA(nsNames) || !all(nzchar(nsNames)))
         stop("The namespace object either missing some or all names for each element in its collection.")
     ns <- unlist(ns)
     if (!is.character(ns))

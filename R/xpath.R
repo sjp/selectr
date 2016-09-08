@@ -29,9 +29,6 @@ XPathExpr <- setRefClass("XPathExpr",
         add_condition(sprintf("name() = %s", gt$xpath_literal(element)))
         element <<- "*"
     },
-    add_star_prefix = function() {
-        path <<- paste0(path, "*/")
-    },
     join = function(combiner, other) {
         p <- paste0(.self$str(), combiner)
         if (other$path != "*/")
@@ -41,9 +38,10 @@ XPathExpr <- setRefClass("XPathExpr",
         condition <<- other$condition
         .self
     },
-    show = function() {
+    show = function() { # nocov start
         cat(.self$repr(), "\n")
-    }))
+    } # nocov end
+    ))
 
 is_safe_name <- function(name) {
     grepl("^[a-zA-Z_][a-zA-Z0-9_.-]*$", name)
@@ -80,6 +78,10 @@ GenericTranslator <- setRefClass("GenericTranslator",
     },
     css_to_xpath = function(css, prefix = "descendant-or-self::") {
         selectors <- parse(css)
+        selectors <-
+            if (is.null(selectors)) list()
+            else if (!is.list(selectors)) list(selectors)
+            else selectors
 
         lapply(selectors, function(selector) {
             if (class(selector) == "Selector" && !is.null(selector$pseudo_element))
@@ -87,12 +89,7 @@ GenericTranslator <- setRefClass("GenericTranslator",
         })
 
         char_selectors <-
-            if (is.list(selectors))
-                sapply(selectors, function(selector) {
-                    selector_to_xpath(selector, prefix)
-                })
-            else
-                selector_to_xpath(selectors, prefix)
+            sapply(selectors, function(selector) selector_to_xpath(selector, prefix))
 
         paste0(char_selectors, collapse = " | ")
     },
@@ -463,21 +460,22 @@ GenericTranslator <- setRefClass("GenericTranslator",
         xpath$add_condition("not(*) and not(string-length())")
         xpath
     },
-    pseudo_never_matches = function(xpath) {
-        xpath$add_condition("0")
-        xpath
-    },
+
+    #pseudo_never_matches = function(xpath) {
+    #    xpath$add_condition("0")
+    #    xpath
+    #},
 
     # All are pseudo_never_matches()
-    xpath_link_pseudo = function(xpath) { xpath$add_condition("0") ; xpath },
-    xpath_visited_pseudo = function(xpath) { xpath$add_condition("0") ; xpath },
-    xpath_hover_pseudo = function(xpath) { xpath$add_condition("0") ; xpath },
-    xpath_active_pseudo = function(xpath) { xpath$add_condition("0") ; xpath },
-    xpath_focus_pseudo = function(xpath) { xpath$add_condition("0") ; xpath },
-    xpath_target_pseudo = function(xpath) { xpath$add_condition("0") ; xpath },
-    xpath_enabled_pseudo = function(xpath) { xpath$add_condition("0") ; xpath },
+    xpath_link_pseudo     = function(xpath) { xpath$add_condition("0") ; xpath },
+    xpath_visited_pseudo  = function(xpath) { xpath$add_condition("0") ; xpath },
+    xpath_hover_pseudo    = function(xpath) { xpath$add_condition("0") ; xpath },
+    xpath_active_pseudo   = function(xpath) { xpath$add_condition("0") ; xpath },
+    xpath_focus_pseudo    = function(xpath) { xpath$add_condition("0") ; xpath },
+    xpath_target_pseudo   = function(xpath) { xpath$add_condition("0") ; xpath },
+    xpath_enabled_pseudo  = function(xpath) { xpath$add_condition("0") ; xpath },
     xpath_disabled_pseudo = function(xpath) { xpath$add_condition("0") ; xpath },
-    xpath_checked_pseudo = function(xpath) { xpath$add_condition("0") ; xpath },
+    xpath_checked_pseudo  = function(xpath) { xpath$add_condition("0") ; xpath },
 
     xpath_attrib_exists = function(xpath, name, value) {
         xpath$add_condition(name)
@@ -488,13 +486,8 @@ GenericTranslator <- setRefClass("GenericTranslator",
         xpath
     },
     xpath_attrib_different = function(xpath, name, value) {
-        if (!is.null(value)) {
-            xpath$add_condition(sprintf("not(%s) or %s != %s",
-                                        name, name, xpath_literal(value)))
-        } else {
-            xpath$add_condition(sprintf("%s != %s",
-                                        name, xpath_literal(value)))
-        }
+        xpath$add_condition(sprintf("not(%s) or %s != %s",
+                                    name, name, xpath_literal(value)))
         xpath
     },
     xpath_attrib_includes = function(xpath, name, value) {
@@ -508,13 +501,9 @@ GenericTranslator <- setRefClass("GenericTranslator",
         xpath
     },
     xpath_attrib_dashmatch = function(xpath, name, value) {
-        if (!is.null(value) && nzchar(value)) {
-            xpath$add_condition(sprintf("%s and (%s = %s or starts-with(%s, %s))",
-                                        name, name, xpath_literal(value),
-                                        name, xpath_literal(paste0(value, "-"))))
-        } else {
-            xpath$add_condition("0")
-        }
+        xpath$add_condition(sprintf("%s and (%s = %s or starts-with(%s, %s))",
+                                    name, name, xpath_literal(value),
+                                    name, xpath_literal(paste0(value, "-"))))
         xpath
     },
     xpath_attrib_prefixmatch = function(xpath, name, value) {

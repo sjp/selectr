@@ -2,6 +2,37 @@
 \title{NEWS file for the selectr package}
 \encoding{UTF-8}
 
+\section{Changes in version 0.3-1}{
+  \subsection{MINOR CHANGES}{
+     \itemize{
+
+      \item Enabled partial matching on the translator argument to
+      \code{css_to_xpath()}. Instead of defaulting to a generic translator,
+      a non-matching argument will be returned with an error.
+
+      \item Introduced many more unit tests via the \code{covr} package.
+      This enabled dead code to be trimmed and also identified areas of code
+      which needed improvement. Minor enhancements include: tolerate
+      whitespace within a \code{:not()}, more consistent results returned
+      from parser methods, improvements to argument parsing.
+
+     }
+  }
+
+  \subsection{BUG FIXES}{
+    \itemize{
+
+      \item The \code{|=} attribute matching operator was not being parsed
+      correctly for the generic translator.
+
+      \item Handle scenario where a CSS comment is unclosed. Results in
+      everything after the comment start to be removed (which may or may
+      not result in a valid selector).
+
+    }
+  }
+}
+
 \section{Changes in version 0.3-0}{
   \subsection{MAJOR CHANGES}{
     \itemize{

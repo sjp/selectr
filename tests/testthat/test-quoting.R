@@ -12,4 +12,6 @@ test_that("quote characters are escaped", {
                 equals("descendant-or-self::*[@aval = '\"']"))
     expect_that(css('*[aval=\'"""\']'),
                 equals("descendant-or-self::*[@aval = '\"\"\"']"))
+    expect_that(css('*[aval=\'"\\\'"\']'),
+                equals("descendant-or-self::*[@aval = concat('\"',\"'\",'\"')]"))
 })
