@@ -115,4 +115,22 @@ test_that("method registration occurs when querySelector methods are called", {
     result <- querySelectorAllNS(x2doc, "svg|circle", c(svg = "http://www.w3.org/2000/svg"))
     expect_that(getHasXML(), equals(TRUE))
     expect_that(getHasxml2(), equals(TRUE))
+
+    # finally check that methods() can see them
+    qsMethods <- methods("querySelector")
+    qsAllMethods <- methods("querySelectorAll")
+    qsNSMethods <- methods("querySelectorNS")
+    qsAllNSMethods <- methods("querySelectorAllNS")
+
+    objectNames <- c("xml_node", "XMLInternalDocument", "XMLInternalNode")
+
+    qsMethodNames <- paste("querySelector", objectNames, sep = ".")
+    qsAllMethodNames <- paste("querySelectorAll", objectNames, sep = ".")
+    qsNSMethodNames <- paste("querySelectorNS", objectNames, sep = ".")
+    qsAllNSMethodNames <- paste("querySelectorAllNS", objectNames, sep = ".")
+
+    expect_that(all(qsMethodNames %in% qsMethods), equals(TRUE))
+    expect_that(all(qsAllMethodNames %in% qsAllMethods), equals(TRUE))
+    expect_that(all(qsNSMethodNames %in% qsNSMethods), equals(TRUE))
+    expect_that(all(qsAllNSMethodNames %in% qsAllNSMethods), equals(TRUE))
 })
