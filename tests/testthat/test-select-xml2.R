@@ -27,18 +27,18 @@ test_that("selection works correctly on a large barrage of tests", {
           "</div>", "<div id=\"foobar-div\" foobar=\"ab bc", "cde\"><span id=\"foobar-span\"></span></div>", 
           "</body></html>"), collapse = "\n")
 
-    library(XML)
-    document <- xmlRoot(xmlParse(HTML_IDS))
+    library(xml2)
+    document <- read_xml(HTML_IDS)
     gt <- GenericTranslator$new()
     ht <- HTMLTranslator$new()
 
     select_ids <- function(selector, html_only) {
         if (html_only) {
             xpath <- ht$css_to_xpath(selector)
-            items <- getNodeSet(document, xpath)
+            items <- xml_find_all(document, xpath)
         } else {
             xpath <- gt$css_to_xpath(selector)
-            items <- getNodeSet(document, xpath)
+            items <- xml_find_all(document, xpath)
         }
         n <- length(items)
         if (!n)
@@ -46,8 +46,8 @@ test_that("selection works correctly on a large barrage of tests", {
         result <- character(n)
         for (i in seq_len(n)) {
             element <- items[[i]]
-            tmp <- xmlAttrs(element)["id"]
-            if (is.null(tmp))
+            tmp <- xml_attr(element, "id")
+            if (is.na(tmp))
                 tmp <- "nil"
             result[i] <- tmp
         }
