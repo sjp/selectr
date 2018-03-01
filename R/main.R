@@ -68,24 +68,20 @@ css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator =
 }
 
 querySelector <- function(doc, selector, ns = NULL, ...) {
-    tryLoadNamespaces()
     UseMethod("querySelector", doc)
 }
 
 querySelectorAll <- function(doc, selector, ns = NULL, ...) {
-    tryLoadNamespaces()
     UseMethod("querySelectorAll", doc)
 }
 
 querySelectorNS <- function(doc, selector, ns,
                             prefix = "descendant-or-self::", ...) {
-    tryLoadNamespaces()
     UseMethod("querySelectorNS", doc)
 }
 
 querySelectorAllNS <- function(doc, selector, ns,
                                prefix = "descendant-or-self::", ...) {
-    tryLoadNamespaces()
     UseMethod("querySelectorAllNS", doc)
 }
 
