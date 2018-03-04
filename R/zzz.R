@@ -28,7 +28,7 @@ reg_s3_method <- function(pkg, generic, class, fun = NULL) { # nocov start
     stopifnot(is.function(fun))
 
     if (pkg %in% loadedNamespaces()) {
-        envir <- asNamespace(pkg)
+        envir <- asNamespace("selectr")
         registerS3method(generic, class, fun, envir = envir)
     }
 
@@ -36,7 +36,7 @@ reg_s3_method <- function(pkg, generic, class, fun = NULL) { # nocov start
     setHook(
         packageEvent(pkg, "onLoad"),
         function(...) {
-            envir <- asNamespace(pkg)
+            envir <- asNamespace("selectr")
             registerS3method(generic, class, fun, envir = envir)
         }
     )
