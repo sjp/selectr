@@ -125,7 +125,16 @@ GenericTranslator <- setRefClass("GenericTranslator",
                      "xpath_element", "xpath_function", "xpath_hash",
                      "xpath_negation", "xpath_pseudo")
         type_name <- class(parsed_selector)
-        method <- sprintf("xpath_%s", tolower(type_name))
+        method_name <- sprintf("xpath_%s", tolower(type_name))
+
+        method <- .self[[method_name]]
+        if (is.null(method)) {
+            cls <- getClass(class(.self))
+            cls_methods <- cls@refMethods
+            method <- get(method_name, envir = cls_methods)
+            .self[[method_name]] <- method
+        }
+
         do.call(method, list(parsed_selector))
     },
     xpath_combinedselector = function(combined) {
@@ -133,8 +142,17 @@ GenericTranslator <- setRefClass("GenericTranslator",
                      "xpath_direct_adjacent_combinator", "xpath_indirect_adjacent_combinator")
         combinator <- sprintf("xpath_%s_combinator",
                               combinator_mapping[combined$combinator])
-        do.call(combinator, list(left = .self$xpath(combined$selector),
-                                 right = .self$xpath(combined$subselector)))
+
+        method <- .self[[combinator]]
+        if (is.null(method)) {
+            cls <- getClass(class(.self))
+            cls_methods <- cls@refMethods
+            method <- get(combinator, envir = cls_methods)
+            .self[[combinator]] <- method
+        }
+
+        do.call(method, list(left = .self$xpath(combined$selector),
+                             right = .self$xpath(combined$subselector)))
     },
     xpath_negation = function(negation) {
         xpath <- .self$xpath(negation$selector)
@@ -151,9 +169,19 @@ GenericTranslator <- setRefClass("GenericTranslator",
         usingMethods("xpath_contains_function", "xpath_lang_function",
                      "xpath_nth_child_function", "xpath_nth_last_child_function",
                      "xpath_nth_of_type_function", "xpath_nth_last_of_type_function")
-        method <- sprintf("xpath_%s_function", gsub("-", "_", fn$name))
-        if (!exists(method))
+        method_name <- sprintf("xpath_%s_function", gsub("-", "_", fn$name))
+
+        method <- .self[[method_name]]
+        if (is.null(method)) {
+            cls <- getClass(class(.self))
+            cls_methods <- cls@refMethods
+            method <- get(method_name, envir = cls_methods)
+            .self[[method_name]] <- method
+        }
+
+        if (is.null(method))
             stop(sprintf("The pseudo-class :%s() is unknown", fn$name))
+
         do.call(method, list(xpath(fn$selector), fn))
     },
     xpath_pseudo = function(pseudo) {
@@ -166,9 +194,19 @@ GenericTranslator <- setRefClass("GenericTranslator",
                      "xpath_focus_pseudo", "xpath_target_pseudo",
                      "xpath_enabled_pseudo", "xpath_disabled_pseudo",
                      "xpath_checked_pseudo")
-        method <- sprintf("xpath_%s_pseudo", gsub("-", "_", pseudo$ident))
-        if (!exists(method))
+        method_name <- sprintf("xpath_%s_pseudo", gsub("-", "_", pseudo$ident))
+
+        method <- .self[[method_name]]
+        if (is.null(method)) {
+            cls <- getClass(class(.self))
+            cls_methods <- cls@refMethods
+            method <- get(method_name, envir = cls_methods)
+            .self[[method_name]] <- method
+        }
+
+        if (is.null(method))
             stop(sprintf("The pseudo-class :%s is unknown", pseudo$ident))
+
         do.call(method, list(xpath(pseudo$selector)))
     },
     xpath_attrib = function(selector) {
@@ -177,7 +215,7 @@ GenericTranslator <- setRefClass("GenericTranslator",
                      "xpath_attrib_prefixmatch", "xpath_attrib_substringmatch",
                      "xpath_attrib_suffixmatch")
         operator <- attribute_operator_mapping[selector$operator]
-        method <- sprintf("xpath_attrib_%s", operator)
+        method_name <- sprintf("xpath_attrib_%s", operator)
         if (lower_case_attribute_names) {
             name <- tolower(selector$attrib)
         } else {
@@ -198,6 +236,15 @@ GenericTranslator <- setRefClass("GenericTranslator",
         } else {
             value <- selector$value
         }
+
+        method <- .self[[method_name]]
+        if (is.null(method)) {
+            cls <- getClass(class(.self))
+            cls_methods <- cls@refMethods
+            method <- get(method_name, envir = cls_methods)
+            .self[[method_name]] <- method
+        }
+
         do.call(method, list(xpath(selector$selector), attrib, value))
     },
     # .foo is defined as [class~=foo] in the spec

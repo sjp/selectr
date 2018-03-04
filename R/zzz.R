@@ -1,23 +1,23 @@
 .onLoad <- function(libname, pkgname) { # nocov start
-    regS3Method("XML", "querySelector", "XMLInternalNode")
-    regS3Method("XML", "querySelectorAll", "XMLInternalNode")
-    regS3Method("XML", "querySelectorNS", "XMLInternalNode")
-    regS3Method("XML", "querySelectorAllNS", "XMLInternalNode")
+    reg_s3_method("XML", "querySelector", "XMLInternalNode")
+    reg_s3_method("XML", "querySelectorAll", "XMLInternalNode")
+    reg_s3_method("XML", "querySelectorNS", "XMLInternalNode")
+    reg_s3_method("XML", "querySelectorAllNS", "XMLInternalNode")
 
-    regS3Method("XML", "querySelector", "XMLInternalDocument")
-    regS3Method("XML", "querySelectorAll", "XMLInternalDocument")
-    regS3Method("XML", "querySelectorNS", "XMLInternalDocument")
-    regS3Method("XML", "querySelectorAllNS", "XMLInternalDocument")
+    reg_s3_method("XML", "querySelector", "XMLInternalDocument")
+    reg_s3_method("XML", "querySelectorAll", "XMLInternalDocument")
+    reg_s3_method("XML", "querySelectorNS", "XMLInternalDocument")
+    reg_s3_method("XML", "querySelectorAllNS", "XMLInternalDocument")
 
-    regS3Method("xml2", "querySelector", "xml_node")
-    regS3Method("xml2", "querySelectorAll", "xml_node")
-    regS3Method("xml2", "querySelectorNS", "xml_node")
-    regS3Method("xml2", "querySelectorAllNS", "xml_node")
+    reg_s3_method("xml2", "querySelector", "xml_node")
+    reg_s3_method("xml2", "querySelectorAll", "xml_node")
+    reg_s3_method("xml2", "querySelectorNS", "xml_node")
+    reg_s3_method("xml2", "querySelectorAllNS", "xml_node")
 
     invisible()
 } # nocov end
 
-regS3Method <- function(pkg, generic, class, fun = NULL) { # nocov start
+reg_s3_method <- function(pkg, generic, class, fun = NULL) { # nocov start
     stopifnot(is.character(pkg), length(pkg) == 1)
     stopifnot(is.character(generic), length(generic) == 1)
     stopifnot(is.character(class), length(class) == 1)
