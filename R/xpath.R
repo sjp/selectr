@@ -128,12 +128,13 @@ GenericTranslator <- setRefClass("GenericTranslator",
         method_name <- sprintf("xpath_%s", tolower(type_name))
 
         method <- .self[[method_name]]
-        if (is.null(method)) {
+        # manually bind method if not already bound
+        if (is.null(method)) { # nocov start
             cls <- getClass(class(.self))
             cls_methods <- cls@refMethods
             method <- get(method_name, envir = cls_methods)
             .self[[method_name]] <- method
-        }
+        } # nocov end
 
         do.call(method, list(parsed_selector))
     },
@@ -144,12 +145,13 @@ GenericTranslator <- setRefClass("GenericTranslator",
                               combinator_mapping[combined$combinator])
 
         method <- .self[[combinator]]
-        if (is.null(method)) {
+        # manually bind method if not already bound
+        if (is.null(method)) { # nocov start
             cls <- getClass(class(.self))
             cls_methods <- cls@refMethods
             method <- get(combinator, envir = cls_methods)
             .self[[combinator]] <- method
-        }
+        } # nocov end
 
         do.call(method, list(left = .self$xpath(combined$selector),
                              right = .self$xpath(combined$subselector)))
@@ -172,12 +174,13 @@ GenericTranslator <- setRefClass("GenericTranslator",
         method_name <- sprintf("xpath_%s_function", gsub("-", "_", fn$name))
 
         method <- .self[[method_name]]
-        if (is.null(method)) {
+        # manually bind method if not already bound
+        if (is.null(method)) { # nocov start
             cls <- getClass(class(.self))
             cls_methods <- cls@refMethods
             method <- get(method_name, envir = cls_methods)
             .self[[method_name]] <- method
-        }
+        } # nocov end
 
         if (is.null(method))
             stop(sprintf("The pseudo-class :%s() is unknown", fn$name))
@@ -197,12 +200,13 @@ GenericTranslator <- setRefClass("GenericTranslator",
         method_name <- sprintf("xpath_%s_pseudo", gsub("-", "_", pseudo$ident))
 
         method <- .self[[method_name]]
-        if (is.null(method)) {
+        # manually bind method if not already bound
+        if (is.null(method)) { # nocov start
             cls <- getClass(class(.self))
             cls_methods <- cls@refMethods
             method <- get(method_name, envir = cls_methods)
             .self[[method_name]] <- method
-        }
+        } # nocov end
 
         if (is.null(method))
             stop(sprintf("The pseudo-class :%s is unknown", pseudo$ident))
@@ -238,12 +242,13 @@ GenericTranslator <- setRefClass("GenericTranslator",
         }
 
         method <- .self[[method_name]]
-        if (is.null(method)) {
+        # manually bind method if not already bound
+        if (is.null(method)) { # nocov start
             cls <- getClass(class(.self))
             cls_methods <- cls@refMethods
             method <- get(method_name, envir = cls_methods)
             .self[[method_name]] <- method
-        }
+        } # nocov end
 
         do.call(method, list(xpath(selector$selector), attrib, value))
     },

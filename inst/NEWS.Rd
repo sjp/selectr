@@ -2,6 +2,30 @@
 \title{NEWS file for the selectr package}
 \encoding{UTF-8}
 
+\section{Changes in version 0.3-2}{
+  \subsection{MINOR CHANGES}{
+     \itemize{
+
+      \item Improved method registration for \pkg{XML} and \pkg{xml2} 
+      objects. Avoids checks on each use and is only performed once per
+      dependent package load/unload.
+
+     }
+  }
+
+  \subsection{BUG FIXES}{
+    \itemize{
+
+      \item In some environments, reference class methods were missing at
+      runtime. This appears to be due to some internal behaviour in them
+      \pkg{methods} package where methods are registered on an objects when
+      the \code{$} operator is used for a field or method. Instead, when
+      a method is missing, they are manually bound to the object.
+
+    }
+  }
+}
+
 \section{Changes in version 0.3-1}{
   \subsection{MINOR CHANGES}{
      \itemize{
