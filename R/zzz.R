@@ -21,7 +21,7 @@ reg_s3_method <- function(pkg, generic, class, fun = NULL) { # nocov start
     stopifnot(is.character(pkg), length(pkg) == 1)
     stopifnot(is.character(generic), length(generic) == 1)
     stopifnot(is.character(class), length(class) == 1)
-    
+
     if (is.null(fun))
         fun <- get(paste0(generic, ".", class), envir = parent.frame())
 

@@ -9,7 +9,7 @@ test_that("useful errors are returned", {
     expect_that(get_error("attributes(href)/html/body/a"),
                 throws_error("Unexpected character"))
     expect_that(get_error("attributes(href)"),
-                throws_error("Expected selector")) 
+                throws_error("Expected selector"))
     expect_that(get_error("html/body/a"),
                 throws_error("Unexpected character"))
     expect_that(get_error(" "),

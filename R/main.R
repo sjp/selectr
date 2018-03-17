@@ -1,14 +1,14 @@
 css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator = "generic") {
     if (missing(selector) || is.null(selector))
         stop("A valid selector (character vector) must be provided.")
-        
+
     if (!is.character(selector))
         stop("The 'selector' argument must be a character vector")
     if (!is.character(prefix))
         stop("The 'prefix' argument must be a character vector")
     if (!is.character(translator))
         stop("The 'translator' argument must be a character vector")
-            
+
     if (anyNA(selector)) {
         warning("NA values were found in the 'selector' argument, they have been removed")
         selector <- selector[!is.na(selector)]
@@ -18,12 +18,12 @@ css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator =
         warning("NA values were found in the 'prefix' argument, they have been removed")
         prefix <- prefix[!is.na(prefix)]
     }
-    
+
     if (anyNA(translator)) {
         warning("NA values were found in the 'translator' argument, they have been removed")
         translator <- translator[!is.na(translator)]
     }
-    
+
     zeroLengthArgs <- character(0)
     if (!length(selector))
         zeroLengthArgs <- c(zeroLengthArgs, "selector")
@@ -31,11 +31,11 @@ css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator =
         zeroLengthArgs <- c(zeroLengthArgs, "prefix")
     if (!length(translator))
         zeroLengthArgs <- c(zeroLengthArgs, "translator")
-    
+
     if (length(zeroLengthArgs)) {
         plural <- if (length(zeroLengthArgs) > 1) "s" else ""
         stop(sprintf("Zero length character vector found for the following argument%s: %s",
-            plural, paste0(zeroLengthArgs, collapse = ",")))       
+            plural, paste0(zeroLengthArgs, collapse = ",")))
     }
 
     translator <- sapply(translator, function(tran) {
@@ -52,7 +52,7 @@ css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator =
         sel <- selector[i]
         pref <- prefix[i]
         trans <- translator[i]
-        
+
         tran <- if (trans == "html") {
             HTMLTranslator$new()
         } else if (trans == "xhtml") {
@@ -60,7 +60,7 @@ css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator =
         } else {
             GenericTranslator$new()
         }
-        
+
         results[i] <- tran$css_to_xpath(sel, pref)
     }
 

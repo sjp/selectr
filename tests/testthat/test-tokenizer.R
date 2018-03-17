@@ -20,5 +20,5 @@ test_that("tokenizer extracts correct representation", {
                          "<NUMBER '-3.7' at 35>",
                          "<DELIM ')' at 39>",
                          "<EOF at 40>")
-    expect_that(tokens, equals(expected_tokens)) 
+    expect_that(tokens, equals(expected_tokens))
 })

@@ -229,18 +229,18 @@ CombinedSelector <- R6Class("CombinedSelector",
         },
         repr = function() {
             comb <-
-                if (self$combinator == " ") 
+                if (self$combinator == " ")
                     "<followed>"
                 else
                     self$combinator
             paste0(
                 first_class_name(self),
-                "[", 
+                "[",
                 self$selector$repr(),
                 " ",
                 comb,
-                " ", 
-                self$subselector$repr(), 
+                " ",
+                self$subselector$repr(),
                 "]")
         },
         specificity = function() {

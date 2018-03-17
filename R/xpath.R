@@ -106,7 +106,7 @@ GenericTranslator <- R6Class("GenericTranslator",
             })
 
             char_selectors <-
-                sapply(selectors, 
+                sapply(selectors,
                        function(selector) self$selector_to_xpath(selector, prefix))
 
             paste0(char_selectors, collapse = " | ")
