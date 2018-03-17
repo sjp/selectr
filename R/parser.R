@@ -6,8 +6,8 @@ TokenMacros <- list(unicode_escape = "\\([0-9a-f]{1,6})(?:\r\n|[ \n\r\t\f])?",
                     escape = escape,
                     string_escape = paste0("\\(?:\n|\r\n|\r|\f)|", escape),
                     nonascii = nonascii,
-                    nmchar = sprintf("([_a-z0-9-]|%s|%s)", escape, nonascii),
-                    nmstart = sprintf("[_a-z]|%s|%s", escape, nonascii))
+                    nmchar = paste0("([_a-z0-9-]|", escape, "|", nonascii, ")"),
+                    nmstart = paste0("[_a-z]|", escape, "|", nonascii))
 
 Selector <- R6Class("Selector",
     public = list(
@@ -330,8 +330,7 @@ parse_selector <- function(stream) {
             break
         }
         if (!is.null(pseudo_element) && nzchar(pseudo_element)) {
-            stop(sprintf("Got pseudo-element ::%s not at the end of a selector",
-                         pseudo_element))
+            stop(paste0("Got pseudo-element ::", pseudo_element, " not at the end of a selector"))
         }
         if (peek$is_delim(c("+", ">", "~"))) {
             # A combinator
@@ -380,8 +379,7 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
             break
         }
         if (!is.null(pseudo_element)) {
-            stop(sprintf("Got pseudo-element ::%s not at the end of a selector",
-                         pseudo_element))
+            stop(paste0("Got pseudo-element ::", pseudo_element, " not at the end of a selector"))
         }
         if (peek$type == "HASH") {
             result <- Hash$new(result, stream$nxt()$value)
@@ -427,11 +425,10 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
                 nt <- stream$nxt()
                 if (length(argument_pseudo_element) &&
                     nzchar(argument_pseudo_element)) {
-                    stop(sprintf("Got pseudo-element ::%s inside :not() at %s",
-                                 argument_pseudo_element, nt$pos))
+                    stop(paste0("Got pseudo-element ::", argument_pseudo_element, " inside :not() at ", nt$pos))
                 }
                 if (!token_equality(nt, "DELIM", ")")) {
-                    stop(sprintf("Expected ')', got %s", nt$value))
+                    stop(paste0("Expected ')', got ", nt$value))
                 }
                 result <- Negation$new(result, argument)
             } else {
@@ -448,20 +445,20 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
                     } else if (token_equality(nt, "DELIM", ")")) {
                         break
                     } else {
-                        stop(sprintf("Expected an argument, got %s", nt$repr()))
+                        stop(paste0("Expected an argument, got ", nt$repr()))
                     }
                 }
                 if (length(arguments) == 0) {
-                    stop(sprintf("Expected at least one argument, got %s", nt$repr()))
+                    stop(paste0("Expected at least one argument, got ", nt$repr()))
                 }
                 result <- Function$new(result, ident, arguments)
             }
         } else {
-            stop(sprintf("Expected selector, got %s", stream$peek()$repr()))
+            stop(paste0("Expected selector, got ", stream$peek()$repr()))
         }
     }
     if (length(stream$used) == selector_start) {
-        stop(sprintf("Expected selector, got %s", stream$peek()$repr()))
+        stop(paste0("Expected selector, got ", stream$peek()$repr()))
     }
     list(result = result, pseudo_element = pseudo_element)
 }
@@ -470,7 +467,7 @@ parse_attrib <- function(selector, stream) {
     stream$skip_whitespace()
     attrib <- stream$next_ident_or_star()
     if (is.null(attrib) && !token_equality(stream$peek(), "DELIM", "|"))
-        stop(sprintf("Expected '|', got %s", stream$peek()$repr()))
+        stop(paste0("Expected '|', got ", stream$peek()$repr()))
     if (token_equality(stream$peek(), "DELIM", "|")) {
         stream$nxt()
         namespace <- attrib
@@ -493,18 +490,18 @@ parse_attrib <- function(selector, stream) {
         } else if (nt$is_delim(c("^=", "$=", "*=", "~=", "|=", "!="))) {
             op <- nt$value
         } else {
-            stop(sprintf("Operator expected, got %s", nt$repr()))
+            stop(paste0("Operator expected, got ", nt$repr()))
         }
     }
     stream$skip_whitespace()
     value <- stream$nxt()
     if (!value$type %in% c("IDENT", "STRING")) {
-        stop(sprintf("Expected string or ident, got %s", value$repr()))
+        stop(paste0("Expected string or ident, got ", value$repr()))
     }
     stream$skip_whitespace()
     nt <- stream$nxt()
     if (!token_equality(nt, "DELIM", "]")) {
-        stop(sprintf("Expected ']', got %s", nt$repr()))
+        stop(paste0("Expected ']', got ", nt$repr()))
     }
     Attrib$new(selector, namespace, attrib, op, value$value)
 }
@@ -601,12 +598,10 @@ delims_1ch <- c('>', '+', '~', ',', '.', '*', '=', '[', ']', '(', ')', '|', ':',
 delim_escapes <- paste0("\\", delims_1ch, collapse = "|")
 match_whitespace <- compile_('[ \t\r\n\f]+')
 match_number <- compile_('[+-]?(?:[0-9]*\\.[0-9]+|[0-9]+)')
-match_hash <- compile_(sprintf("^#([_a-zA-Z0-9-]|%s|\\\\(?:%s))+", nonascii, delim_escapes))
-match_ident <- compile_(sprintf("^([_a-zA-Z0-9-]|%s|\\\\(?:%s))+", nonascii, delim_escapes))
-match_string_by_quote <- list("'" = compile_(sprintf("([^\n\r\f\\']|%s)*",
-                                                     TokenMacros$string_escape)),
-                              '"' = compile_(sprintf('([^\n\r\f\\"]|%s)*',
-                                             TokenMacros$string_escape)))
+match_hash <- compile_(paste0("^#([_a-zA-Z0-9-]|", nonascii, "|\\\\(?:", delim_escapes, "))+"))
+match_ident <- compile_(paste0("^([_a-zA-Z0-9-]|", nonascii, "|\\\\(?:", delim_escapes, "))+"))
+match_string_by_quote <- list("'" = compile_(paste0("([^\n\r\f\\']|", TokenMacros$string_escape, ")*")),
+                              '"' = compile_(paste0('([^\n\r\f\\"]|', TokenMacros$string_escape, ")*")))
 
 # Substitution for escaped chars
 sub_simple_escape <- function(x) gsub('\\\\(.)', "\\1", x)
@@ -699,7 +694,7 @@ tokenize <- function(s) {
                     }
                 }
                 if (all(is_escaped)) {
-                    stop(sprintf("Unclosed string at %d", pos))
+                    stop(paste0("Unclosed string at ", pos))
                 }
                 end_quote <- matching_quotes[min(which(!is_escaped))]
                 value <- substring(s, pos + 1, pos + end_quote - 1)
@@ -710,7 +705,7 @@ tokenize <- function(s) {
                 pos <- pos + end_quote + 1 # one for each quote char
                 i <- i + 1
             } else {
-                stop(sprintf("Unclosed string at %d", pos))
+                stop(paste0("Unclosed string at ", pos))
             }
         }
         # Remove comments
@@ -729,8 +724,7 @@ tokenize <- function(s) {
         # been an error
         tmp <- substring(ss, 1, 1)
         if (!tmp %in% c(delims_1ch, '"', "'")) {
-            stop(sprintf("Unexpected character '%s' found at position %d",
-                         tmp, pos))
+            stop(paste0("Unexpected character '", tmp, "' found at position ", pos))
         }
     }
     results[[i]] <- EOFToken$new(pos)
