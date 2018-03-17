@@ -34,8 +34,11 @@ css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator =
 
     if (length(zeroLengthArgs)) {
         plural <- if (length(zeroLengthArgs) > 1) "s" else ""
-        stop(sprintf("Zero length character vector found for the following argument%s: %s",
-            plural, paste0(zeroLengthArgs, collapse = ",")))
+        stop(paste0(
+            "Zero length character vector found for the following argument",
+            plural,
+            ": ",
+            paste0(zeroLengthArgs, collapse = ", ")))
     }
 
     translator <- sapply(translator, function(tran) {
@@ -220,7 +223,7 @@ formatNS <- function(ns) {
 }
 
 formatNSPrefix <- function(ns, prefix) {
-    filters <- paste0(sprintf("//%s:*", names(ns)), collapse = "|")
+    filters <- paste0("//", names(ns), ":*", collapse = "|")
     prefix <- paste0("(", filters, ")/", prefix)
     prefix
 }

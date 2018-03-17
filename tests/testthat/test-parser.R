@@ -111,8 +111,8 @@ test_that("parsed elements print correctly", {
 test_that("compiled regex parsing functions behave as expected", {
     m_whitespace <- compile_('[ \t\r\n\f]+')
     m_number <- compile_('[+-]?(?:[0-9]*\\.[0-9]+|[0-9]+)')
-    m_hash <- compile_(sprintf("^#([_a-zA-Z0-9-]|%s|\\\\(?:%s))+", nonascii, delim_escapes))
-    m_ident <- compile_(sprintf("^([_a-zA-Z0-9-]|%s|\\\\(?:%s))+", nonascii, delim_escapes))
+    m_hash <- compile_(paste0("^#([_a-zA-Z0-9-]|", nonascii, "|\\\\(?:", delim_escapes, "))+"))
+    m_ident <- compile_(paste0("^([_a-zA-Z0-9-]|", nonascii, "|\\\\(?:", delim_escapes, "))+"))
 
     expect_that(m_whitespace("a b"), equals(match_whitespace("a b")))
     expect_that(m_number("a 1"), equals(match_number("a 1")))

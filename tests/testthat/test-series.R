@@ -2,7 +2,7 @@ context("series")
 
 test_that("parser generates correct series", {
     series <- function(css) {
-        selector <- parse(sprintf(":nth-child(%s)", css))[[1]]
+        selector <- parse(paste0(":nth-child(", css, ")"))[[1]]
         args <- selector$parsed_tree$arguments
         parse_series(args)
     }
