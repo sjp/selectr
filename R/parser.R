@@ -9,250 +9,250 @@ TokenMacros <- list(unicode_escape = "\\([0-9a-f]{1,6})(?:\r\n|[ \n\r\t\f])?",
                     nmchar = sprintf("([_a-z0-9-]|%s|%s)", escape, nonascii),
                     nmstart = sprintf("[_a-z]|%s|%s", escape, nonascii))
 
-Selector <- setRefClass("Selector",
-                        fields = c("parsed_tree", "pseudo_element"),
-                        methods = list(
-    initialize = function(tree, pseudo_element = NULL) {
-        parsed_tree <<- tree
-        if (!is.null(pseudo_element))
-            pseudo_element <<- tolower(pseudo_element)
-        else
-            pseudo_element <<- pseudo_element
-    },
-    repr = function() {
-        pseudo_el <-
-            if (is.null(pseudo_element))
-                ""
+Selector <- R6Class("Selector",
+    public = list(
+        parsed_tree = NULL,
+        pseudo_element = NULL,
+        initialize = function(tree, pseudo_element = NULL) {
+            self$parsed_tree <- tree
+            if (!is.null(pseudo_element))
+                self$pseudo_element <- tolower(pseudo_element)
+        },
+        repr = function() {
+            pseudo_el <-
+                if (is.null(self$pseudo_element)) ""
+                else paste0("::", self$pseudo_element)
+            paste0(self$parsed_tree$repr(), pseudo_el)
+        },
+        specificity = function() {
+            specs <- self$parsed_tree$specificity()
+            if (!is.null(self$pseudo_element))
+                specs[3] <- specs[3] + 1
+            specs
+        },
+        show = function() { # nocov start
+            cat(self$repr(), "\n")
+        } # nocov end
+    )
+)
+
+Class <- R6Class("Class",
+    public = list(
+        selector = NULL,
+        class_name = NULL,
+        initialize = function(selector, class_name) {
+            self$selector <- selector
+            self$class_name <- class_name
+        },
+        repr = function() {
+            paste0(first_class_name(self),"[", self$selector$repr(), ".", self$class_name, "]")
+        },
+        specificity = function() {
+            specs <- self$selector$specificity()
+            specs[2] <- specs[2] + 1
+            specs
+        },
+        show = function() { # nocov start
+            cat(self$repr(), "\n")
+        } # nocov end
+    )
+)
+
+Function <- R6Class("Function",
+    public = list(
+        selector = NULL,
+        name = NULL,
+        arguments = NULL,
+        initialize = function(selector, name, arguments) {
+            self$selector <- selector
+            self$name <- tolower(name)
+            self$arguments <- arguments
+        },
+        repr = function() {
+            token_values <- lapply(self$arguments, function(token) paste0("'", token$value, "'"))
+            token_values <- paste0(unlist(token_values), collapse = ", ")
+            token_values <- paste0("[", token_values, "]")
+            paste0(first_class_name(self), "[", self$selector$repr(), ":", self$name, "(", token_values, ")]")
+        },
+        argument_types = function() {
+            token_types <- lapply(self$arguments, function(token) token$type)
+            unlist(token_types)
+        },
+        specificity = function() {
+            specs <- self$selector$specificity()
+            specs[2] <- specs[2] + 1
+            specs
+        },
+        show = function() { # nocov start
+            cat(self$repr(), "\n")
+        } # nocov end
+    )
+)
+
+Pseudo <- R6Class("Pseudo",
+    public = list(
+        selector = NULL,
+        ident = NULL,
+        initialize = function(selector, ident) {
+            self$selector <- selector
+            self$ident <- tolower(ident)
+        },
+        repr = function() {
+            paste0(first_class_name(self), "[", self$selector$repr(), ":", self$ident, "]")
+        },
+        specificity = function() {
+            specs <- self$selector$specificity()
+            specs[2] <- specs[2] + 1
+            specs
+        },
+        show = function() { # nocov start
+            cat(self$repr(), "\n")
+        } # nocov end
+    )
+)
+
+Negation <- R6Class("Negation",
+    public = list(
+        selector = NULL,
+        subselector = NULL,
+        initialize = function(selector, subselector) {
+            self$selector <- selector
+            self$subselector <- subselector
+        },
+        repr = function() {
+            paste0(first_class_name(self), "[", self$selector$repr(), ":not(", self$subselector$repr(), ")]")
+        },
+        specificity = function() {
+            specs <- self$selector$specificity()
+            sub_specs <- self$subselector$specificity()
+            specs + sub_specs
+        },
+        show = function() { # nocov start
+            cat(self$repr(), "\n")
+        } # nocov end
+    )
+)
+
+Attrib <- R6Class("Attrib",
+    public = list(
+        selector = NULL,
+        namespace = NULL,
+        attrib = NULL,
+        operator = NULL,
+        value = NULL,
+        initialize = function(selector, namespace, attrib, operator, value) {
+            self$selector <- selector
+            self$namespace <- namespace
+            self$attrib <- attrib
+            self$operator <- operator
+            self$value <- value
+        },
+        repr = function() {
+            attr <-
+                if (!is.null(self$namespace)) paste0(self$namespace, "|", self$attrib)
+                else self$attrib
+            if (self$operator == "exists")
+                paste0(first_class_name(self), "[", self$selector$repr(), "[", attr, "]]")
             else
-                sprintf("::%s", pseudo_element)
-        sprintf("%s%s",
-                parsed_tree$repr(),
-                pseudo_el)
-    },
-    specificity = function() {
-        specs <- parsed_tree$specificity()
-        if (!is.null(pseudo_element))
-            specs[3] <- specs[3] + 1
-        specs
-    },
-    show = function() { # nocov start
-        cat(.self$repr(), "\n")
-    } # nocov end
-    ))
+                paste0(first_class_name(self), "[", self$selector$repr(), "[", attr, " ", self$operator, " '", self$value, "']]")
+        },
+        specificity = function() {
+            specs <- self$selector$specificity()
+            specs[2] <- specs[2] + 1
+            specs
+        },
+        show = function() { # nocov start
+            cat(self$repr(), "\n")
+        } # nocov end
+    )
+)
 
-Class <- setRefClass("Class",
-                     fields = c("selector", "class_name"),
-                     methods = list(
-    initialize = function(selector, class_name) {
-        selector <<- selector
-        class_name <<- class_name
-    },
-    repr = function() {
-        sprintf("%s[%s.%s]",
-                class(.self),
-                selector$repr(),
-                class_name)
-    },
-    specificity = function() {
-        specs <- selector$specificity()
-        specs[2] <- specs[2] + 1
-        specs
-    },
-    show = function() { # nocov start
-        cat(.self$repr(), "\n")
-    } # nocov end
-    ))
+Element <- R6Class("Element",
+    public = list(
+        namespace = NULL,
+        element = NULL,
+        initialize = function(namespace = NULL, element = NULL) {
+            self$namespace <- namespace
+            self$element <- element
+        },
+        repr = function() {
+            el <-
+                if (!is.null(self$element)) self$element
+                else "*"
+            if (!is.null(self$namespace))
+                el <- paste0(self$namespace, "|", el)
+            paste0(first_class_name(self), "[", el, "]")
+        },
+        specificity = function() {
+            if (!is.null(self$element)) c(0, 0, 1)
+            else rep(0, 3)
+        },
+        show = function() { # nocov start
+            cat(self$repr(), "\n")
+        } # nocov end
+    )
+)
 
-Function <- setRefClass("Function",
-                        fields = c("selector", "name", "arguments"),
-                        methods = list(
-    initialize = function(selector, name, arguments) {
-        selector <<- selector
-        name <<- tolower(name)
-        arguments <<- arguments
-    },
-    repr = function() {
-        token_values <- lapply(arguments, function(token) {
-            paste0("'", token$value, "'")
-        })
-        token_values <- paste0(unlist(token_values), collapse = ", ")
-        token_values <- paste0("[", token_values, "]")
-        sprintf("%s[%s:%s(%s)]",
-                class(.self),
-                selector$repr(),
-                name,
-                token_values)
-    },
-    argument_types = function() {
-        token_types <- lapply(arguments, function(token) {
-            token$type
-        })
-        unlist(token_types)
-    },
-    specificity = function() {
-        specs <- selector$specificity()
-        specs[2] <- specs[2] + 1
-        specs
-    },
-    show = function() { # nocov start
-        cat(.self$repr(), "\n")
-    } # nocov end
-    ))
+Hash <- R6Class("Hash",
+    public = list(
+        selector = NULL,
+        id = NULL,
+        initialize = function(selector, id) {
+            self$selector <- selector
+            self$id <- id
+        },
+        repr = function() {
+            paste0(first_class_name(self), "[", self$selector$repr(), "#", self$id, "]")
+        },
+        specificity = function() {
+            specs <- self$selector$specificity()
+            specs[1] <- specs[1] + 1
+            specs
+        },
+        show = function() { # nocov start
+            cat(self$repr(), "\n")
+        } # nocov end
+    )
+)
 
-Pseudo <- setRefClass("Pseudo",
-                      fields = c("selector", "ident"),
-                      methods = list(
-    initialize = function(selector, ident) {
-        selector <<- selector
-        ident <<- tolower(ident)
-    },
-    repr = function() {
-        sprintf("%s[%s:%s]",
-                class(.self), selector$repr(), ident)
-    },
-    specificity = function() {
-        specs <- selector$specificity()
-        specs[2] <- specs[2] + 1
-        specs
-    },
-    show = function() { # nocov start
-        cat(.self$repr(), "\n")
-    } # nocov end
-    ))
-
-Negation <- setRefClass("Negation",
-                        fields = c("selector", "subselector"),
-                        methods = list(
-    initialize = function(selector, subselector) {
-        selector <<- selector
-        subselector <<- subselector
-    },
-    repr = function() {
-        sprintf("%s[%s:not(%s)]",
-                class(.self), selector$repr(), subselector$repr())
-    },
-    specificity = function() {
-        specs <- selector$specificity()
-        sub_specs <- subselector$specificity()
-        specs + sub_specs
-    },
-    show = function() { # nocov start
-        cat(.self$repr(), "\n")
-    } # nocov end
-    ))
-
-Attrib <- setRefClass("Attrib",
-                      fields = c("selector", "namespace", "attrib",
-                                 "operator", "value"),
-                      methods = list(
-    initialize = function(selector, namespace, attrib, operator, value) {
-        selector <<- selector
-        namespace <<- namespace
-        attrib <<- attrib
-        operator <<- operator
-        value <<- value
-    },
-    repr = function() {
-        attr <-
-            if (!is.null(namespace))
-                sprintf("%s|%s", namespace, attrib)
-            else
-                .self$attrib
-        if (operator == "exists")
-            sprintf("%s[%s[%s]]",
-                    class(.self), selector$repr(), attr)
-        else
-            sprintf("%s[%s[%s %s '%s']]",
-                    class(.self), selector$repr(), attr, operator, value)
-    },
-    specificity = function() {
-        specs <- selector$specificity()
-        specs[2] <- specs[2] + 1
-        specs
-    },
-    show = function() { # nocov start
-        cat(.self$repr(), "\n")
-    } # nocov end
-    ))
-
-Element <- setRefClass("Element",
-                       fields = c("namespace", "element"),
-                       methods = list(
-    initialize = function(namespace = NULL, element = NULL) {
-        namespace <<- namespace
-        element <<- element
-    },
-    repr = function() {
-        el <-
-            if (!is.null(.self$element))
-                .self$element
-            else
-                "*"
-        if (!is.null(namespace))
-            el <- sprintf("%s|%s", namespace, el)
-        sprintf("%s[%s]",
-                class(.self), el)
-    },
-    specificity = function() {
-        if (!is.null(element))
-            c(0, 0, 1)
-        else
-            rep(0, 3)
-    },
-    show = function() { # nocov start
-        cat(.self$repr(), "\n")
-    } # nocov end
-    ))
-
-Hash <- setRefClass("Hash",
-                    fields = c("selector", "id"),
-                    methods = list(
-    initialize = function(selector, id) {
-        selector <<- selector
-        id <<- id
-    },
-    repr = function() {
-        sprintf("%s[%s#%s]",
-                class(.self), selector$repr(), id)
-    },
-    specificity = function() {
-        specs <- selector$specificity()
-        specs[1] <- specs[1] + 1
-        specs
-    },
-    show = function() { # nocov start
-        cat(.self$repr(), "\n")
-    } # nocov end
-    ))
-
-CombinedSelector <- setRefClass("CombinedSelector",
-                                fields = c("selector", "combinator", "subselector"),
-                                methods = list(
-    initialize = function(selector, combinator, subselector) {
-        if (is.null(selector))
-            stop("'selector' cannot be NULL")
-        selector <<- selector
-        combinator <<- combinator
-        subselector <<- subselector
-    },
-    repr = function() {
-        comb <-
-            if (combinator == " ")
-                "<followed>"
-            else
-                combinator
-        sprintf("%s[%s %s %s]",
-                class(.self), selector$repr(), comb, subselector$repr())
-    },
-    specificity = function() {
-        specs <- selector$specificity()
-        sub_specs <- subselector$specificity()
-        specs + sub_specs
-    },
-    show = function() { # nocov start
-        cat(.self$repr(), "\n")
-    } # nocov end
-    ))
+CombinedSelector <- R6Class("CombinedSelector",
+    public = list(
+        selector = NULL,
+        combinator = NULL,
+        subselector = NULL,
+        initialize = function(selector, combinator, subselector) {
+            if (is.null(selector))
+                stop("'selector' cannot be NULL")
+            self$selector <- selector
+            self$combinator <- combinator
+            self$subselector <- subselector
+        },
+        repr = function() {
+            comb <-
+                if (self$combinator == " ") 
+                    "<followed>"
+                else
+                    self$combinator
+            paste0(
+                first_class_name(self),
+                "[", 
+                self$selector$repr(),
+                " ",
+                comb,
+                " ", 
+                self$subselector$repr(), 
+                "]")
+        },
+        specificity = function() {
+            specs <- self$selector$specificity()
+            sub_specs <- self$subselector$specificity()
+            specs + sub_specs
+        },
+        show = function() { # nocov start
+            cat(self$repr(), "\n")
+        } # nocov end
+    )
+)
 
 #### Parser
 
@@ -274,7 +274,7 @@ parse <- function(css) {
     if (!is.na(id_match[2]))
         return(list(Selector$new(
                         Hash$new(
-                            Element$new(element = if (nchar(id_match[1]) == 0) NULL else id_match[1]),
+                            Element$new(element = if (nzchar(id_match[1]) == 0) NULL else id_match[1]),
                             id_match[2]))))
     class_match <- str_match(css, class_re)[1, 2:3]
     if (!is.na(class_match[3]))
@@ -329,7 +329,7 @@ parse_selector <- function(stream) {
         if (token_equality(peek, "EOF", NULL) || token_equality(peek, "DELIM", ",")) {
             break
         }
-        if (!is.null(pseudo_element) && nchar(pseudo_element)) {
+        if (!is.null(pseudo_element) && nzchar(pseudo_element)) {
             stop(sprintf("Got pseudo-element ::%s not at the end of a selector",
                          pseudo_element))
         }
@@ -426,7 +426,7 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
                 stream$skip_whitespace()
                 nt <- stream$nxt()
                 if (length(argument_pseudo_element) &&
-                    nchar(argument_pseudo_element)) {
+                    nzchar(argument_pseudo_element)) {
                     stop(sprintf("Got pseudo-element ::%s inside :not() at %s",
                                  argument_pseudo_element, nt$pos))
                 }
@@ -554,37 +554,40 @@ parse_series <- function(tokens) {
     c(a, b)
 }
 
-Token <- setRefClass("Token",
-                     fields = c("type", "value", "pos"),
-                     methods = list(
-    initialize = function(type = "", value = NULL, pos = 1) {
-        type <<- type
-        value <<- value
-        pos <<- pos
-    },
-    repr = function() {
-        sprintf("<%s '%s' at %i>", type, value, pos)
-    },
-    is_delim = function(values) {
-        type == "DELIM" && value %in% values
-    },
-    show = function() { # nocov start
-        cat(.self$repr(), "\n")
-    } # nocov end
-    ))
+Token <- R6Class("Token",
+    public = list(
+        type = "",
+        value = NULL,
+        pos = 1,
+        initialize = function(type = "", value = NULL, pos = 1) {
+            self$type <- type
+            self$value <- value
+            self$pos <- pos
+        },
+        repr = function() {
+            paste0("<", self$type, " '", self$value, "' at ", self$pos, ">")
+        },
+        is_delim = function(values) {
+            self$type == "DELIM" && self$value %in% values
+        },
+        show = function() { # nocov start
+            cat(self$repr(), "\n")
+        } # nocov end
+    )
+)
 
-EOFToken <- setRefClass("EOFToken",
-                        contains = "Token",
-                        methods = list(
-    initialize = function(pos = 1, type = "EOF", value = NULL) {
-        callSuper(type, value, pos)
-    },
-    repr = function() {
-        sprintf("<%s at %i>", type, pos)
-    },
-    show = function() { # nocov start
-        cat(.self$repr(), "\n")
-    } # nocov end
+EOFToken <- R6Class("EOFToken",
+    inherit = Token,
+    public = list(
+        initialize = function(pos = 1, type = "EOF", value = NULL) {
+            super$initialize(type, value, pos)
+        },
+        repr = function() {
+            paste0("<", self$type, " at ", self$pos, ">")
+        },
+        show = function() { # nocov start
+            cat(self$repr(), "\n")
+        } # nocov end
     ))
 
 compile_ <- function(pattern) {
@@ -734,58 +737,62 @@ tokenize <- function(s) {
     results
 }
 
-TokenStream <- setRefClass("TokenStream",
-                           fields = c("used", "tokens", "source_text", "peeked", "peeking", "pos", "ntokens"),
-                           methods = list(
-    initialize = function(tokens, source_text = NULL) {
-        pos <<- 1
-        tokens <<- tokens
-        ntokens <<- length(tokens)
-        used <<- list()
-        source_text <<- source_text
-        peeked <<- list()
-        peeking <<- FALSE
-    },
-    nxt = function() {
-        if (peeking) {
-            peeking <<- FALSE
-            used[[pos]] <<- peeked
-            peeked
-        } else {
-            nt <- next_token()
-            used[[pos]] <<- nt
+TokenStream <- R6Class("TokenStream",
+    public = list(
+        pos = 1,
+        tokens = NULL,
+        ntokens = 0,
+        used = list(),
+        source_text = NULL,
+        peeked = list(),
+        peeking = FALSE,
+        initialize = function(tokens, source_text = NULL) {
+            self$tokens <- tokens
+            self$ntokens <- length(tokens)
+            self$source_text <- source_text
+        },
+        nxt = function() {
+            if (self$peeking) {
+                self$peeking <- FALSE
+                self$used[[self$pos]] <- self$peeked
+                self$peeked
+            } else {
+                nt <- self$next_token()
+                self$used[[self$pos]] <- nt
+                nt
+            }
+        },
+        next_token = function() {
+            nt <- self$tokens[[self$pos]]
+            self$pos <- self$pos + 1
             nt
-        }
-    },
-    next_token = function() {
-        nt <- tokens[[pos]]
-        pos <<- pos + 1
-        nt
-    },
-    peek = function() {
-        if (!peeking) {
-            peeked <<- next_token()
-            peeking <<- TRUE
-        }
-        peeked
-    },
-    next_ident = function() {
-        nt <- .self$nxt()
-        if (nt$type != "IDENT")
-            stop(sprintf("Expected ident, got %s", nt$repr()))
-        nt$value
-    },
-    next_ident_or_star = function() {
-        nt <- .self$nxt()
-        if (nt$type == "IDENT")
+        },
+        peek = function() {
+            if (!self$peeking) {
+                self$peeked <- self$next_token()
+                self$peeking <- TRUE
+            }
+            self$peeked
+        },
+        next_ident = function() {
+            nt <- self$nxt()
+            if (nt$type != "IDENT")
+                stop(paste0("Expected ident, got ", nt$repr()))
             nt$value
-        else if (token_equality(nt, "DELIM", "*"))
-            NULL
-        else
-            stop(sprintf("Expected ident or '*', got %s", nt$repr()))
-    },
-    skip_whitespace = function() {
-        peek <- .self$peek()
-        if (peek$type == "S")
-            .self$nxt()
-    }))
+        },
+        next_ident_or_star = function() {
+            nt <- self$nxt()
+            if (nt$type == "IDENT")
+                nt$value
+            else if (token_equality(nt, "DELIM", "*"))
+                NULL
+            else
+                stop(paste0("Expected ident or '*', got ", nt$repr()))
+        },
+        skip_whitespace = function() {
+            peek <- self$peek()
+            if (peek$type == "S")
+                self$nxt()
+        }
+    )
+)
