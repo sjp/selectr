@@ -1,6 +1,6 @@
 # selectr
 
-[![License (3-Clause BSD)](https://img.shields.io/badge/license-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) [![Build Status](https://travis-ci.org/sjp/selectr.svg)](https://travis-ci.org/sjp/selectr) [![CRAN version](http://www.r-pkg.org/badges/version/selectr)](https://cran.r-project.org/package=selectr) [![codecov](https://codecov.io/gh/sjp/selectr/branch/master/graph/badge.svg)](https://codecov.io/gh/sjp/selectr) ![Downloads per month](http://cranlogs.r-pkg.org/badges/last-month/selectr)
+[![License (3-Clause BSD)](https://img.shields.io/badge/license-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) [![Build Status](https://travis-ci.org/sjp/selectr.svg)](https://travis-ci.org/sjp/selectr) [![CRAN version](https://www.r-pkg.org/badges/version/selectr)](https://cran.r-project.org/package=selectr) [![codecov](https://codecov.io/gh/sjp/selectr/branch/master/graph/badge.svg)](https://codecov.io/gh/sjp/selectr) ![Downloads per month](https://cranlogs.r-pkg.org/badges/last-month/selectr)
 
 selectr is a package which makes working with HTML and XML documents easier. It does this by performing translation of CSS selectors into XPath expressions so that you can query `XML` and `xml2` documents easily.
 
