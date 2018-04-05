@@ -2,6 +2,23 @@
 \title{NEWS file for the selectr package}
 \encoding{UTF-8}
 
+\section{Changes in version 0.4-1}{
+  \subsection{BUG FIXES}{
+    \itemize{
+
+      \item When the \pkg{R.oo} package is attached, the use of class
+      selectors no longer worked. This is due to the use of the \code{Class}
+      name for \pkg{R.oo}'s base class object, where \pkg{selectr} was also
+      using it (but not exporting) the same name of \code{Class} for
+      representing a class selector. Consequently, \pkg{selectr}'s code was
+      changed to rename the class to avoid any clashing. Because it was not
+      exported, this is purely an internal change. Thanks to
+      Francois Lemaire-Sicre for reporting the issue.
+
+    }
+  }
+}
+
 \section{Changes in version 0.4-0}{
   \subsection{MINOR CHANGES}{
      \itemize{
