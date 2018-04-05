@@ -52,7 +52,16 @@ is_safe_name <- function(name) {
     grepl("^[a-zA-Z_][a-zA-Z0-9_.-]*$", name)
 }
 
-first_class_name <- function(obj) class(obj)[1]
+first_class_name <- function(obj) {
+    result <- class(obj)[1]
+
+    # HACK!
+    # R.oo clashes with our preferred use of 'Class' for the name of the
+    # ClassSelector class, even though it is hidden in our package.
+    # Because the name of the class is used in places, perform a
+    # special case rename from ClassSelector to Class.
+    if (result == "ClassSelector") "Class" else result
+}
 
 xpath_literal <- function(literal) {
     lenseq <- seq_len(nchar(literal))

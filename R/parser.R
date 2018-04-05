@@ -36,7 +36,7 @@ Selector <- R6Class("Selector",
     )
 )
 
-Class <- R6Class("Class",
+ClassSelector <- R6Class("ClassSelector",
     public = list(
         selector = NULL,
         class_name = NULL,
@@ -331,7 +331,7 @@ parse <- function(css) {
     class_match <- str_match(css, class_re)[1, 2:3]
     if (!is.na(class_match[3]))
         return(list(Selector$new(
-                        Class$new(
+                        ClassSelector$new(
                             Element$new(
                                 element =
                                     if (is.na(class_match[2])) NULL
@@ -447,7 +447,7 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
             result <- Hash$new(result, stream$nxt()$value)
         } else if (token_equality(peek, "DELIM", ".")) {
             stream$nxt()
-            result <- Class$new(result, stream$next_ident())
+            result <- ClassSelector$new(result, stream$next_ident())
         } else if (token_equality(peek, "DELIM", "|")) {
             stream$nxt()
             result <- Element$new(element = stream$next_ident())
