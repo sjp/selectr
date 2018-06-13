@@ -8,7 +8,9 @@ XPathExpr <- R6Class("XPathExpr",
             path = "", element = "*", condition = "", star_prefix = FALSE) {
             self$path <- path
             self$element <- element
-            self$condition <- condition
+            self$condition <-
+                if (nzchar(condition)) paste0("(", condition, ")")
+                else condition
             self$star_prefix <- star_prefix
         },
         str = function() {
@@ -23,10 +25,9 @@ XPathExpr <- R6Class("XPathExpr",
         add_condition = function(condition) {
             self$condition <-
                 if (nzchar(self$condition))
-                    self$condition <-
-                        paste0(self$condition, " and (", condition, ")")
+                    paste0(self$condition, " and (", condition, ")")
                 else
-                    condition
+                    paste0("(", condition, ")")
         },
         add_name_test = function() {
             if (self$element == "*")

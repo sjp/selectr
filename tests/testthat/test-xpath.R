@@ -22,8 +22,8 @@ test_that("XPathExpr objects print correctly", {
 
 test_that("Generic translator validates language arguments", {
     translator <- GenericTranslator$new()
-    expect_that(translator$css_to_xpath("xml:lang(en)"), equals("descendant-or-self::xml[lang('en')]"))
-    expect_that(translator$css_to_xpath("xml:lang(en-nz)"), equals("descendant-or-self::xml[lang('en-nz')]"))
+    expect_that(translator$css_to_xpath("xml:lang(en)"), equals("descendant-or-self::xml[(lang('en'))]"))
+    expect_that(translator$css_to_xpath("xml:lang(en-nz)"), equals("descendant-or-self::xml[(lang('en-nz'))]"))
 
     expect_error(translator$css_to_xpath("xml:lang()"), "Expected at least one argument.*")
     expect_error(translator$css_to_xpath("xml:lang(1)"), "Expected a single string or ident.*")
@@ -32,8 +32,8 @@ test_that("Generic translator validates language arguments", {
 
 test_that("HTML translator validates language arguments", {
     translator <- HTMLTranslator$new()
-    expect_that(translator$css_to_xpath("html:lang(en)"), equals("descendant-or-self::html[ancestor-or-self::*[@lang][1][starts-with(concat(translate(@lang, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '-'), 'en-')]]"))
-    expect_that(translator$css_to_xpath("html:lang(en-nz)"), equals("descendant-or-self::html[ancestor-or-self::*[@lang][1][starts-with(concat(translate(@lang, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '-'), 'en-nz-')]]"))
+    expect_that(translator$css_to_xpath("html:lang(en)"), equals("descendant-or-self::html[(ancestor-or-self::*[@lang][1][starts-with(concat(translate(@lang, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '-'), 'en-')])]"))
+    expect_that(translator$css_to_xpath("html:lang(en-nz)"), equals("descendant-or-self::html[(ancestor-or-self::*[@lang][1][starts-with(concat(translate(@lang, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '-'), 'en-nz-')])]"))
 
     expect_error(translator$css_to_xpath("html:lang()"), "Expected at least one argument.*")
     expect_error(translator$css_to_xpath("html:lang(1)"), "Expected a single string or ident.*")
@@ -52,9 +52,9 @@ test_that("unimplemented methods throw errors", {
 
 test_that("contains method only takes string arguments", {
     expect_that(css_to_xpath("a:contains(b)"),
-                equals("descendant-or-self::a[contains(., 'b')]"))
+                equals("descendant-or-self::a[(contains(., 'b'))]"))
     expect_that(css_to_xpath("a:contains('b')"),
-                equals("descendant-or-self::a[contains(., 'b')]"))
+                equals("descendant-or-self::a[(contains(., 'b'))]"))
     expect_error(css_to_xpath("a:contains(1)"),
                  "Expected a single string or ident for :contains\\(\\), got .*")
 })
