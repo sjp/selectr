@@ -153,7 +153,7 @@ GenericTranslator <- R6Class("GenericTranslator",
             else if (method_name == "xpath_pseudo")
                 self$xpath_pseudo(parsed_selector)
             else
-                stop(paste0("Unknown method name '", type_name, "'"))
+                stop("Unknown method name '", type_name, "'")
         },
         xpath_combinedselector = function(combined) {
             combinator <- paste0(
@@ -179,8 +179,8 @@ GenericTranslator <- R6Class("GenericTranslator",
                 self$xpath_indirect_adjacent_combinator(
                     left = left_xpath, right = right_xpath)
             else
-                stop(paste0("Unknown combinator '",
-                            self$combinator_mapping[combined$combinator], "'"))
+                stop("Unknown combinator '",
+                     self$combinator_mapping[combined$combinator], "'")
         },
         xpath_negation = function(negation) {
             xpath <- self$xpath(negation$selector)
@@ -213,10 +213,9 @@ GenericTranslator <- R6Class("GenericTranslator",
             else if (method_name == "xpath_nth_last_of_type_function")
                 self$xpath_nth_last_of_type_function(xp, fn)
             else
-                stop(paste0(
-                    "The pseudo-class :",
-                    gsub("-", "_", fn$name),
-                    "() is unknown"))
+                stop("The pseudo-class :",
+                     gsub("-", "_", fn$name),
+                     "() is unknown")
         },
         xpath_pseudo = function(pseudo) {
             method_name <- paste0(
@@ -260,7 +259,7 @@ GenericTranslator <- R6Class("GenericTranslator",
             else if (method_name == "xpath_checked_pseudo")
                 self$xpath_checked_pseudo(xp)
             else
-                stop(paste0("The pseudo-class :", pseudo$ident, " is unknown"))
+                stop("The pseudo-class :", pseudo$ident, " is unknown")
         },
         xpath_attrib = function(selector) {
             operator <- self$attribute_operator_mapping[selector$operator]
@@ -304,7 +303,7 @@ GenericTranslator <- R6Class("GenericTranslator",
             else if (method_name == "xpath_attrib_suffixmatch")
                 self$xpath_attrib_suffixmatch(xp, attrib, value)
             else
-                stop(paste0("Unknown attribute operator '", operator, "'"))
+                stop("Unknown attribute operator '", operator, "'")
         },
         # .foo is defined as [class~=foo] in the spec
         xpath_class = function(class_selector) {
@@ -514,9 +513,8 @@ GenericTranslator <- R6Class("GenericTranslator",
         },
         xpath_contains_function = function(xpath, fn) {
             if (!(fn$argument_types() %in% c("STRING", "IDENT"))) {
-                stop(paste0(
-                    "Expected a single string or ident for :contains(), got (",
-                    paste0(fn$argument_types(), collapse = ", "), ")"))
+                stop("Expected a single string or ident for :contains(), got (",
+                     paste0(fn$argument_types(), collapse = ", "), ")")
             }
             value <- fn$arguments[[1]]$value
             xpath$add_condition(paste0(
@@ -525,9 +523,8 @@ GenericTranslator <- R6Class("GenericTranslator",
         },
         xpath_lang_function = function(xpath, fn) {
             if (!(fn$argument_types() %in% c("STRING", "IDENT"))) {
-                stop(paste0(
-                    "Expected a single string or ident for :lang(), got ",
-                    fn$arguments[[1]]$repr()))
+                stop("Expected a single string or ident for :lang(), got ",
+                     fn$arguments[[1]]$repr())
             }
             value <- fn$arguments[[1]]$value
             xpath$add_condition(paste0("lang(", xpath_literal(value), ")"))
@@ -707,9 +704,8 @@ HTMLTranslator <- R6Class("HTMLTranslator",
         },
         xpath_lang_function = function(xpath, fn) {
             if (!(fn$argument_types() %in% c("STRING", "IDENT"))) {
-                stop(paste0(
-                    "Expected a single string or ident for :lang(), got ",
-                    fn$arguments[[1]]$repr()))
+                stop("Expected a single string or ident for :lang(), got ",
+                     fn$arguments[[1]]$repr())
             }
             value <- fn$arguments[[1]]$value
             xpath$add_condition(paste0(

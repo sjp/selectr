@@ -1,2 +1,4 @@
 Makefile
 .travis.yml
+^.*\.Rproj$
+^\.Rproj\.user$

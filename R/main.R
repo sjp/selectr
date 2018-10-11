@@ -34,11 +34,10 @@ css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator =
 
     if (length(zeroLengthArgs)) {
         plural <- if (length(zeroLengthArgs) > 1) "s" else ""
-        stop(paste0(
-            "Zero length character vector found for the following argument",
-            plural,
-            ": ",
-            paste0(zeroLengthArgs, collapse = ", ")))
+        stop("Zero length character vector found for the following argument",
+             plural,
+             ": ",
+             paste0(zeroLengthArgs, collapse = ", "))
     }
 
     translator <- sapply(translator, function(tran) {

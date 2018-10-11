@@ -386,10 +386,9 @@ parse_selector <- function(stream) {
             break
         }
         if (!is.null(pseudo_element) && nzchar(pseudo_element)) {
-            stop(paste0(
-                "Got pseudo-element ::",
-                pseudo_element,
-                " not at the end of a selector"))
+          stop("Got pseudo-element ::",
+               pseudo_element,
+               " not at the end of a selector")
         }
         if (peek$is_delim(c("+", ">", "~"))) {
             # A combinator
@@ -438,10 +437,9 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
             break
         }
         if (!is.null(pseudo_element)) {
-            stop(paste0(
-                "Got pseudo-element ::",
-                pseudo_element,
-                " not at the end of a selector"))
+            stop("Got pseudo-element ::",
+                 pseudo_element,
+                 " not at the end of a selector")
         }
         if (peek$type == "HASH") {
             result <- Hash$new(result, stream$nxt()$value)
@@ -488,14 +486,13 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
                 nt <- stream$nxt()
                 if (length(argument_pseudo_element) &&
                     nzchar(argument_pseudo_element)) {
-                    stop(paste0(
-                        "Got pseudo-element ::",
-                        argument_pseudo_element,
-                        " inside :not() at ",
-                        nt$pos))
+                    stop("Got pseudo-element ::",
+                         argument_pseudo_element,
+                         " inside :not() at ",
+                         nt$pos)
                 }
                 if (!token_equality(nt, "DELIM", ")")) {
-                    stop(paste0("Expected ')', got ", nt$value))
+                    stop("Expected ')', got ", nt$value)
                 }
                 result <- Negation$new(result, argument)
             } else {
@@ -513,21 +510,20 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
                     } else if (token_equality(nt, "DELIM", ")")) {
                         break
                     } else {
-                        stop(paste0("Expected an argument, got ", nt$repr()))
+                        stop("Expected an argument, got ", nt$repr())
                     }
                 }
                 if (length(arguments) == 0) {
-                    stop(paste0(
-                        "Expected at least one argument, got ", nt$repr()))
+                    stop("Expected at least one argument, got ", nt$repr())
                 }
                 result <- Function$new(result, ident, arguments)
             }
         } else {
-            stop(paste0("Expected selector, got ", stream$peek()$repr()))
+            stop("Expected selector, got ", stream$peek()$repr())
         }
     }
     if (length(stream$used) == selector_start) {
-        stop(paste0("Expected selector, got ", stream$peek()$repr()))
+        stop("Expected selector, got ", stream$peek()$repr())
     }
     list(result = result, pseudo_element = pseudo_element)
 }
@@ -536,7 +532,7 @@ parse_attrib <- function(selector, stream) {
     stream$skip_whitespace()
     attrib <- stream$next_ident_or_star()
     if (is.null(attrib) && !token_equality(stream$peek(), "DELIM", "|"))
-        stop(paste0("Expected '|', got ", stream$peek()$repr()))
+        stop("Expected '|', got ", stream$peek()$repr())
     if (token_equality(stream$peek(), "DELIM", "|")) {
         stream$nxt()
         namespace <- attrib
@@ -559,18 +555,18 @@ parse_attrib <- function(selector, stream) {
         } else if (nt$is_delim(c("^=", "$=", "*=", "~=", "|=", "!="))) {
             op <- nt$value
         } else {
-            stop(paste0("Operator expected, got ", nt$repr()))
+            stop("Operator expected, got ", nt$repr())
         }
     }
     stream$skip_whitespace()
     value <- stream$nxt()
     if (!value$type %in% c("IDENT", "STRING")) {
-        stop(paste0("Expected string or ident, got ", value$repr()))
+        stop("Expected string or ident, got ", value$repr())
     }
     stream$skip_whitespace()
     nt <- stream$nxt()
     if (!token_equality(nt, "DELIM", "]")) {
-        stop(paste0("Expected ']', got ", nt$repr()))
+        stop("Expected ']', got ", nt$repr())
     }
     Attrib$new(selector, namespace, attrib, op, value$value)
 }
@@ -764,7 +760,7 @@ tokenize <- function(s) {
                     }
                 }
                 if (all(is_escaped)) {
-                    stop(paste0("Unclosed string at ", pos))
+                    stop("Unclosed string at ", pos)
                 }
                 end_quote <- matching_quotes[min(which(!is_escaped))]
                 value <- substring(s, pos + 1, pos + end_quote - 1)
@@ -775,7 +771,7 @@ tokenize <- function(s) {
                 pos <- pos + end_quote + 1 # one for each quote char
                 i <- i + 1
             } else {
-                stop(paste0("Unclosed string at ", pos))
+                stop("Unclosed string at ", pos)
             }
         }
         # Remove comments
@@ -794,11 +790,10 @@ tokenize <- function(s) {
         # been an error
         tmp <- substring(ss, 1, 1)
         if (!tmp %in% c(delims_1ch, '"', "'")) {
-            stop(paste0(
-                "Unexpected character '",
-                tmp,
-                "' found at position ",
-                pos))
+            stop("Unexpected character '",
+                 tmp,
+                 "' found at position ",
+                 pos)
         }
     }
     results[[i]] <- EOFToken$new(pos)
@@ -845,7 +840,7 @@ TokenStream <- R6Class("TokenStream",
         next_ident = function() {
             nt <- self$nxt()
             if (nt$type != "IDENT")
-                stop(paste0("Expected ident, got ", nt$repr()))
+                stop("Expected ident, got ", nt$repr())
             nt$value
         },
         next_ident_or_star = function() {
@@ -855,7 +850,7 @@ TokenStream <- R6Class("TokenStream",
             else if (token_equality(nt, "DELIM", "*"))
                 NULL
             else
-                stop(paste0("Expected ident or '*', got ", nt$repr()))
+                stop("Expected ident or '*', got ", nt$repr())
         },
         skip_whitespace = function() {
             peek <- self$peek()
