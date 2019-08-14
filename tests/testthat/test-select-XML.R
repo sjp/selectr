@@ -61,7 +61,7 @@ test_that("selection works correctly on a large barrage of tests", {
             for (i in seq_len(n)) {
                 tmp_res <- select_ids(selectors[i], html_only = html_only)
                 if (!is.null(result) && !is.null(tmp_res) &&
-                    tmp_res != result)
+                    !identical(tmp_res, result))
                     stop("Difference between results of selectors")
             }
         }

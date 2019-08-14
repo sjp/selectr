@@ -681,7 +681,7 @@ tokenize <- function(s) {
     while (pos <= len_s) {
         ss <- substring(s, pos, len_s)
         match <- match_whitespace(ss)
-        if (!is.na(match) && match[1] == 1) {
+        if (!anyNA(match) && match[1] == 1) {
             results[[i]] <- Token$new("S", " ", pos)
             match_end <- match[2]
             pos <- pos + match_end
@@ -689,7 +689,7 @@ tokenize <- function(s) {
             next
         }
         match <- match_number(ss)
-        if (!is.na(match) && match[1] == 1) {
+        if (!anyNA(match) && match[1] == 1) {
             match_start <- match[1]
             match_end <- max(match[1], match[2])
             value <- substring(ss, match_start, match_end)
@@ -699,7 +699,7 @@ tokenize <- function(s) {
             next
         }
         match <- match_ident(ss)
-        if (!is.na(match) && match[1] == 1) {
+        if (!anyNA(match) && match[1] == 1) {
             match_start <- match[1]
             match_end <- max(match[1], match[2])
             value <- substring(ss, match_start, match_end)
@@ -710,7 +710,7 @@ tokenize <- function(s) {
             next
         }
         match <- match_hash(ss)
-        if (!is.na(match) && match[1] == 1) {
+        if (!anyNA(match) && match[1] == 1) {
             match_start <- match[1]
             match_end <- max(match[1], match[2])
             value <- substring(ss, match_start, match_end)
