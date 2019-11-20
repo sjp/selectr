@@ -2,6 +2,20 @@
 \title{NEWS file for the selectr package}
 \encoding{UTF-8}
 
+\section{Changes in version 0.4-2}{
+  \subsection{MINOR CHANGES}{
+    \itemize{
+
+      \item Improve handling of vectors of length > 1 in logical comparison.
+      Contributed by Garrick Aden-Buie.
+
+      \item Minor improvements to error message construction.
+      Contributed by Michael Chirico.
+
+    }
+  }
+}
+
 \section{Changes in version 0.4-1}{
   \subsection{BUG FIXES}{
     \itemize{
