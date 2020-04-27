@@ -5,7 +5,12 @@ r:
   - release
   - devel
 
-r_binary_packages:
+addons:
+  apt:
+    packages:
+      - libxml2-dev
+
+r_packages:
   - XML
   - xml2
   - stringr
