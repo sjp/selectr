@@ -181,19 +181,6 @@ Matching <- R6Class("Matching",
                 ")]"
             )
         },
-        canonical = function() {
-            sel_args <- sapply(self$selector_list, function(s) {
-                selarg <- s$canonical()
-                str_remove(selarg, "*")
-            })
-
-            paste0(
-                self$selector$canonical(),
-                ":is(",
-                paste0(sel_args, collapse = ", "),
-                ")"
-            )
-        },
         specificity = function() {
             specs <- sapply(self$selector_list, function(s) s$specificity())
             specs <- t(specs)
