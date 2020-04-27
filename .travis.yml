@@ -10,9 +10,7 @@ r_binary_packages:
   - xml2
   - stringr
   - testthat
-
-r_github_packages:
-  - jimhester/covr
+  - covr
 
 after_success:
   - Rscript -e 'library(covr) ; codecov()'
