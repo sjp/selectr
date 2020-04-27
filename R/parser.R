@@ -196,11 +196,9 @@ Matching <- R6Class("Matching",
         },
         specificity = function() {
             specs <- sapply(self$selector_list, function(s) s$specificity())
-            c(
-                max(specs[1, ]),
-                max(specs[2, ]),
-                max(specs[3, ])
-            )
+            specs <- t(specs)
+            specs <- specs[order(-specs[, 1], -specs[, 2], -specs[, 3]), ]
+            specs[1, ]
         },
         show = function() { # nocov start
             cat(self$repr(), "\n")
