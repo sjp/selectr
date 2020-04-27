@@ -22,10 +22,10 @@ XPathExpr <- R6Class("XPathExpr",
         repr = function() {
             paste0(first_class_name(self), "[", self$str(), "]")
         },
-        add_condition = function(condition) {
+        add_condition = function(condition, conjunction = "and") {
             self$condition <-
                 if (nzchar(self$condition))
-                    paste0(self$condition, " and (", condition, ")")
+                    paste0(self$condition, " ", conjunction, " (", condition, ")")
                 else
                     paste0("(", condition, ")")
         },
@@ -144,6 +144,8 @@ GenericTranslator <- R6Class("GenericTranslator",
                 self$xpath_combinedselector(parsed_selector)
             else if (method_name == "xpath_element")
                 self$xpath_element(parsed_selector)
+            else if (method_name == "xpath_matching")
+                self$xpath_matching(parsed_selector)
             else if (method_name == "xpath_function")
                 self$xpath_function(parsed_selector)
             else if (method_name == "xpath_hash")
@@ -191,6 +193,19 @@ GenericTranslator <- R6Class("GenericTranslator",
             } else {
                 xpath$add_condition("0")
             }
+            xpath
+        },
+        xpath_matching = function(matching) {
+            xpath <- self$xpath(matching$selector)
+            exprs <- sapply(matching$selector_list, function(s) self$xpath(s))
+
+            for (e in exprs) {
+                e$add_name_test()
+                if (nzchar(e$condition)) {
+                    xpath$add_condition(e$condition, "or")
+                }
+            }
+
             xpath
         },
         xpath_function = function(fn) {

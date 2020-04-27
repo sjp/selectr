@@ -145,6 +145,11 @@ test_that("selection works correctly on a large barrage of tests", {
     expect_that(pcss(':not(*)'), equals(NULL))
     expect_that(pcss('a:not([href])'), equals('name-anchor'))
     expect_that(pcss('ol :Not(li[class])'), equals(c('first-li', 'second-li', 'li-div', 'fifth-li', 'sixth-li', 'seventh-li')))
+
+    expect_that(pcss(':is(#first-li, #second-li)'), equals(c('first-li', 'second-li')))
+    expect_that(pcss('a:is(#name-anchor, #tag-anchor)'), equals(c('name-anchor', 'tag-anchor')))
+    expect_that(pcss(':is(.c)'), equals(c('first-ol', 'third-li', 'fourth-li')))
+
     # Invalid characters in XPath element names, should not crash
     expect_that(pcss('di\ua0v', 'div\\['), equals(NULL))
     expect_that(pcss('[h\ua0ref]', '[h\\]ref]'), equals(NULL))

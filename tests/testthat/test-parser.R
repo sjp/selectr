@@ -79,6 +79,10 @@ test_that("parser parses canonical test expressions", {
                 equals("Hash[Element[div]#foobar]"))
     expect_that(parse_many("div:not(div.foo)"),
                 equals("Negation[Element[div]:not(Class[Element[div].foo])]"))
+    expect_that(parse_many("div:is(.foo, #bar)"),
+                equals("Matching[Element[div]:is(Class[Element[*].foo], Hash[Element[*]#bar])]"))
+    expect_that(parse_many(":is(:hover, :visited)"),
+                equals("Matching[Element[*]:is(Pseudo[Element[*]:hover], Pseudo[Element[*]:visited])]"))
     expect_that(parse_many("td ~ th"),
                 equals("CombinedSelector[Element[td] ~ Element[th]]"))
 

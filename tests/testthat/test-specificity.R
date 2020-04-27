@@ -27,6 +27,9 @@ test_that("parser creates correct specificity", {
     expect_that(spec(":not(:empty)"), equals(c(0, 1, 0)))
     expect_that(spec(":not(#foo)"), equals(c(1, 0, 0)))
 
+    expect_that(spec(":is(.foo, #bar)"), equals(c(1, 1, 0)))
+    expect_that(spec(":is(:hover, :visited)"), equals(c(0, 1, 0)))
+
     expect_that(spec("foo:empty"), equals(c(0, 1, 1)))
     expect_that(spec("foo:before"), equals(c(0, 0, 2)))
     expect_that(spec("foo::before"), equals(c(0, 0, 2)))

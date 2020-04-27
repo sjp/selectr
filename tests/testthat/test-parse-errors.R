@@ -74,4 +74,9 @@ test_that("useful errors are returned", {
                 throws_error("Expected ')', got .*"))
     expect_that(get_error(":not(:not(a))"),
                 throws_error("Got nested :not()"))
+    expect_that(get_error(":is(:before)"),
+                throws_error("Got pseudo-element ::before inside function"))
+
+    expect_that(get_error(":is(a b)"),
+                throws_error("Expected an argument, got <IDENT 'b' at 7>"))
 })

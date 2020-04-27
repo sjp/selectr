@@ -160,6 +160,54 @@ Negation <- R6Class("Negation",
     )
 )
 
+Matching <- R6Class("Matching",
+    public = list(
+        selector = NULL,
+        selector_list = NULL,
+        initialize = function(selector, selector_list) {
+            self$selector <- selector
+            self$selector_list <- selector_list
+        },
+        repr = function() {
+            paste0(
+                first_class_name(self),
+                "[",
+                self$selector$repr(),
+                ":is(",
+                paste0(
+                    sapply(self$selector_list, function(s) s$repr()),
+                    collapse = ", "
+                ),
+                ")]"
+            )
+        },
+        canonical = function() {
+            sel_args <- sapply(self$selector_list, function(s) {
+                selarg <- s$canonical()
+                str_remove(selarg, "*")
+            })
+
+            paste0(
+                self$selector$canonical(),
+                ":is(",
+                paste0(sel_args, collapse = ", "),
+                ")"
+            )
+        },
+        specificity = function() {
+            specs <- sapply(self$selector_list, function(s) s$specificity())
+            c(
+                max(specs[1, ]),
+                max(specs[2, ]),
+                max(specs[3, ])
+            )
+        },
+        show = function() { # nocov start
+            cat(self$repr(), "\n")
+        } # nocov end
+    )
+)
+
 Attrib <- R6Class("Attrib",
     public = list(
         selector = NULL,
@@ -495,6 +543,9 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
                     stop("Expected ')', got ", nt$value)
                 }
                 result <- Negation$new(result, argument)
+            } else if (any(tolower(ident) == c("matches", "is"))) {
+                selectors <- parse_simple_selector_arguments(stream)
+                result <- Matching$new(result, selectors)
             } else {
                 arguments <- list()
                 i <- 1
@@ -526,6 +577,38 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
         stop("Expected selector, got ", stream$peek()$repr())
     }
     list(result = result, pseudo_element = pseudo_element)
+}
+
+parse_simple_selector_arguments <- function(stream) {
+    index <- 1
+    arguments <- list()
+
+    while (TRUE) {
+        results <- parse_simple_selector(stream, inside_negation = TRUE)
+        result <- results$result
+        pseudo_element <- results$pseudo_element
+
+        if (!is.null(pseudo_element)) {
+            stop("Got pseudo-element ::", pseudo_element, " inside function")
+        }
+
+        stream$skip_whitespace()
+        nt <- stream$nxt()
+
+        if (token_equality(nt, "EOF", NULL) || token_equality(nt, "DELIM", ",")) {
+            nt <- stream$nxt()
+            stream$skip_whitespace()
+            arguments[[index]] <- result
+            index <- index + 1
+        } else if (token_equality(nt, "DELIM", ")")) {
+            arguments[[index]] <- result
+            break
+        } else {
+            stop("Expected an argument, got ", nt$repr())
+        }
+    }
+
+    arguments
 }
 
 parse_attrib <- function(selector, stream) {
