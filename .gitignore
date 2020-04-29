@@ -4,3 +4,6 @@
 .Ruserdata
 
 *.Rproj
+
+selectr.Rcheck
+selectr_*.tar.gz
