@@ -108,7 +108,8 @@ test_that("translation from parsed objects to XPath works", {
 
     # Invalid characters in XPath element names
 
-    if (localeToCharset()[1] == "UTF-8") {
+    charsets <- localeToCharset()
+    if (!anyNA(charsets) && charsets[1] == "UTF-8") {
         expect_that(xpath('di\ua0v'),
                     equals("*[(name() = 'di v')]")) # div\ua0v
         expect_that(xpath('[h\ua0ref]'),
