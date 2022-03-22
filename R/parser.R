@@ -339,16 +339,15 @@ CombinedSelector <- R6Class("CombinedSelector",
 #### Parser
 
 # foo
-el_re <- '^[ \t\r\n\f]*([a-zA-Z]+)[ \t\r\n\f]*$'
+el_re <- "^[ \t\r\n\f]*([a-zA-Z]+)[ \t\r\n\f]*$"
 
 # foo#bar or #bar
-id_re <- '^[ \t\r\n\f]*([a-zA-Z]*)#([a-zA-Z0-9_-]+)[ \t\r\n\f]*$'
+id_re <- "^[ \t\r\n\f]*([a-zA-Z]*)#([a-zA-Z0-9_-]+)[ \t\r\n\f]*$"
 
 # foo.bar or .bar
-class_re <- '^[ \t\r\n\f]*([a-zA-Z]*)\\.([a-zA-Z][a-zA-Z0-9_-]*)[ \t\r\n\f]*$'
+class_re <- "^[ \t\r\n\f]*([a-zA-Z]*)\\.([a-zA-Z][a-zA-Z0-9_-]*)[ \t\r\n\f]*$"
 
 parse <- function(css) {
-    nc <- nchar(css)
     el_match <- str_match(css, el_re)[1, 2]
     if (!is.na(el_match))
         return(list(Selector$new(Element$new(element = el_match))))
@@ -430,7 +429,7 @@ parse_selector <- function(stream) {
         } else {
             # By exclusion, the last parse_simple_selector() ended
             # at peek == ' '
-            combinator <- ' '
+            combinator <- " "
         }
         stuff <- parse_simple_selector(stream)
         pseudo_element <- stuff$pseudo_element
@@ -537,7 +536,7 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
                 while (TRUE) {
                     nt <- stream$nxt()
                     if (nt$type %in% c("IDENT", "STRING", "NUMBER") ||
-                        (token_equality(nt ,"DELIM", "+") ||
+                        (token_equality(nt, "DELIM", "+") ||
                          token_equality(nt, "DELIM", "-"))) {
                         arguments[[i]] <- nt
                         i <- i + 1
@@ -663,7 +662,7 @@ parse_series <- function(tokens) {
             return(c(0, result))
         }
     }
-    ab <- str_split_fixed(s, "n", 2)[1,]
+    ab <- str_split_fixed(s, "n", 2)[1, ]
     a <- str_trim(ab[1])
     b <- str_trim(ab[2])
 
@@ -726,20 +725,20 @@ compile_ <- function(pattern) {
     }
 }
 
-delims_2ch <- c('~=', '|=', '^=', '$=', '*=', '::', '!=')
-delims_1ch <- c('>', '+', '~', ',', '.', '*', '=', '[', ']', '(', ')', '|', ':', '#')
+delims_2ch <- c("~=", "|=", "^=", "$=", "*=", "::", "!=")
+delims_1ch <- c(">", "+", "~", ",", ".", "*", "=", "[", "]", "(", ")", "|", ":", "#")
 delim_escapes <- paste0("\\", delims_1ch, collapse = "|")
-match_whitespace <- compile_('[ \t\r\n\f]+')
-match_number <- compile_('[+-]?(?:[0-9]*\\.[0-9]+|[0-9]+)')
+match_whitespace <- compile_("[ \t\r\n\f]+")
+match_number <- compile_("[+-]?(?:[0-9]*\\.[0-9]+|[0-9]+)")
 match_hash <- compile_(paste0("^#([_a-zA-Z0-9-]|", nonascii, "|\\\\(?:", delim_escapes, "))+"))
 match_ident <- compile_(paste0("^([_a-zA-Z0-9-]|", nonascii, "|\\\\(?:", delim_escapes, "))+"))
 match_string_by_quote <- list("'" = compile_(paste0("([^\n\r\f\\']|", TokenMacros$string_escape, ")*")),
                               '"' = compile_(paste0('([^\n\r\f\\"]|', TokenMacros$string_escape, ")*")))
 
 # Substitution for escaped chars
-sub_simple_escape <- function(x) gsub('\\\\(.)', "\\1", x)
+sub_simple_escape <- function(x) gsub("\\\\(.)", "\\1", x)
 sub_unicode_escape <- function(x) gsub(TokenMacros$unicode_escape, "\\1", x, ignore.case = TRUE)
-sub_newline_escape <- function(x) gsub('\\\\(?:\n|\r\n|\r|\f)', "", x)
+sub_newline_escape <- function(x) gsub("\\\\(?:\n|\r\n|\r|\f)", "", x)
 
 tokenize <- function(s) {
     pos <- 1

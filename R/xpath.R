@@ -422,7 +422,7 @@ GenericTranslator <- R6Class("GenericTranslator",
             # for a == 1, nth-*(an+b) means n+b-1 siblings before/after,
             # and since n %in% {0, 1, 2, ...}, if b-1<=0,
             # there is always an "n" matching any number of siblings (maybe none)
-            if (a == 1 && b_min_1 <=0) {
+            if (a == 1 && b_min_1 <= 0) {
                 return(xpath)
             }
             # early-exit condition 2:
