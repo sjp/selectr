@@ -52,6 +52,7 @@ jobs:
           extra-packages: |
             rcmdcheck
             covr
+          pak-version: devel # See https://github.com/r-lib/actions/issues/559
 
       - uses: r-lib/actions/check-r-package@v2
 
