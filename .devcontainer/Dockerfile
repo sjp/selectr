@@ -1,5 +1,5 @@
 # [Choice] R version: 4, 4.2, 4.1, 4.0
-ARG VARIANT=4.2
+ARG VARIANT=4.3
 # [Choice] Base image. Minimal (r-ver), tidyverse installed (tidyverse), or full image (binder): rocker/r-ver, rocker/tidyverse, rocker/binder
 ARG BASE_IMAGE=rocker/r-ver
 FROM ${BASE_IMAGE}:${VARIANT}
