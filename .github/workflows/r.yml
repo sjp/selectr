@@ -8,6 +8,9 @@
 
 name: R
 
+permissions:
+  contents: read
+
 on:
   push:
     branches:
