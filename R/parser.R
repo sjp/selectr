@@ -69,16 +69,25 @@ Function <- R6Class("Function",
         selector = NULL,
         name = NULL,
         arguments = NULL,
-        initialize = function(selector, name, arguments) {
+        selector_list = NULL,
+        initialize = function(selector, name, arguments, selector_list = NULL) {
             self$selector <- selector
             self$name <- tolower(name)
             self$arguments <- arguments
+            self$selector_list <- selector_list
         },
         repr = function() {
             token_values <- lapply(self$arguments,
                 function(token) paste0("'", token$value, "'"))
             token_values <- paste0(unlist(token_values), collapse = ", ")
             token_values <- paste0("[", token_values, "]")
+            selector_list_repr <- ""
+            if (!is.null(self$selector_list)) {
+                selector_list_repr <- paste0(
+                    " of ",
+                    paste0(sapply(self$selector_list, function(s) s$repr()), collapse = ", ")
+                )
+            }
             paste0(
                 first_class_name(self),
                 "[",
@@ -87,6 +96,7 @@ Function <- R6Class("Function",
                 self$name,
                 "(",
                 token_values,
+                selector_list_repr,
                 ")]")
         },
         argument_types = function() {
@@ -535,7 +545,10 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
                 result <- Matching$new(result, selectors)
             } else {
                 arguments <- list()
+                selector_list <- NULL
                 i <- 1
+                
+                # Parse the function arguments (e.g., "2n+1" for nth-child)
                 while (TRUE) {
                     nt <- stream$nxt()
                     if (nt$type %in% c("IDENT", "STRING", "NUMBER") ||
@@ -543,6 +556,18 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
                          token_equality(nt, "DELIM", "-"))) {
                         arguments[[i]] <- nt
                         i <- i + 1
+                        
+                        # Check if this is the 'of' keyword for nth-child/nth-last-child
+                        if (nt$type == "IDENT" && tolower(nt$value) == "of" &&
+                            any(tolower(ident) == c("nth-child", "nth-last-child"))) {
+                            # Remove 'of' from arguments - it's a keyword, not an argument
+                            arguments <- arguments[-length(arguments)]
+                            
+                            # Parse the selector list that follows 'of'
+                            stream$skip_whitespace()
+                            selector_list <- parse_simple_selector_arguments(stream, ident)
+                            break
+                        }
                     } else if (nt$type == "S") {
                         next
                     } else if (token_equality(nt, "DELIM", ")")) {
@@ -551,10 +576,12 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
                         stop("Expected an argument, got ", nt$repr())
                     }
                 }
+                
                 if (length(arguments) == 0) {
                     stop("Expected at least one argument, got ", nt$repr())
                 }
-                result <- Function$new(result, ident, arguments)
+                
+                result <- Function$new(result, ident, arguments, selector_list)
             }
         } else {
             stop("Expected selector, got ", stream$peek()$repr())

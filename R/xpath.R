@@ -399,6 +399,9 @@ GenericTranslator <- R6Class("GenericTranslator",
             # :nth-last-of-type(an+b)
             #       an+b-1 siblings with the same expanded element name after
             #
+            # CSS Selectors Level 4 adds optional "of S" selector list:
+            # :nth-child(an+b of S) - count only siblings that match selector S
+            #
             # So,
             # for :nth-child and :nth-of-type
             #
@@ -434,6 +437,23 @@ GenericTranslator <- R6Class("GenericTranslator",
             # and since n %in% {0, 1, 2, ...}, if b-1<=0,
             # there is always an "n" matching any number of siblings (maybe none)
             if (a == 1 && b_min_1 <= 0) {
+                # CSS Level 4: When selector list is provided, ensure current element matches
+                if (!is.null(fn$selector_list) && length(fn$selector_list) > 0) {
+                    conditions <- character(0)
+                    for (subselector in fn$selector_list) {
+                        sub_xpath <- self$xpath(subselector)
+                        sub_xpath$add_name_test()
+                        if (!is.null(sub_xpath$condition) && nzchar(sub_xpath$condition)) {
+                            conditions <- c(conditions, sub_xpath$condition)
+                        }
+                    }
+                    
+                    if (length(conditions) > 0) {
+                        # Current element must match at least one selector (OR)
+                        combined_condition <- paste0(conditions, collapse = " or ")
+                        xpath$add_condition(combined_condition)
+                    }
+                } 
                 return(xpath)
             }
             # early-exit condition 2:
@@ -441,6 +461,26 @@ GenericTranslator <- R6Class("GenericTranslator",
             # an+b-1 siblings with a<0 and (b-1)<0 is not possible
             if (a < 0 && b_min_1 < 0) {
                 xpath$add_condition("0")
+                
+                # CSS Level 4: When selector list is provided, ensure current element matches
+                # Even though the condition is always false, we should still check the selector
+                if (!is.null(fn$selector_list) && length(fn$selector_list) > 0) {
+                    conditions <- character(0)
+                    for (subselector in fn$selector_list) {
+                        sub_xpath <- self$xpath(subselector)
+                        sub_xpath$add_name_test()
+                        if (!is.null(sub_xpath$condition) && nzchar(sub_xpath$condition)) {
+                            conditions <- c(conditions, sub_xpath$condition)
+                        }
+                    }
+                    
+                    if (length(conditions) > 0) {
+                        # Current element must match at least one selector (OR)
+                        combined_condition <- paste0(conditions, collapse = " or ")
+                        xpath$add_condition(combined_condition)
+                    }
+                }
+                
                 return(xpath)
             }
 
@@ -453,13 +493,33 @@ GenericTranslator <- R6Class("GenericTranslator",
                 nodetest <- xpath$element
             }
 
+            # Build the predicate for selector list filtering (CSS Level 4)
+            selector_predicate <- ""
+            if (!is.null(fn$selector_list) && length(fn$selector_list) > 0) {
+                # Generate XPath conditions for each selector in the list
+                conditions <- character(0)
+                for (subselector in fn$selector_list) {
+                    sub_xpath <- self$xpath(subselector)
+                    sub_xpath$add_name_test()
+                    if (!is.null(sub_xpath$condition) && nzchar(sub_xpath$condition)) {
+                        conditions <- c(conditions, sub_xpath$condition)
+                    }
+                }
+                
+                if (length(conditions) > 0) {
+                    # Combine conditions with OR (any match counts the sibling)
+                    combined_condition <- paste0(conditions, collapse = " or ")
+                    selector_predicate <- paste0("[", combined_condition, "]")
+                }
+            }
+
             # count siblings before or after the element
             if (!last) {
                 siblings_count <- paste0("count(preceding-sibling::",
-                                         nodetest, ")")
+                                         nodetest, selector_predicate, ")")
             } else {
                 siblings_count <- paste0("count(following-sibling::",
-                                         nodetest, ")")
+                                         nodetest, selector_predicate, ")")
             }
 
             # special case of fixed position: nth-*(0n+b)
@@ -468,6 +528,25 @@ GenericTranslator <- R6Class("GenericTranslator",
             #    count(***-sibling::***) = b-1
             if (a == 0) {
                 xpath$add_condition(paste0(siblings_count, " = ", b_min_1))
+                
+                # CSS Level 4: When selector list is provided, ensure current element matches
+                if (!is.null(fn$selector_list) && length(fn$selector_list) > 0) {
+                    conditions <- character(0)
+                    for (subselector in fn$selector_list) {
+                        sub_xpath <- self$xpath(subselector)
+                        sub_xpath$add_name_test()
+                        if (!is.null(sub_xpath$condition) && nzchar(sub_xpath$condition)) {
+                            conditions <- c(conditions, sub_xpath$condition)
+                        }
+                    }
+                    
+                    if (length(conditions) > 0) {
+                        # Current element must match at least one selector (OR)
+                        combined_condition <- paste0(conditions, collapse = " or ")
+                        xpath$add_condition(combined_condition)
+                    }
+                }
+                
                 return(xpath)
             }
 
@@ -519,6 +598,25 @@ GenericTranslator <- R6Class("GenericTranslator",
                 expr <- paste0(expr, collapse = " and ")
                 xpath$add_condition(expr)
             }
+            
+            # CSS Level 4: When selector list is provided, ensure current element matches
+            if (!is.null(fn$selector_list) && length(fn$selector_list) > 0) {
+                conditions <- character(0)
+                for (subselector in fn$selector_list) {
+                    sub_xpath <- self$xpath(subselector)
+                    sub_xpath$add_name_test()
+                    if (!is.null(sub_xpath$condition) && nzchar(sub_xpath$condition)) {
+                        conditions <- c(conditions, sub_xpath$condition)
+                    }
+                }
+                
+                if (length(conditions) > 0) {
+                    # Current element must match at least one selector (OR)
+                    combined_condition <- paste0(conditions, collapse = " or ")
+                    xpath$add_condition(combined_condition)
+                }
+            }
+            
             xpath
         },
         xpath_nth_last_child_function = function(xpath, fn) {
