@@ -186,10 +186,21 @@ GenericTranslator <- R6Class("GenericTranslator",
         },
         xpath_negation = function(negation) {
             xpath <- self$xpath(negation$selector)
-            sub_xpath <- self$xpath(negation$subselector)
-            sub_xpath$add_name_test()
-            if (!is.null(sub_xpath$condition) && nzchar(sub_xpath$condition)) {
-                xpath$add_condition(paste0("not(", sub_xpath$condition, ")"))
+            
+            # Collect all conditions from the selector list
+            conditions <- character(0)
+            for (subselector in negation$selector_list) {
+                sub_xpath <- self$xpath(subselector)
+                sub_xpath$add_name_test()
+                if (!is.null(sub_xpath$condition) && nzchar(sub_xpath$condition)) {
+                    conditions <- c(conditions, sub_xpath$condition)
+                }
+            }
+            
+            # Combine conditions with OR (any match means element is excluded)
+            if (length(conditions) > 0) {
+                combined_condition <- paste0(conditions, collapse = " or ")
+                xpath$add_condition(paste0("not(", combined_condition, ")"))
             } else {
                 xpath$add_condition("0")
             }

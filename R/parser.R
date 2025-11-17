@@ -135,10 +135,10 @@ Pseudo <- R6Class("Pseudo",
 Negation <- R6Class("Negation",
     public = list(
         selector = NULL,
-        subselector = NULL,
-        initialize = function(selector, subselector) {
+        selector_list = NULL,
+        initialize = function(selector, selector_list) {
             self$selector <- selector
-            self$subselector <- subselector
+            self$selector_list <- selector_list
         },
         repr = function() {
             paste0(
@@ -146,13 +146,30 @@ Negation <- R6Class("Negation",
                 "[",
                 self$selector$repr(),
                 ":not(",
-                self$subselector$repr(),
+                paste0(
+                    sapply(self$selector_list, function(s) s$repr()),
+                    collapse = ", "
+                ),
                 ")]")
         },
         specificity = function() {
             specs <- self$selector$specificity()
-            sub_specs <- self$subselector$specificity()
-            specs + sub_specs
+            # according to CSS Selectors Level 4, :not() takes the specificity of
+            # its most specific argument
+            sub_specs <- sapply(self$selector_list, function(s) s$specificity())
+            # sapply returns a matrix with each column being a selector's specificity
+            if (is.matrix(sub_specs)) {
+                # get rows as selectors
+                sub_specs <- t(sub_specs)
+                if (nrow(sub_specs) > 1) {
+                    # sort by specificity (id, class, element) descending
+                    sub_specs <- sub_specs[order(-sub_specs[, 1], -sub_specs[, 2], -sub_specs[, 3]), , drop = FALSE]
+                }
+                specs + sub_specs[1, ]
+            } else {
+                # single value case
+                specs + sub_specs
+            }
         },
         show = function() { # nocov start
             cat(self$repr(), "\n")
@@ -511,24 +528,10 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
                 if (inside_negation) {
                     stop("Got nested :not()")
                 }
-                res <- parse_simple_selector(stream, inside_negation = TRUE)
-                argument <- res$result
-                argument_pseudo_element <- res$pseudo_element
-                stream$skip_whitespace()
-                nt <- stream$nxt()
-                if (length(argument_pseudo_element) &&
-                    nzchar(argument_pseudo_element)) {
-                    stop("Got pseudo-element ::",
-                         argument_pseudo_element,
-                         " inside :not() at ",
-                         nt$pos)
-                }
-                if (!token_equality(nt, "DELIM", ")")) {
-                    stop("Expected ')', got ", nt$value)
-                }
-                result <- Negation$new(result, argument)
+                selectors <- parse_simple_selector_arguments(stream, "not")
+                result <- Negation$new(result, selectors)
             } else if (any(tolower(ident) == c("matches", "is"))) {
-                selectors <- parse_simple_selector_arguments(stream)
+                selectors <- parse_simple_selector_arguments(stream, tolower(ident))
                 result <- Matching$new(result, selectors)
             } else {
                 arguments <- list()
@@ -563,7 +566,7 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
     list(result = result, pseudo_element = pseudo_element)
 }
 
-parse_simple_selector_arguments <- function(stream) {
+parse_simple_selector_arguments <- function(stream, function_name = NULL) {
     index <- 1
     arguments <- list()
 
@@ -573,20 +576,30 @@ parse_simple_selector_arguments <- function(stream) {
         pseudo_element <- results$pseudo_element
 
         if (!is.null(pseudo_element)) {
-            stop("Got pseudo-element ::", pseudo_element, " inside function")
+            if (!is.null(function_name)) {
+                stop("Got pseudo-element ::", pseudo_element, " inside :", function_name, "() at ", stream$peeked$pos)
+            } else {
+                stop("Got pseudo-element ::", pseudo_element, " inside function")
+            }
         }
 
+        arguments[[index]] <- result
+        index <- index + 1
+        
         stream$skip_whitespace()
         nt <- stream$nxt()
 
-        if (token_equality(nt, "EOF", NULL) || token_equality(nt, "DELIM", ",")) {
-            nt <- stream$nxt()
-            stream$skip_whitespace()
-            arguments[[index]] <- result
-            index <- index + 1
-        } else if (token_equality(nt, "DELIM", ")")) {
-            arguments[[index]] <- result
+        if (token_equality(nt, "DELIM", ")")) {
             break
+        } else if (token_equality(nt, "DELIM", ",")) {
+            stream$skip_whitespace()
+            # Check if there's actually a selector after the comma
+            peek <- stream$peek()
+            if (token_equality(peek, "DELIM", ")")) {
+                # Trailing comma before closing paren
+                stop("Expected ')', got ", nt$repr())
+            }
+            # Continue to parse next selector
         } else {
             stop("Expected an argument, got ", nt$repr())
         }

@@ -27,6 +27,25 @@ test_that("parser creates correct specificity", {
     expect_that(spec(":not(:empty)"), equals(c(0, 1, 0)))
     expect_that(spec(":not(#foo)"), equals(c(1, 0, 0)))
 
+    # :not() with multiple arguments - takes max specificity per CSS4
+    expect_that(spec(":not(*, foo)"), equals(c(0, 0, 1)))
+    expect_that(spec(":not(.foo, .bar)"), equals(c(0, 1, 0)))
+    expect_that(spec(":not(.foo, #bar)"), equals(c(1, 0, 0)))
+    expect_that(spec(":not(foo, .bar)"), equals(c(0, 1, 0)))
+    expect_that(spec(":not(foo, #bar)"), equals(c(1, 0, 0)))
+    expect_that(spec(":not(.foo, .bar, .baz)"), equals(c(0, 1, 0)))
+    expect_that(spec(":not(#foo, #bar, #baz)"), equals(c(1, 0, 0)))
+    expect_that(spec(":not(p, span, div)"), equals(c(0, 0, 1)))
+    expect_that(spec(":not([foo], [bar])"), equals(c(0, 1, 0)))
+    expect_that(spec(":not(:hover, :visited)"), equals(c(0, 1, 0)))
+    expect_that(spec(":not(.foo, [bar], #baz)"), equals(c(1, 0, 0)))
+
+    # :not() with multiple arguments in combinations
+    expect_that(spec("div:not(.foo, #bar)"), equals(c(1, 0, 1)))
+    expect_that(spec("p:not(span, .foo)"), equals(c(0, 1, 1)))
+    expect_that(spec("#main:not(.foo, .bar)"), equals(c(1, 1, 0)))
+    expect_that(spec(".test:not(#foo, [bar])"), equals(c(1, 1, 0)))
+
     expect_that(spec(":is(.foo, #bar)"), equals(c(1, 0, 0)))
     expect_that(spec(":is(:hover, :visited)"), equals(c(0, 1, 0)))
 
