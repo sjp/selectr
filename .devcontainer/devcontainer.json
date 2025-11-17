@@ -1,10 +1,9 @@
 {
-	"name": "R (Community)",
-	"build": {
-		"dockerfile": "Dockerfile",
-		// Update VARIANT to pick a specific R version: 4, 4.1, 4.0
-		"args": { "VARIANT": "4" }
-	},
+	"name": "R",
+	"image": "mcr.microsoft.com/devcontainers/universal:2",
+    "features": {
+        "ghcr.io/rocker-org/devcontainer-features/r-apt:latest": {}
+    },
 
 	// Configure tool-specific properties.
 	"customizations": {
@@ -12,7 +11,6 @@
 		"vscode": {
 			// Set *default* container specific settings.json values on container create.
 			"settings": { 
-				"r.rterm.linux": "/usr/local/bin/radian",
 				"r.bracketedPaste": true,
 				"r.plot.useHttpgd": true,
 				"[r]": {
@@ -26,14 +24,5 @@
 				"rdebugger.r-debugger"
 			]
 		}
-	},
-
-	// Use 'forwardPorts' to make a list of ports inside the container available locally.
-	// "forwardPorts": [],
-
-	// Use 'postCreateCommand' to run commands after the container is created.
-	// "postCreateCommand": "R --version",
-
-	// Set `remoteUser` to `root` to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
-	"remoteUser": "rstudio"
+	}
 }
