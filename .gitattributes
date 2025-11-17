@@ -1,0 +1,54 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# R source files
+*.R text
+*.r text
+*.Rmd text
+*.rmd text
+*.Rnw text
+*.rnw text
+
+# R data files (binary)
+*.RData binary
+*.rda binary
+*.rds binary
+
+# Documentation
+*.Rd text
+*.md text
+*.Rmd text
+
+# Configuration files
+.Rbuildignore text
+.Rprofile text
+DESCRIPTION text
+NAMESPACE text
+Makefile text
+NEWS.Rd text
+CITATION text
+LICENCE text
+LICENSE text
+
+# Shell scripts
+*.sh text eol=lf
+*.bash text eol=lf
+
+# Windows specific
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Archives (binary)
+*.zip binary
+*.tar binary
+*.gz binary
+*.bz2 binary
+*.xz binary
+
+# Images (binary)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg binary
