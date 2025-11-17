@@ -3,3 +3,5 @@ Makefile
 .github
 ^.*\.Rproj$
 ^\.Rproj\.user$
+.github
+.devcontainer
