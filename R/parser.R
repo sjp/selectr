@@ -581,7 +581,7 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
                 arguments <- list()
                 selector_list <- NULL
                 i <- 1
-                
+
                 # Parse the function arguments (e.g., "2n+1" for nth-child)
                 while (TRUE) {
                     nt <- stream$nxt()
@@ -590,13 +590,13 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
                          token_equality(nt, "DELIM", "-"))) {
                         arguments[[i]] <- nt
                         i <- i + 1
-                        
+
                         # Check if this is the 'of' keyword for nth-child/nth-last-child
                         if (nt$type == "IDENT" && tolower(nt$value) == "of" &&
                             any(tolower(ident) == c("nth-child", "nth-last-child"))) {
                             # Remove 'of' from arguments - it's a keyword, not an argument
                             arguments <- arguments[-length(arguments)]
-                            
+
                             # Parse the selector list that follows 'of'
                             stream$skip_whitespace()
                             selector_list <- parse_simple_selector_arguments(stream, ident)
@@ -610,11 +610,11 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
                         stop("Expected an argument, got ", nt$repr())
                     }
                 }
-                
+
                 if (length(arguments) == 0) {
                     stop("Expected at least one argument, got ", nt$repr())
                 }
-                
+
                 result <- Function$new(result, ident, arguments, selector_list)
             }
         } else {
@@ -646,7 +646,7 @@ parse_simple_selector_arguments <- function(stream, function_name = NULL) {
 
         arguments[[index]] <- result
         index <- index + 1
-        
+
         stream$skip_whitespace()
         nt <- stream$nxt()
 

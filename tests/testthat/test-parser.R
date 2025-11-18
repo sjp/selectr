@@ -93,7 +93,7 @@ test_that("parser parses canonical test expressions", {
                 equals("Negation[Element[*]:not(Pseudo[Element[*]:hover], Pseudo[Element[*]:visited], Pseudo[Element[*]:active])]"))
     expect_that(parse_many("a:not(.link, [href], #special)"),
                 equals("Negation[Element[a]:not(Class[Element[*].link], Attrib[Element[*][href]], Hash[Element[*]#special])]"))
-    
+
     expect_that(parse_many("div:is(.foo, #bar)"),
                 equals("Matching[Element[div]:is(Class[Element[*].foo], Hash[Element[*]#bar])]"))
     expect_that(parse_many(":is(:hover, :visited)"),
@@ -130,9 +130,9 @@ test_that("parsed elements print correctly", {
     expect_that(shw("a:not(.toggle)"), equals("Negation[Element[a]:not(Class[Element[*].toggle])]"))
 
     # :not() with multiple arguments print tests
-    expect_that(shw("div:not(.foo, .bar)"), 
+    expect_that(shw("div:not(.foo, .bar)"),
                 equals("Negation[Element[div]:not(Class[Element[*].foo], Class[Element[*].bar])]"))
-    expect_that(shw("p:not(span, div, a)"), 
+    expect_that(shw("p:not(span, div, a)"),
                 equals("Negation[Element[p]:not(Element[span], Element[div], Element[a])]"))
 
     expect_that(shw("[href]"), equals("Attrib[Element[*][href]]"))

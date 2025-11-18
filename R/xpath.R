@@ -188,7 +188,7 @@ GenericTranslator <- R6Class("GenericTranslator",
         },
         xpath_negation = function(negation) {
             xpath <- self$xpath(negation$selector)
-            
+
             # Collect all conditions from the selector list
             conditions <- character(0)
             for (subselector in negation$selector_list) {
@@ -198,7 +198,7 @@ GenericTranslator <- R6Class("GenericTranslator",
                     conditions <- c(conditions, sub_xpath$condition)
                 }
             }
-            
+
             # Combine conditions with OR (any match means element is excluded)
             if (length(conditions) > 0) {
                 combined_condition <- paste0(conditions, collapse = " or ")
@@ -464,13 +464,13 @@ GenericTranslator <- R6Class("GenericTranslator",
                             conditions <- c(conditions, sub_xpath$condition)
                         }
                     }
-                    
+
                     if (length(conditions) > 0) {
                         # Current element must match at least one selector (OR)
                         combined_condition <- paste0(conditions, collapse = " or ")
                         xpath$add_condition(combined_condition)
                     }
-                } 
+                }
                 return(xpath)
             }
             # early-exit condition 2:
@@ -478,7 +478,7 @@ GenericTranslator <- R6Class("GenericTranslator",
             # an+b-1 siblings with a<0 and (b-1)<0 is not possible
             if (a < 0 && b_min_1 < 0) {
                 xpath$add_condition("0")
-                
+
                 # CSS Level 4: When selector list is provided, ensure current element matches
                 # Even though the condition is always false, we should still check the selector
                 if (!is.null(fn$selector_list) && length(fn$selector_list) > 0) {
@@ -490,14 +490,14 @@ GenericTranslator <- R6Class("GenericTranslator",
                             conditions <- c(conditions, sub_xpath$condition)
                         }
                     }
-                    
+
                     if (length(conditions) > 0) {
                         # Current element must match at least one selector (OR)
                         combined_condition <- paste0(conditions, collapse = " or ")
                         xpath$add_condition(combined_condition)
                     }
                 }
-                
+
                 return(xpath)
             }
 
@@ -522,7 +522,7 @@ GenericTranslator <- R6Class("GenericTranslator",
                         conditions <- c(conditions, sub_xpath$condition)
                     }
                 }
-                
+
                 if (length(conditions) > 0) {
                     # Combine conditions with OR (any match counts the sibling)
                     combined_condition <- paste0(conditions, collapse = " or ")
@@ -545,7 +545,7 @@ GenericTranslator <- R6Class("GenericTranslator",
             #    count(***-sibling::***) = b-1
             if (a == 0) {
                 xpath$add_condition(paste0(siblings_count, " = ", b_min_1))
-                
+
                 # CSS Level 4: When selector list is provided, ensure current element matches
                 if (!is.null(fn$selector_list) && length(fn$selector_list) > 0) {
                     conditions <- character(0)
@@ -556,14 +556,14 @@ GenericTranslator <- R6Class("GenericTranslator",
                             conditions <- c(conditions, sub_xpath$condition)
                         }
                     }
-                    
+
                     if (length(conditions) > 0) {
                         # Current element must match at least one selector (OR)
                         combined_condition <- paste0(conditions, collapse = " or ")
                         xpath$add_condition(combined_condition)
                     }
                 }
-                
+
                 return(xpath)
             }
 
@@ -615,7 +615,7 @@ GenericTranslator <- R6Class("GenericTranslator",
                 expr <- paste0(expr, collapse = " and ")
                 xpath$add_condition(expr)
             }
-            
+
             # CSS Level 4: When selector list is provided, ensure current element matches
             if (!is.null(fn$selector_list) && length(fn$selector_list) > 0) {
                 conditions <- character(0)
@@ -626,14 +626,14 @@ GenericTranslator <- R6Class("GenericTranslator",
                         conditions <- c(conditions, sub_xpath$condition)
                     }
                 }
-                
+
                 if (length(conditions) > 0) {
                     # Current element must match at least one selector (OR)
                     combined_condition <- paste0(conditions, collapse = " or ")
                     xpath$add_condition(combined_condition)
                 }
             }
-            
+
             xpath
         },
         xpath_nth_last_child_function = function(xpath, fn) {
