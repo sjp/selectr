@@ -1,7 +1,7 @@
 context("nth-child with 'of S' selector list (CSS Level 4)")
 
 test_that(":nth-child(n of S) parses correctly", {
-    parsed <- selectr:::parse('div:nth-child(2 of .foo)')
+    parsed <- selectr:::parse("div:nth-child(2 of .foo)")
     expect_equal(length(parsed), 1)
 
     fn_obj <- parsed[[1]]$parsed_tree
@@ -12,7 +12,7 @@ test_that(":nth-child(n of S) parses correctly", {
 })
 
 test_that(":nth-last-child(n of S) parses correctly", {
-    parsed <- selectr:::parse('li:nth-last-child(3 of .important)')
+    parsed <- selectr:::parse("li:nth-last-child(3 of .important)")
     expect_equal(length(parsed), 1)
 
     fn_obj <- parsed[[1]]$parsed_tree
@@ -23,7 +23,7 @@ test_that(":nth-last-child(n of S) parses correctly", {
 })
 
 test_that(":nth-child(n of S) with multiple selectors parses correctly", {
-    parsed <- selectr:::parse('div:nth-child(2 of .foo, .bar)')
+    parsed <- selectr:::parse("div:nth-child(2 of .foo, .bar)")
     expect_equal(length(parsed), 1)
 
     fn_obj <- parsed[[1]]$parsed_tree
@@ -32,7 +32,7 @@ test_that(":nth-child(n of S) with multiple selectors parses correctly", {
 })
 
 test_that(":nth-child(n of S) generates correct XPath", {
-    xpath <- css_to_xpath('div:nth-child(2 of .foo)')
+    xpath <- css_to_xpath("div:nth-child(2 of .foo)")
 
     # Should count siblings matching .foo
     expect_true(grepl("count\\(preceding-sibling::\\*\\[", xpath))
@@ -44,7 +44,7 @@ test_that(":nth-child(n of S) generates correct XPath", {
 })
 
 test_that(":nth-last-child(n of S) generates correct XPath", {
-    xpath <- css_to_xpath('li:nth-last-child(3 of .important)')
+    xpath <- css_to_xpath("li:nth-last-child(3 of .important)")
 
     # Should count following siblings matching .important
     expect_true(grepl("count\\(following-sibling::\\*\\[", xpath))
@@ -56,7 +56,7 @@ test_that(":nth-last-child(n of S) generates correct XPath", {
 })
 
 test_that(":nth-child(An+B of S) with formula works", {
-    xpath <- css_to_xpath('p:nth-child(2n+1 of .highlight)')
+    xpath <- css_to_xpath("p:nth-child(2n+1 of .highlight)")
 
     # Should have modulo operation for 2n+1
     expect_true(grepl("mod", xpath))
@@ -66,7 +66,7 @@ test_that(":nth-child(An+B of S) with formula works", {
 })
 
 test_that(":nth-child(n of S1, S2) with multiple selectors generates OR condition", {
-    xpath <- css_to_xpath('div:nth-child(1 of .foo, .bar)')
+    xpath <- css_to_xpath("div:nth-child(1 of .foo, .bar)")
 
     # Should have both selectors
     expect_true(grepl("foo", xpath))
@@ -76,9 +76,9 @@ test_that(":nth-child(n of S1, S2) with multiple selectors generates OR conditio
     expect_true(grepl("or", xpath))
 })
 
-test_that("Regular :nth-child without 'of' still works", {
-    xpath1 <- css_to_xpath('div:nth-child(2)')
-    xpath2 <- css_to_xpath('div:nth-last-child(3)')
+test_that("Regular :nth-child without "of" still works", {
+    xpath1 <- css_to_xpath("div:nth-child(2)")
+    xpath2 <- css_to_xpath("div:nth-last-child(3)")
 
     # Should not have class checks
     expect_false(grepl("@class", xpath1))
@@ -90,7 +90,7 @@ test_that("Regular :nth-child without 'of' still works", {
 })
 
 test_that(":nth-child(odd of S) works", {
-    xpath <- css_to_xpath('div:nth-child(odd of .item)')
+    xpath <- css_to_xpath("div:nth-child(odd of .item)")
 
     # Should have modulo 2
     expect_true(grepl("mod 2", xpath))
@@ -100,7 +100,7 @@ test_that(":nth-child(odd of S) works", {
 })
 
 test_that(":nth-child(even of S) works", {
-    xpath <- css_to_xpath('div:nth-child(even of .item)')
+    xpath <- css_to_xpath("div:nth-child(even of .item)")
 
     # Should have modulo 2
     expect_true(grepl("mod 2", xpath))
@@ -110,10 +110,10 @@ test_that(":nth-child(even of S) works", {
 })
 
 test_that(":nth-child with complex selector works", {
-    xpath <- css_to_xpath('div:nth-child(2 of div.foo)')
+    xpath <- css_to_xpath("div:nth-child(2 of div.foo)")
 
     # Should check element name
-    expect_true(grepl("name\\(\\) = 'div'", xpath))
+    expect_true(grepl("name\\(\\) = "div"", xpath))
 
     # Should check class
     expect_true(grepl("foo", xpath))
