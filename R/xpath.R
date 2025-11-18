@@ -310,6 +310,8 @@ GenericTranslator <- R6Class("GenericTranslator",
                 self$xpath_only_of_type_pseudo(xp)
             else if (method_name == "xpath_empty_pseudo")
                 self$xpath_empty_pseudo(xp)
+            else if (method_name == "xpath_any_link_pseudo")
+                self$xpath_any_link_pseudo(xp)
             else if (method_name == "xpath_link_pseudo")
                 self$xpath_link_pseudo(xp)
             else if (method_name == "xpath_visited_pseudo")
@@ -322,6 +324,10 @@ GenericTranslator <- R6Class("GenericTranslator",
                 self$xpath_focus_pseudo(xp)
             else if (method_name == "xpath_target_pseudo")
                 self$xpath_target_pseudo(xp)
+            else if (method_name == "xpath_target_within_pseudo")
+                self$xpath_target_within_pseudo(xp)
+            else if (method_name == "xpath_local_link_pseudo")
+                self$xpath_local_link_pseudo(xp)
             else if (method_name == "xpath_enabled_pseudo")
                 self$xpath_enabled_pseudo(xp)
             else if (method_name == "xpath_disabled_pseudo")
@@ -749,12 +755,15 @@ GenericTranslator <- R6Class("GenericTranslator",
         #},
 
         # All are pseudo_never_matches()
+        xpath_any_link_pseudo = function(xpath) { xpath$add_condition("0") ; xpath },
         xpath_link_pseudo     = function(xpath) { xpath$add_condition("0") ; xpath },
         xpath_visited_pseudo  = function(xpath) { xpath$add_condition("0") ; xpath },
         xpath_hover_pseudo    = function(xpath) { xpath$add_condition("0") ; xpath },
         xpath_active_pseudo   = function(xpath) { xpath$add_condition("0") ; xpath },
         xpath_focus_pseudo    = function(xpath) { xpath$add_condition("0") ; xpath },
         xpath_target_pseudo   = function(xpath) { xpath$add_condition("0") ; xpath },
+        xpath_target_within_pseudo = function(xpath) { xpath$add_condition("0") ; xpath },
+        xpath_local_link_pseudo    = function(xpath) { xpath$add_condition("0") ; xpath },
         xpath_enabled_pseudo  = function(xpath) { xpath$add_condition("0") ; xpath },
         xpath_disabled_pseudo = function(xpath) { xpath$add_condition("0") ; xpath },
         xpath_checked_pseudo  = function(xpath) { xpath$add_condition("0") ; xpath },

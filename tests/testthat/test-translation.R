@@ -96,12 +96,15 @@ test_that("translation from parsed objects to XPath works", {
                 equals("div[(@id = 'container')]/descendant::p"))
 
     # expect that the following do nothing for the generic translator
+    expect_that(xpath('a:any-link'), equals("a[(0)]"))
     expect_that(xpath('a:link'), equals("a[(0)]"))
     expect_that(xpath('a:visited'), equals("a[(0)]"))
     expect_that(xpath('a:hover'), equals("a[(0)]"))
     expect_that(xpath('a:active'), equals("a[(0)]"))
     expect_that(xpath('a:focus'), equals("a[(0)]"))
     expect_that(xpath('a:target'), equals("a[(0)]"))
+    expect_that(xpath('a:target-within'), equals("a[(0)]"))
+    expect_that(xpath('a:local-link'), equals("a[(0)]"))
     expect_that(xpath('a:enabled'), equals("a[(0)]"))
     expect_that(xpath('a:disabled'), equals("a[(0)]"))
     expect_that(xpath('a:checked'), equals("a[(0)]"))
