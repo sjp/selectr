@@ -149,6 +149,9 @@ test_that("selection works correctly on a large barrage of tests", {
     expect_that(pcss(':is(#first-li, #second-li)'), equals(c('first-li', 'second-li')))
     expect_that(pcss('a:is(#name-anchor, #tag-anchor)'), equals(c('name-anchor', 'tag-anchor')))
     expect_that(pcss(':is(.c)'), equals(c('first-ol', 'third-li', 'fourth-li')))
+    expect_that(pcss(':matches(#first-li, #second-li)'), equals(c('first-li', 'second-li')))
+    expect_that(pcss('a:matches(#name-anchor, #tag-anchor)'), equals(c('name-anchor', 'tag-anchor')))
+    expect_that(pcss(':matches(.c)'), equals(c('first-ol', 'third-li', 'fourth-li')))
 
     expect_that(pcss('ol:has(li)'), equals('first-ol'))
     # :has(.c) matches all ancestors of elements with class 'c'

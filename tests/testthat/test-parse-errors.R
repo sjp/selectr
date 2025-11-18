@@ -76,7 +76,10 @@ test_that("useful errors are returned", {
                 throws_error("Got nested :not()"))
     expect_that(get_error(":is(:before)"),
                 throws_error("Got pseudo-element ::before inside :is\\(\\) at 12"))
-
     expect_that(get_error(":is(a b)"),
                 throws_error("Expected an argument, got <IDENT 'b' at 7>"))
+    expect_that(get_error(":matches(:before)"),
+                throws_error("Got pseudo-element ::before inside :matches\\(\\) at 17"))
+    expect_that(get_error(":matches(a b)"),
+                throws_error("Expected an argument, got <IDENT 'b' at 12>"))
 })

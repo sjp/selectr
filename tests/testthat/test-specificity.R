@@ -48,6 +48,8 @@ test_that("parser creates correct specificity", {
 
     expect_that(spec(":is(.foo, #bar)"), equals(c(1, 0, 0)))
     expect_that(spec(":is(:hover, :visited)"), equals(c(0, 1, 0)))
+    expect_that(spec(":matches(.foo, #bar)"), equals(c(1, 0, 0)))
+    expect_that(spec(":matches(:hover, :visited)"), equals(c(0, 1, 0)))
 
     # :where() always has zero specificity
     expect_that(spec(":where(.foo, #bar)"), equals(c(0, 0, 0)))
