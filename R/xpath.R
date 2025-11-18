@@ -65,6 +65,10 @@ first_class_name <- function(obj) {
 }
 
 xpath_literal <- function(literal) {
+    if (!is.character(literal) || length(literal) != 1) {
+        stop("literal must be a single character string")
+    }
+
     lenseq <- seq_len(nchar(literal))
     split_chars <- substring(literal, lenseq, lenseq)
 
@@ -711,7 +715,7 @@ GenericTranslator <- R6Class("GenericTranslator",
         xpath_lang_function = function(xpath, fn) {
             # Validate all arguments are STRING, IDENT, or * (DELIM)
             arg_types <- fn$argument_types()
-            valid_types <- arg_types %in% c("STRING", "IDENT") | 
+            valid_types <- arg_types %in% c("STRING", "IDENT") |
                           (arg_types == "DELIM" & sapply(fn$arguments, function(a) a$value == "*"))
             if (!all(valid_types)) {
                 stop("Expected string, ident, or * arguments for :lang(), got ",
@@ -724,11 +728,11 @@ GenericTranslator <- R6Class("GenericTranslator",
             while (i <= length(fn$arguments)) {
                 arg <- fn$arguments[[i]]
                 # Check if this is an IDENT ending with '-' followed by a '*' DELIM
-                if (arg$type %in% c("IDENT", "STRING") && 
+                if (arg$type %in% c("IDENT", "STRING") &&
                     grepl("-$", arg$value) &&
                     i < length(fn$arguments) &&
-                    fn$arguments[[i+1]]$type == "DELIM" &&
-                    fn$arguments[[i+1]]$value == "*") {
+                    fn$arguments[[i + 1]]$type == "DELIM" &&
+                    fn$arguments[[i + 1]]$value == "*") {
                     # Combine them: "en-" + "*" = "en-*"
                     lang_values <- c(lang_values, paste0(arg$value, "*"))
                     i <- i + 2  # Skip the next token since we combined it
@@ -768,7 +772,7 @@ GenericTranslator <- R6Class("GenericTranslator",
         xpath_dir_function = function(xpath, fn) {
             # validate all arguments are STRING, IDENT, or * (DELIM)
             arg_types <- fn$argument_types()
-            valid_types <- arg_types %in% c("STRING", "IDENT") | 
+            valid_types <- arg_types %in% c("STRING", "IDENT") |
                           (arg_types == "DELIM" & sapply(fn$arguments, function(a) a$value == "*"))
             if (!all(valid_types)) {
                 stop("Expected string, ident, or * arguments for :dir(), got ",
@@ -958,7 +962,7 @@ HTMLTranslator <- R6Class("HTMLTranslator",
         xpath_lang_function = function(xpath, fn) {
             # Validate all arguments are STRING, IDENT, or * (DELIM)
             arg_types <- fn$argument_types()
-            valid_types <- arg_types %in% c("STRING", "IDENT") | 
+            valid_types <- arg_types %in% c("STRING", "IDENT") |
                           (arg_types == "DELIM" & sapply(fn$arguments, function(a) a$value == "*"))
             if (!all(valid_types)) {
                 stop("Expected string, ident, or * arguments for :lang(), got ",
@@ -971,11 +975,11 @@ HTMLTranslator <- R6Class("HTMLTranslator",
             while (i <= length(fn$arguments)) {
                 arg <- fn$arguments[[i]]
                 # Check if this is an IDENT ending with '-' followed by a '*' DELIM
-                if (arg$type %in% c("IDENT", "STRING") && 
+                if (arg$type %in% c("IDENT", "STRING") &&
                     grepl("-$", arg$value) &&
                     i < length(fn$arguments) &&
-                    fn$arguments[[i+1]]$type == "DELIM" &&
-                    fn$arguments[[i+1]]$value == "*") {
+                    fn$arguments[[i + 1]]$type == "DELIM" &&
+                    fn$arguments[[i + 1]]$value == "*") {
                     # Combine them: "en-" + "*" = "en-*"
                     lang_values <- c(lang_values, paste0(arg$value, "*"))
                     i <- i + 2  # Skip the next token since we combined it
@@ -991,7 +995,7 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                 if (value == "*") {
                     # Wildcard * matches any element with a lang attribute
                     # Check for any ancestor-or-self with @lang attribute
-                    conditions <- c(conditions, 
+                    conditions <- c(conditions,
                         paste0("ancestor-or-self::*[@", self$lang_attribute, "]"))
                 } else if (grepl("\\*$", value)) {
                     # Wildcard suffix like "en-*" - match any language starting with prefix
@@ -1032,7 +1036,7 @@ HTMLTranslator <- R6Class("HTMLTranslator",
         xpath_dir_function = function(xpath, fn) {
             # Validate all arguments are STRING, IDENT, or * (DELIM)
             arg_types <- fn$argument_types()
-            valid_types <- arg_types %in% c("STRING", "IDENT") | 
+            valid_types <- arg_types %in% c("STRING", "IDENT") |
                           (arg_types == "DELIM" & sapply(fn$arguments, function(a) a$value == "*"))
             if (!all(valid_types)) {
                 stop("Expected string, ident, or * arguments for :dir(), got ",
