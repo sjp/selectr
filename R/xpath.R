@@ -434,8 +434,19 @@ GenericTranslator <- R6Class("GenericTranslator",
         xpath_nth_child_function = function(xpath, fn, last = FALSE,
                                             add_name_test = TRUE) {
             ab <- parse_series(fn$arguments)
+
+            # Validate that parse_series returned valid results
+            if (is.null(ab) || length(ab) != 2) {
+                stop("Invalid nth-child expression")
+            }
+
             a <- ab[1]
             b <- ab[2]
+
+            # Validate that a and b are valid integers (not NA)
+            if (is.na(a) || is.na(b)) {
+                stop("Invalid nth-child expression: could not parse as valid integers")
+            }
 
             # From https://www.w3.org/TR/css3-selectors/#structural-pseudos:
             #

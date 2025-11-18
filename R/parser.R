@@ -459,7 +459,7 @@ parse <- function(css) {
                         ClassSelector$new(
                             Element$new(
                                 element =
-                                    if (is.na(class_match[2])) NULL
+                                    if (is.null(class_match[2]) || is.na(class_match[2])) NULL
                                     else class_match[2]),
                             class_match[3]))))
     stream <- TokenStream$new(tokenize(css))
@@ -946,7 +946,15 @@ tokenize <- function(s) {
                 for (j in seq_along(matching_quotes)) {
                     end_quote <- matching_quotes[j]
                     if (end_quote > 1) {
-                        is_escaped[j] <- split_chars[end_quote - 1] == "\\"
+                        # Count consecutive backslashes before the quote
+                        # If odd number of backslashes, the quote is escaped
+                        backslash_count <- 0
+                        check_pos <- end_quote - 1
+                        while (check_pos >= 1 && split_chars[check_pos] == "\\") {
+                            backslash_count <- backslash_count + 1
+                            check_pos <- check_pos - 1
+                        }
+                        is_escaped[j] <- (backslash_count %% 2) == 1
                     }
                 }
                 if (all(is_escaped)) {
