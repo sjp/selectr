@@ -76,7 +76,7 @@ test_that(":nth-child(n of S1, S2) with multiple selectors generates OR conditio
     expect_true(grepl("or", xpath))
 })
 
-test_that("Regular :nth-child without "of" still works", {
+test_that("Regular :nth-child without 'of' still works", {
     xpath1 <- css_to_xpath("div:nth-child(2)")
     xpath2 <- css_to_xpath("div:nth-last-child(3)")
 
@@ -113,7 +113,7 @@ test_that(":nth-child with complex selector works", {
     xpath <- css_to_xpath("div:nth-child(2 of div.foo)")
 
     # Should check element name
-    expect_true(grepl("name\\(\\) = "div"", xpath))
+    expect_true(grepl("name\\(\\) = 'div'", xpath))
 
     # Should check class
     expect_true(grepl("foo", xpath))

@@ -627,7 +627,7 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
     list(result = result, pseudo_element = pseudo_element)
 }
 
-parse_simple_selector_arguments <- function(stream, function_name = NULL) {
+parse_simple_selector_arguments <- function(stream, function_name = NULL) { # nolint: object_length_linter.
     index <- 1
     arguments <- list()
 

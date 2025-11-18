@@ -72,11 +72,11 @@ test_that("selection works correctly on a large barrage of tests", {
     expect_that(all_ids[1:6], equals(c('html', 'nil', 'link-href', 'link-nohref', 'nil', 'outer-div')))
     expect_that(tail(all_ids, 1), equals('foobar-span'))
     expect_that(pcss('div'), equals(c('outer-div', 'li-div', 'foobar-div')))
-    expect_that(pcss('DIV', html_only=TRUE), equals(c('outer-div', 'li-div', 'foobar-div')))  # case-insensitive in HTML
+    expect_that(pcss('DIV', html_only = TRUE), equals(c('outer-div', 'li-div', 'foobar-div')))  # case-insensitive in HTML
     expect_that(pcss('div div'), equals('li-div'))
     expect_that(pcss('div, div div'), equals(c('outer-div', 'li-div', 'foobar-div')))
     expect_that(pcss('a[name]'), equals('name-anchor'))
-    expect_that(pcss('a[NAme]', html_only=TRUE), equals('name-anchor')) # case-insensitive in HTML:
+    expect_that(pcss('a[NAme]', html_only = TRUE), equals('name-anchor')) # case-insensitive in HTML:
     expect_that(pcss('a[rel]'), equals(c('tag-anchor', 'nofollow-anchor')))
     expect_that(pcss('a[rel="tag"]'), equals('tag-anchor'))
     expect_that(pcss('a[href*="localhost"]'), equals('tag-anchor'))
@@ -94,8 +94,8 @@ test_that("selection works correctly on a large barrage of tests", {
     expect_that(pcss('*[lang|="en"]', '[lang|="en-US"]'), equals(NULL))
     expect_that(pcss('*[lang|="e"]'), equals(NULL))
     # ... :lang() is not.
-    expect_that(pcss(':lang("EN")', '*:lang(en-US)', html_only=TRUE), equals(c('second-li', 'li-div')))
-    expect_that(pcss(':lang("e")', html_only=TRUE), equals(NULL))
+    expect_that(pcss(':lang("EN")', '*:lang(en-US)', html_only = TRUE), equals(c('second-li', 'li-div')))
+    expect_that(pcss(':lang("e")', html_only = TRUE), equals(NULL))
     expect_that(pcss('li:nth-child(-n)'), equals(NULL))
     expect_that(pcss('li:nth-child(n)'), equals(c('first-li', 'second-li', 'third-li', 'fourth-li', 'fifth-li', 'sixth-li', 'seventh-li')))
     expect_that(pcss('li:nth-child(3)'), equals('third-li'))
@@ -155,9 +155,9 @@ test_that("selection works correctly on a large barrage of tests", {
     expect_that(pcss('[h\ua0ref]', '[h\\]ref]'), equals(NULL))
 
     ## HTML-specific
-    expect_that(pcss(':link', html_only=TRUE), equals(c('link-href', 'tag-anchor', 'nofollow-anchor', 'area-href')))
-    expect_that(pcss(':visited', html_only=TRUE), equals(NULL))
-    expect_that(pcss(':enabled', html_only=TRUE), equals(c('link-href', 'tag-anchor', 'nofollow-anchor', 'checkbox-unchecked', 'text-checked', 'checkbox-checked', 'area-href')))
-    expect_that(pcss(':disabled', html_only=TRUE), equals(c('checkbox-disabled', 'checkbox-disabled-checked', 'fieldset', 'checkbox-fieldset-disabled')))
-    expect_that(pcss(':checked', html_only=TRUE), equals(c('checkbox-checked', 'checkbox-disabled-checked')))
+    expect_that(pcss(':link', html_only = TRUE), equals(c('link-href', 'tag-anchor', 'nofollow-anchor', 'area-href')))
+    expect_that(pcss(':visited', html_only = TRUE), equals(NULL))
+    expect_that(pcss(':enabled', html_only = TRUE), equals(c('link-href', 'tag-anchor', 'nofollow-anchor', 'checkbox-unchecked', 'text-checked', 'checkbox-checked', 'area-href')))
+    expect_that(pcss(':disabled', html_only = TRUE), equals(c('checkbox-disabled', 'checkbox-disabled-checked', 'fieldset', 'checkbox-fieldset-disabled')))
+    expect_that(pcss(':checked', html_only = TRUE), equals(c('checkbox-checked', 'checkbox-disabled-checked')))
 })

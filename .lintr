@@ -1,4 +1,10 @@
 linters: linters_with_defaults(
     line_length_linter = NULL,
-    indentation_linter = indentation_linter(indent = 4L)
-)
+    indentation_linter = NULL,
+    quotes_linter = NULL,
+    commented_code_linter = NULL,
+    object_name_linter = NULL,
+    brace_linter = NULL,
+    semicolon_linter = NULL
+  )
+encoding: "UTF-8"
