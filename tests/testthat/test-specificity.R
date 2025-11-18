@@ -57,6 +57,14 @@ test_that("parser creates correct specificity", {
     expect_that(spec("#main:where(.foo, .bar)"), equals(c(1, 0, 0)))
     expect_that(spec(".test:where(#foo, [bar])"), equals(c(0, 1, 0)))
 
+    # :has() takes the maximum specificity from its argument list
+    expect_that(spec(":has(.foo, #bar)"), equals(c(1, 0, 0)))
+    expect_that(spec(":has(:hover, :visited)"), equals(c(0, 1, 0)))
+    expect_that(spec("div:has(.foo, #bar)"), equals(c(1, 0, 1)))
+    expect_that(spec("p:has(span, .foo)"), equals(c(0, 1, 1)))
+    expect_that(spec("#main:has(.foo, .bar)"), equals(c(1, 1, 0)))
+    expect_that(spec(".test:has(#foo, [bar])"), equals(c(1, 1, 0)))
+
     expect_that(spec("foo:empty"), equals(c(0, 1, 1)))
     expect_that(spec("foo:before"), equals(c(0, 0, 2)))
     expect_that(spec("foo::before"), equals(c(0, 0, 2)))

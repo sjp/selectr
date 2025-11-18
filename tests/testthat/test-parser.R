@@ -103,6 +103,14 @@ test_that("parser parses canonical test expressions", {
                 equals("Where[Element[div]:where(Class[Element[*].foo], Hash[Element[*]#bar])]"))
     expect_that(parse_many(":where(:hover, :visited)"),
                 equals("Where[Element[*]:where(Pseudo[Element[*]:hover], Pseudo[Element[*]:visited])]"))
+    
+    expect_that(parse_many("div:has(.foo)"),
+                equals("Has[Element[div]:has(Class[Element[*].foo])]"))
+    expect_that(parse_many("ul:has(li)"),
+                equals("Has[Element[ul]:has(Element[li])]"))
+    expect_that(parse_many(":has(p, div)"),
+                equals("Has[Element[*]:has(Element[p], Element[div])]"))
+    
     expect_that(parse_many("td ~ th"),
                 equals("CombinedSelector[Element[td] ~ Element[th]]"))
 

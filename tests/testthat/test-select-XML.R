@@ -150,6 +150,10 @@ test_that("selection works correctly on a large barrage of tests", {
     expect_that(pcss('a:is(#name-anchor, #tag-anchor)'), equals(c('name-anchor', 'tag-anchor')))
     expect_that(pcss(':is(.c)'), equals(c('first-ol', 'third-li', 'fourth-li')))
 
+    expect_that(pcss('ol:has(li)'), equals('first-ol'))
+    # :has(.c) matches all ancestors of elements with class 'c'
+    expect_that(pcss(':has(.c)'), equals(c('html', 'nil', 'outer-div', 'first-ol')))
+
     # Invalid characters in XPath element names, should not crash
     expect_that(pcss('di\ua0v', 'div\\['), equals(NULL))
     expect_that(pcss('[h\ua0ref]', '[h\\]ref]'), equals(NULL))

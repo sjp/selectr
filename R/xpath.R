@@ -148,6 +148,8 @@ GenericTranslator <- R6Class("GenericTranslator",
                 self$xpath_matching(parsed_selector)
             else if (method_name == "xpath_where")
                 self$xpath_where(parsed_selector)
+            else if (method_name == "xpath_has")
+                self$xpath_has(parsed_selector)
             else if (method_name == "xpath_function")
                 self$xpath_function(parsed_selector)
             else if (method_name == "xpath_hash")
@@ -232,6 +234,31 @@ GenericTranslator <- R6Class("GenericTranslator",
                 if (nzchar(e$condition)) {
                     xpath$add_condition(e$condition, "or")
                 }
+            }
+
+            xpath
+        },
+        xpath_has = function(has) {
+            # :has() matches elements that have descendants matching the selector list
+            xpath <- self$xpath(has$selector)
+
+            # Build conditions that check for the existence of descendants
+            conditions <- character(0)
+            for (subselector in has$selector_list) {
+                sub_xpath <- self$xpath(subselector)
+                # Build the full descendant path
+                sub_xpath$add_name_test()
+                desc_test <- paste0("descendant::", sub_xpath$element)
+                if (nzchar(sub_xpath$condition)) {
+                    desc_test <- paste0(desc_test, "[", sub_xpath$condition, "]")
+                }
+                conditions <- c(conditions, desc_test)
+            }
+
+            # Combine conditions with OR (any descendant match means the element matches)
+            if (length(conditions) > 0) {
+                combined_condition <- paste0(conditions, collapse = " | ")
+                xpath$add_condition(combined_condition)
             }
 
             xpath

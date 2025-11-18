@@ -251,6 +251,41 @@ Where <- R6Class("Where",
     )
 )
 
+Has <- R6Class("Has",
+    public = list(
+        selector = NULL,
+        selector_list = NULL,
+        initialize = function(selector, selector_list) {
+            self$selector <- selector
+            self$selector_list <- selector_list
+        },
+        repr = function() {
+            paste0(
+                first_class_name(self),
+                "[",
+                self$selector$repr(),
+                ":has(",
+                paste0(
+                    sapply(self$selector_list, function(s) s$repr()),
+                    collapse = ", "
+                ),
+                ")]"
+            )
+        },
+        specificity = function() {
+            specs <- sapply(self$selector_list, function(s) s$specificity())
+            specs <- t(specs)
+            specs <- specs[order(-specs[, 1], -specs[, 2], -specs[, 3]), ]
+            # Add the maximum specificity from the selector list to the base selector
+            base_specs <- self$selector$specificity()
+            base_specs + specs[1, ]
+        },
+        show = function() { # nocov start
+            cat(self$repr(), "\n")
+        } # nocov end
+    )
+)
+
 Attrib <- R6Class("Attrib",
     public = list(
         selector = NULL,
@@ -577,6 +612,9 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
             } else if (tolower(ident) == "where") {
                 selectors <- parse_simple_selector_arguments(stream, "where")
                 result <- Where$new(result, selectors)
+            } else if (tolower(ident) == "has") {
+                selectors <- parse_simple_selector_arguments(stream, "has")
+                result <- Has$new(result, selectors)
             } else {
                 arguments <- list()
                 selector_list <- NULL
