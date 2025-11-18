@@ -274,6 +274,8 @@ GenericTranslator <- R6Class("GenericTranslator",
                 self$xpath_contains_function(xp, fn)
             else if (method_name == "xpath_lang_function")
                 self$xpath_lang_function(xp, fn)
+            else if (method_name == "xpath_dir_function")
+                self$xpath_dir_function(xp, fn)
             else if (method_name == "xpath_nth_child_function")
                 self$xpath_nth_child_function(xp, fn)
             else if (method_name == "xpath_nth_last_child_function")
@@ -696,12 +698,75 @@ GenericTranslator <- R6Class("GenericTranslator",
             xpath
         },
         xpath_lang_function = function(xpath, fn) {
-            if (!(fn$argument_types() %in% c("STRING", "IDENT"))) {
-                stop("Expected a single string or ident for :lang(), got ",
+            # Validate all arguments are STRING, IDENT, or * (DELIM)
+            arg_types <- fn$argument_types()
+            valid_types <- arg_types %in% c("STRING", "IDENT") | 
+                          (arg_types == "DELIM" & sapply(fn$arguments, function(a) a$value == "*"))
+            if (!all(valid_types)) {
+                stop("Expected string, ident, or * arguments for :lang(), got ",
                      fn$arguments[[1]]$repr())
             }
-            value <- fn$arguments[[1]]$value
-            xpath$add_condition(paste0("lang(", xpath_literal(value), ")"))
+
+            # Extract language values from arguments, combining IDENT-* patterns
+            lang_values <- character(0)
+            i <- 1
+            while (i <= length(fn$arguments)) {
+                arg <- fn$arguments[[i]]
+                # Check if this is an IDENT ending with '-' followed by a '*' DELIM
+                if (arg$type %in% c("IDENT", "STRING") && 
+                    grepl("-$", arg$value) &&
+                    i < length(fn$arguments) &&
+                    fn$arguments[[i+1]]$type == "DELIM" &&
+                    fn$arguments[[i+1]]$value == "*") {
+                    # Combine them: "en-" + "*" = "en-*"
+                    lang_values <- c(lang_values, paste0(arg$value, "*"))
+                    i <- i + 2  # Skip the next token since we combined it
+                } else {
+                    lang_values <- c(lang_values, arg$value)
+                    i <- i + 1
+                }
+            }
+
+            # Build conditions for each language value
+            conditions <- character(0)
+            for (value in lang_values) {
+                if (value == "*") {
+                    # Wildcard * matches everything - use a condition that's always true
+                    conditions <- c(conditions, "true()")
+                } else if (grepl("\\*$", value)) {
+                    # Wildcard suffix like "en-*" - match any language starting with prefix
+                    # Use XPath's lang() function which does prefix matching
+                    prefix <- sub("\\*$", "", value)  # Remove trailing *
+                    conditions <- c(conditions, paste0("lang(", xpath_literal(prefix), ")"))
+                } else {
+                    # Regular language tag
+                    conditions <- c(conditions, paste0("lang(", xpath_literal(value), ")"))
+                }
+            }
+
+            # Combine conditions with OR
+            if (length(conditions) == 1) {
+                xpath$add_condition(conditions[1])
+            } else if (length(conditions) > 1) {
+                combined <- paste0("(", paste(conditions, collapse = " or "), ")")
+                xpath$add_condition(combined)
+            }
+
+            xpath
+        },
+        xpath_dir_function = function(xpath, fn) {
+            # validate all arguments are STRING, IDENT, or * (DELIM)
+            arg_types <- fn$argument_types()
+            valid_types <- arg_types %in% c("STRING", "IDENT") | 
+                          (arg_types == "DELIM" & sapply(fn$arguments, function(a) a$value == "*"))
+            if (!all(valid_types)) {
+                stop("Expected string, ident, or * arguments for :dir(), got ",
+                     fn$arguments[[1]]$repr())
+            }
+            # :dir() requires runtime directionality detection based on
+            # document language, inherited dir attributes, and text analysis.
+            # Not possible in static XPath, so we make it never match.
+            xpath$add_condition("0")
             xpath
         },
         xpath_root_pseudo = function(xpath) {
@@ -880,19 +945,92 @@ HTMLTranslator <- R6Class("HTMLTranslator",
             xpath
         },
         xpath_lang_function = function(xpath, fn) {
-            if (!(fn$argument_types() %in% c("STRING", "IDENT"))) {
-                stop("Expected a single string or ident for :lang(), got ",
+            # Validate all arguments are STRING, IDENT, or * (DELIM)
+            arg_types <- fn$argument_types()
+            valid_types <- arg_types %in% c("STRING", "IDENT") | 
+                          (arg_types == "DELIM" & sapply(fn$arguments, function(a) a$value == "*"))
+            if (!all(valid_types)) {
+                stop("Expected string, ident, or * arguments for :lang(), got ",
                      fn$arguments[[1]]$repr())
             }
-            value <- fn$arguments[[1]]$value
-            xpath$add_condition(paste0(
-                "ancestor-or-self::*[@lang][1][starts-with(concat(",
-                "translate(@",
-                self$lang_attribute,
-                ", 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
-                "'abcdefghijklmnopqrstuvwxyz'), '-'), ",
-                xpath_literal(paste0(tolower(value), "-")),
-                ")]"))
+
+            # Extract language values from arguments, combining IDENT-* patterns
+            lang_values <- character(0)
+            i <- 1
+            while (i <= length(fn$arguments)) {
+                arg <- fn$arguments[[i]]
+                # Check if this is an IDENT ending with '-' followed by a '*' DELIM
+                if (arg$type %in% c("IDENT", "STRING") && 
+                    grepl("-$", arg$value) &&
+                    i < length(fn$arguments) &&
+                    fn$arguments[[i+1]]$type == "DELIM" &&
+                    fn$arguments[[i+1]]$value == "*") {
+                    # Combine them: "en-" + "*" = "en-*"
+                    lang_values <- c(lang_values, paste0(arg$value, "*"))
+                    i <- i + 2  # Skip the next token since we combined it
+                } else {
+                    lang_values <- c(lang_values, arg$value)
+                    i <- i + 1
+                }
+            }
+
+            # Build conditions for each language value
+            conditions <- character(0)
+            for (value in lang_values) {
+                if (value == "*") {
+                    # Wildcard * matches any element with a lang attribute
+                    # Check for any ancestor-or-self with @lang attribute
+                    conditions <- c(conditions, 
+                        paste0("ancestor-or-self::*[@", self$lang_attribute, "]"))
+                } else if (grepl("\\*$", value)) {
+                    # Wildcard suffix like "en-*" - match any language starting with prefix
+                    prefix <- sub("\\*$", "", value)  # Remove trailing *
+                    # Don't add '-' if prefix already ends with it
+                    search_prefix <- if (grepl("-$", prefix)) tolower(prefix) else paste0(tolower(prefix), "-")
+                    conditions <- c(conditions, paste0(
+                        "ancestor-or-self::*[@", self$lang_attribute, "][1][starts-with(concat(",
+                        "translate(@",
+                        self$lang_attribute,
+                        ", 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
+                        "'abcdefghijklmnopqrstuvwxyz'), '-'), ",
+                        xpath_literal(search_prefix),
+                        ")]"))
+                } else {
+                    # Regular language tag
+                    conditions <- c(conditions, paste0(
+                        "ancestor-or-self::*[@", self$lang_attribute, "][1][starts-with(concat(",
+                        "translate(@",
+                        self$lang_attribute,
+                        ", 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
+                        "'abcdefghijklmnopqrstuvwxyz'), '-'), ",
+                        xpath_literal(paste0(tolower(value), "-")),
+                        ")]"))
+                }
+            }
+
+            # Combine conditions with OR
+            if (length(conditions) == 1) {
+                xpath$add_condition(conditions[1])
+            } else if (length(conditions) > 1) {
+                combined <- paste0("(", paste(conditions, collapse = " or "), ")")
+                xpath$add_condition(combined)
+            }
+
+            xpath
+        },
+        xpath_dir_function = function(xpath, fn) {
+            # Validate all arguments are STRING, IDENT, or * (DELIM)
+            arg_types <- fn$argument_types()
+            valid_types <- arg_types %in% c("STRING", "IDENT") | 
+                          (arg_types == "DELIM" & sapply(fn$arguments, function(a) a$value == "*"))
+            if (!all(valid_types)) {
+                stop("Expected string, ident, or * arguments for :dir(), got ",
+                     fn$arguments[[1]]$repr())
+            }
+            # :dir() requires runtime directionality detection based on
+            # document language, inherited dir attributes, and text analysis.
+            # Not possible in static XPath, so we make it never match.
+            xpath$add_condition("0")
             xpath
         },
         xpath_link_pseudo = function(xpath) {
