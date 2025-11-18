@@ -220,6 +220,37 @@ Matching <- R6Class("Matching",
     )
 )
 
+Where <- R6Class("Where",
+    public = list(
+        selector = NULL,
+        selector_list = NULL,
+        initialize = function(selector, selector_list) {
+            self$selector <- selector
+            self$selector_list <- selector_list
+        },
+        repr = function() {
+            paste0(
+                first_class_name(self),
+                "[",
+                self$selector$repr(),
+                ":where(",
+                paste0(
+                    sapply(self$selector_list, function(s) s$repr()),
+                    collapse = ", "
+                ),
+                ")]"
+            )
+        },
+        specificity = function() {
+            # :where() always has zero specificity
+            self$selector$specificity()
+        },
+        show = function() { # nocov start
+            cat(self$repr(), "\n")
+        } # nocov end
+    )
+)
+
 Attrib <- R6Class("Attrib",
     public = list(
         selector = NULL,
@@ -543,6 +574,9 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
             } else if (any(tolower(ident) == c("matches", "is"))) {
                 selectors <- parse_simple_selector_arguments(stream, tolower(ident))
                 result <- Matching$new(result, selectors)
+            } else if (tolower(ident) == "where") {
+                selectors <- parse_simple_selector_arguments(stream, "where")
+                result <- Where$new(result, selectors)
             } else {
                 arguments <- list()
                 selector_list <- NULL

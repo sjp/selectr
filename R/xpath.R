@@ -146,6 +146,8 @@ GenericTranslator <- R6Class("GenericTranslator",
                 self$xpath_element(parsed_selector)
             else if (method_name == "xpath_matching")
                 self$xpath_matching(parsed_selector)
+            else if (method_name == "xpath_where")
+                self$xpath_where(parsed_selector)
             else if (method_name == "xpath_function")
                 self$xpath_function(parsed_selector)
             else if (method_name == "xpath_hash")
@@ -209,6 +211,21 @@ GenericTranslator <- R6Class("GenericTranslator",
         xpath_matching = function(matching) {
             xpath <- self$xpath(matching$selector)
             exprs <- sapply(matching$selector_list, function(s) self$xpath(s))
+
+            for (e in exprs) {
+                e$add_name_test()
+                if (nzchar(e$condition)) {
+                    xpath$add_condition(e$condition, "or")
+                }
+            }
+
+            xpath
+        },
+        xpath_where = function(where) {
+            # :where() behaves exactly like :is() in terms of matching,
+            # but has zero specificity (handled in the Where class itself)
+            xpath <- self$xpath(where$selector)
+            exprs <- sapply(where$selector_list, function(s) self$xpath(s))
 
             for (e in exprs) {
                 e$add_name_test()
