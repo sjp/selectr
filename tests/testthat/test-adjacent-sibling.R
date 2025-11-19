@@ -53,7 +53,7 @@ test_that("adjacent sibling combinator generates simplified XPath", {
 
     # With descendant combinator
     expect_that(xpath('section a + b'),
-                equals("section/descendant::a/following-sibling::*[1][self::b]"))
+                equals("section//a/following-sibling::*[1][self::b]"))
 
     # Complex: multiple combinators and conditions
     expect_that(xpath('article.post > h2.title + p.intro[data-info]'),

@@ -421,7 +421,7 @@ GenericTranslator <- R6Class("GenericTranslator",
             xpath
         },
         xpath_descendant_combinator = function(left, right) {
-            left$join("/descendant::", right)
+            left$join("//", right)
         },
         xpath_child_combinator = function(left, right) {
             left$join("/", right)

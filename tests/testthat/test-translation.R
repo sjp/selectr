@@ -49,7 +49,7 @@ test_that("translation from parsed objects to XPath works", {
     expect_that(xpath('e:nth-last-of-type(1)'),
                 equals("e[(count(following-sibling::e) = 0)]"))
     expect_that(xpath('div e:nth-last-of-type(1) .aclass'),
-                equals("div/descendant::e[(count(following-sibling::e) = 0)]/descendant::*[(@class and contains(concat(' ', normalize-space(@class), ' '), ' aclass '))]"))
+                equals("div//e[(count(following-sibling::e) = 0)]//*[(@class and contains(concat(' ', normalize-space(@class), ' '), ' aclass '))]"))
     expect_that(xpath('e:first-child'),
                 equals("e[(count(preceding-sibling::*) = 0)]"))
     expect_that(xpath('e:last-child'),
@@ -83,7 +83,7 @@ test_that("translation from parsed objects to XPath works", {
     expect_that(xpath('e:nOT(*)'),
                 equals("e[(0)]")) # never matches
     expect_that(xpath('e f'),
-                equals("e/descendant::f"))
+                equals("e//f"))
     expect_that(xpath('e > f'),
                 equals("e/f"))
     expect_that(xpath('e + f'),
@@ -93,7 +93,7 @@ test_that("translation from parsed objects to XPath works", {
     expect_that(xpath('e ~ f:nth-child(3)'),
                 equals("e/following-sibling::f[(count(preceding-sibling::*) = 2)]"))
     expect_that(xpath('div#container p'),
-                equals("div[(@id = 'container')]/descendant::p"))
+                equals("div[(@id = 'container')]//p"))
 
     # expect that the following do nothing for the generic translator
     expect_that(xpath('a:any-link'), equals("a[(0)]"))
