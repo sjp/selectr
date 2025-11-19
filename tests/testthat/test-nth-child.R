@@ -471,3 +471,251 @@ test_that(":nth-child() with complex selectors", {
     expect_that(get_ids(".menu > li:nth-child(3)"),
                 equals("li3"))
 })
+
+test_that(":nth-child() early-exit condition 1: a=1, b-1<=0 (matches all)", {
+    library(XML)
+
+    html <- paste0(
+        '<root>',
+        '  <ul>',
+        '    <li id="li1" class="item">1</li>',
+        '    <li id="li2" class="item">2</li>',
+        '    <li id="li3" class="item">3</li>',
+        '    <li id="li4">4</li>',
+        '  </ul>',
+        '</root>'
+    )
+
+    doc <- xmlRoot(xmlParse(html))
+
+    get_ids <- function(css) {
+        results <- querySelectorAll(doc, css)
+        sapply(results, function(x) xmlGetAttr(x, "id"))
+    }
+
+    # :nth-child(n) -> a=1, b=0, b-1=-1<=0 -> matches all
+    expect_that(get_ids("li:nth-child(n)"),
+                equals(c("li1", "li2", "li3", "li4")))
+
+    # :nth-child(1n+0) -> a=1, b=0, b-1=-1<=0 -> matches all
+    expect_that(get_ids("li:nth-child(1n+0)"),
+                equals(c("li1", "li2", "li3", "li4")))
+
+    # :nth-child(n+1) -> a=1, b=1, b-1=0<=0 -> matches all
+    expect_that(get_ids("li:nth-child(n+1)"),
+                equals(c("li1", "li2", "li3", "li4")))
+
+    # :nth-child(1n+1) -> a=1, b=1, b-1=0<=0 -> matches all
+    expect_that(get_ids("li:nth-child(1n+1)"),
+                equals(c("li1", "li2", "li3", "li4")))
+
+    # :nth-child(n-1) -> a=1, b=-1, b-1=-2<=0 -> matches all
+    expect_that(get_ids("li:nth-child(n-1)"),
+                equals(c("li1", "li2", "li3", "li4")))
+
+    # :nth-child(n-5) -> a=1, b=-5, b-1=-6<=0 -> matches all
+    expect_that(get_ids("li:nth-child(n-5)"),
+                equals(c("li1", "li2", "li3", "li4")))
+})
+
+test_that(":nth-child() early-exit condition 1 with selector list", {
+    library(xml2)
+
+    html <- paste0(
+        '<root>',
+        '  <ul>',
+        '    <li id="li1" class="item">1</li>',
+        '    <li id="li2" class="item">2</li>',
+        '    <li id="li3">3</li>',
+        '    <li id="li4" class="item">4</li>',
+        '  </ul>',
+        '</root>'
+    )
+
+    doc <- read_xml(html)
+
+    get_ids <- function(css) {
+        results <- querySelectorAll(doc, css)
+        xml_attr(results, "id")
+    }
+
+    # :nth-child(n of .item) -> a=1, b=0 -> but filtered by .item
+    expect_that(get_ids("li:nth-child(n of .item)"),
+                equals(c("li1", "li2", "li4")))
+
+    # :nth-child(1n+0 of .item) -> same as above
+    expect_that(get_ids("li:nth-child(1n+0 of .item)"),
+                equals(c("li1", "li2", "li4")))
+
+    # :nth-child(n+1 of .item) -> a=1, b=1 -> filtered by .item
+    expect_that(get_ids("li:nth-child(n+1 of .item)"),
+                equals(c("li1", "li2", "li4")))
+})
+
+test_that(":nth-last-child() early-exit condition 1: a=1, b-1<=0", {
+    library(XML)
+
+    html <- paste0(
+        '<root>',
+        '  <ul>',
+        '    <li id="li1">1</li>',
+        '    <li id="li2" class="special">2</li>',
+        '    <li id="li3">3</li>',
+        '  </ul>',
+        '</root>'
+    )
+
+    doc <- xmlRoot(xmlParse(html))
+
+    get_ids <- function(css) {
+        results <- querySelectorAll(doc, css)
+        sapply(results, function(x) xmlGetAttr(x, "id"))
+    }
+
+    # :nth-last-child(n) -> a=1, b=0, b-1=-1<=0 -> matches all
+    expect_that(get_ids("li:nth-last-child(n)"),
+                equals(c("li1", "li2", "li3")))
+
+    # :nth-last-child(n+1) -> a=1, b=1, b-1=0<=0 -> matches all
+    expect_that(get_ids("li:nth-last-child(n+1)"),
+                equals(c("li1", "li2", "li3")))
+
+    # :nth-last-child(n of .special) -> filtered by .special
+    expect_that(get_ids("li:nth-last-child(n of .special)"),
+                equals("li2"))
+})
+
+test_that(":nth-child() early-exit condition 2: a<0, b-1<0 (matches none)", {
+    library(XML)
+
+    html <- paste0(
+        '<root>',
+        '  <ul>',
+        '    <li id="li1" class="item">1</li>',
+        '    <li id="li2" class="item">2</li>',
+        '    <li id="li3">3</li>',
+        '  </ul>',
+        '</root>'
+    )
+
+    doc <- xmlRoot(xmlParse(html))
+
+    # :nth-child(-n) -> a=-1, b=0, b-1=-1<0 -> impossible, matches none
+    expect_that(length(querySelectorAll(doc, "li:nth-child(-n)")),
+                equals(0))
+
+    # :nth-child(-n-1) -> a=-1, b=-1, b-1=-2<0 -> impossible, matches none
+    expect_that(length(querySelectorAll(doc, "li:nth-child(-n-1)")),
+                equals(0))
+
+    # :nth-child(-2n-1) -> a=-2, b=-1, b-1=-2<0 -> impossible, matches none
+    expect_that(length(querySelectorAll(doc, "li:nth-child(-2n-1)")),
+                equals(0))
+
+    # :nth-child(-3n-5) -> a=-3, b=-5, b-1=-6<0 -> impossible, matches none
+    expect_that(length(querySelectorAll(doc, "li:nth-child(-3n-5)")),
+                equals(0))
+
+    # Verify XPath contains "0" condition
+    xpath <- css_to_xpath("li:nth-child(-n)")
+    expect_true(grepl("\\[.*0.*\\]", xpath))
+})
+
+test_that(":nth-child() early-exit condition 2 with selector list", {
+    library(xml2)
+
+    html <- paste0(
+        '<root>',
+        '  <ul>',
+        '    <li id="li1" class="item">1</li>',
+        '    <li id="li2" class="item">2</li>',
+        '  </ul>',
+        '</root>'
+    )
+
+    doc <- read_xml(html)
+
+    # :nth-child(-n of .item) -> a=-1, b=0 -> impossible even with selector
+    expect_that(length(querySelectorAll(doc, "li:nth-child(-n of .item)")),
+                equals(0))
+
+    # :nth-child(-2n-1 of .item) -> a=-2, b=-1 -> impossible
+    expect_that(length(querySelectorAll(doc, "li:nth-child(-2n-1 of .item)")),
+                equals(0))
+
+    # Verify XPath contains both "0" condition and selector check
+    xpath <- css_to_xpath("li:nth-child(-n of .item)")
+    expect_true(grepl("0", xpath))
+    expect_true(grepl("item", xpath))
+})
+
+test_that(":nth-last-child() early-exit condition 2: a<0, b-1<0", {
+    library(XML)
+
+    html <- paste0(
+        '<root>',
+        '  <ul>',
+        '    <li id="li1">1</li>',
+        '    <li id="li2" class="special">2</li>',
+        '    <li id="li3">3</li>',
+        '  </ul>',
+        '</root>'
+    )
+
+    doc <- xmlRoot(xmlParse(html))
+
+    # :nth-last-child(-n) -> a=-1, b=0, b-1=-1<0 -> impossible
+    expect_that(length(querySelectorAll(doc, "li:nth-last-child(-n)")),
+                equals(0))
+
+    # :nth-last-child(-n-1) -> a=-1, b=-1, b-1=-2<0 -> impossible
+    expect_that(length(querySelectorAll(doc, "li:nth-last-child(-n-1)")),
+                equals(0))
+
+    # :nth-last-child(-n of .special) -> impossible even with selector
+    expect_that(length(querySelectorAll(doc, "li:nth-last-child(-n of .special)")),
+                equals(0))
+})
+
+test_that(":nth-child() boundary between early-exit conditions", {
+    library(xml2)
+
+    html <- paste0(
+        '<root>',
+        '  <ul>',
+        '    <li id="li1">1</li>',
+        '    <li id="li2">2</li>',
+        '    <li id="li3">3</li>',
+        '  </ul>',
+        '</root>'
+    )
+
+    doc <- read_xml(html)
+
+    get_ids <- function(css) {
+        results <- querySelectorAll(doc, css)
+        xml_attr(results, "id")
+    }
+
+    # :nth-child(-n+0) -> a=-1, b=0, b-1=-1 -> NOT early-exit (b-1<0 but a<0 not b-1<0)
+    # This should match nothing (0 or fewer siblings)
+    expect_that(length(querySelectorAll(doc, "li:nth-child(-n+0)")),
+                equals(0))
+
+    # :nth-child(-n+1) -> a=-1, b=1, b-1=0 -> NOT early-exit (b-1 not <0)
+    # This should match first child only
+    expect_that(get_ids("li:nth-child(-n+1)"),
+                equals("li1"))
+
+    # :nth-child(-n+2) -> a=-1, b=2, b-1=1 -> matches first 2
+    expect_that(get_ids("li:nth-child(-n+2)"),
+                equals(c("li1", "li2")))
+
+    # :nth-child(-2n+2) -> a=-2, b=2, b-1=1 -> matches 2nd child
+    expect_that(get_ids("li:nth-child(-2n+2)"),
+                equals("li2"))
+
+    # :nth-child(-2n+0) -> a=-2, b=0, b-1=-1<0 -> early-exit condition 2
+    expect_that(length(querySelectorAll(doc, "li:nth-child(-2n+0)")),
+                equals(0))
+})
