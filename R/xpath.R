@@ -252,7 +252,7 @@ GenericTranslator <- R6Class("GenericTranslator",
                 sub_xpath <- self$xpath(subselector)
                 # Build the full descendant path
                 sub_xpath$add_name_test()
-                desc_test <- paste0("descendant::", sub_xpath$element)
+                desc_test <- paste0(".//", sub_xpath$element)
                 if (nzchar(sub_xpath$condition)) {
                     desc_test <- paste0(desc_test, "[", sub_xpath$condition, "]")
                 }
