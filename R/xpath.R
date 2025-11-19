@@ -185,9 +185,6 @@ GenericTranslator <- R6Class("GenericTranslator",
             else if (combinator == "xpath_indirect_adjacent_combinator")
                 self$xpath_indirect_adjacent_combinator(
                     left = left_xpath, right = right_xpath)
-            else if (combinator == "xpath_indirect_adjacent_combinator")
-                self$xpath_indirect_adjacent_combinator(
-                    left = left_xpath, right = right_xpath)
             else
                 stop("Unknown combinator '",
                      self$combinator_mapping[combined$combinator], "'")
