@@ -87,7 +87,7 @@ test_that("translation from parsed objects to XPath works", {
     expect_that(xpath('e > f'),
                 equals("e/f"))
     expect_that(xpath('e + f'),
-                equals("e/following-sibling::*[(name() = 'f') and (position() = 1)]"))
+                equals("e/following-sibling::*[1][self::f]"))
     expect_that(xpath('e ~ f'),
                 equals("e/following-sibling::f"))
     expect_that(xpath('e ~ f:nth-child(3)'),

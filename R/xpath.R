@@ -428,8 +428,19 @@ GenericTranslator <- R6Class("GenericTranslator",
         },
         xpath_direct_adjacent_combinator = function(left, right) {
             xpath <- left$join("/following-sibling::", right)
+            target_element <- xpath$element
+            existing_condition <- xpath$condition
             xpath$add_name_test()
-            xpath$add_condition("position() = 1")
+
+            if (nzchar(existing_condition)) {
+                # Has existing conditions from right selector (e.g., attributes)
+                # Result: *[1][self::element][existing_condition]
+                xpath$condition <- paste0("1][self::", target_element, "][", existing_condition)
+            } else {
+                # No existing conditions, just position and element test
+                xpath$condition <- paste0("1][self::", target_element)
+            }
+
             xpath
         },
         xpath_indirect_adjacent_combinator = function(left, right) {
