@@ -2,6 +2,76 @@
 \title{NEWS file for the selectr package}
 \encoding{UTF-8}
 
+\section{Changes in version 0.5-0}{
+  \subsection{NEW FEATURES}{
+    \itemize{
+
+      \item Added support for CSS Selectors Level 4 pseudo-classes
+      \code{:is()}, \code{:where()}, and \code{:has()}. The \code{:is()}
+      pseudo-class matches elements against a list of selectors, taking the
+      maximum specificity from its arguments. The \code{:where()} pseudo-class
+      works similarly to \code{:is()} but always has zero specificity. The
+      \code{:has()} pseudo-class represents an element if any of the relative
+      selectors match when anchored against that element, with specificity
+      calculated from the maximum of its arguments.
+
+      \item Added support for complex selectors in \code{:nth-child()} and
+      \code{:nth-last-child()} using the \code{of S} syntax
+      (e.g., \code{:nth-child(2 of .foo)}). This allows matching the nth
+      child that matches a specific selector or selector list.
+
+      \item Extended \code{:not()} to accept multiple selectors separated by
+      commas (e.g., \code{:not(.foo, #bar)}), following CSS Selectors Level 4.
+      Specificity is now calculated as the maximum specificity among all
+      arguments, rather than the sum.
+
+      \item Added support for additional CSS Selectors Level 4 pseudo-classes:
+      \code{:any-link}, \code{:target-within}, and \code{:local-link}. These
+      pseudo-classes do not match any elements in static XML/HTML documents
+      and translate to XPath expressions that always evaluate to false.
+      For now, most of the new Level 4 pseudo-classes that depend on dynamic
+      document state e.g. \code{:user-valid} and \code{:placeholder-shown} are
+      not implemented, but may be at a future date to be non-matching selectors.
+
+      \item The \code{:lang()} and \code{:dir()} pseudo-classes now support
+      multiple comma-separated arguments (e.g., \code{:lang(en, fr, de)}).
+
+      \item Added \code{:matches()} as a backwards-compatible alias for
+      \code{:is()}.
+
+    }
+  }
+  \subsection{MINOR CHANGES}{
+    \itemize{
+
+      \item Improved sibling selector translation to use a more compact form.
+      For the adjacent sibling combinator \code{a + b}, the generated XPath now
+      uses \code{a/following-sibling::*[1][self::b]} instead of
+      \code{a/following-sibling::*[(name() = 'b') and (position() = 1)]}.
+
+      \item The descendant combinator \code{a b} now uses
+      \code{a//b} instead of \code{a/descendant::b} for a more concise XPath.
+      Unfortunately a similar optimisation cannot be applied to in general
+      when attempting to replace \code{descendant-or-self::} with \code{.//a}
+      as it would prevent root nodes being matched correctly.
+
+      \item Improved validation of CSS selector arguments. Better error
+      messages are now provided when pseudo-elements appear inside functional
+      pseudo-classes where they are not permitted (e.g., inside \code{:is()},
+      \code{:matches()}, \code{:where()}, or \code{:has()}).
+
+      \item Enhanced input validation for \code{:lang()} and \code{:dir()}
+      pseudo-classes to ensure proper argument formatting and to reject
+      invalid or empty language tags.
+
+      \item Improved handling of edge cases in selector parsing, including
+      better validation of class selector syntax and more robust handling of
+      null or missing element components.
+
+    }
+  }
+}
+
 \section{Changes in version 0.4-2}{
   \subsection{MINOR CHANGES}{
     \itemize{
