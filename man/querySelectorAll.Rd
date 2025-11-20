@@ -71,7 +71,7 @@ querySelectorAllNS(doc, selector, ns,
   return the same type of content as their un-namespaced counterparts.
 }
 \references{
-  CSS3 Selectors \url{https://www.w3.org/TR/css3-selectors/}, XPath
+  CSS Selectors Level 4 \url{https://www.w3.org/TR/selectors-4/}, XPath
   \url{https://www.w3.org/TR/xpath/}, querySelectorAll
   \url{https://developer.mozilla.org/en-US/docs/DOM/Document.querySelectorAll}
   and \url{http://www.w3.org/TR/selectors-api/#interface-definitions}.

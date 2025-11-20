@@ -55,7 +55,7 @@ css_to_xpath(selector,
   A character vector of XPath expressions.
 }
 \references{
-  CSS3 Selectors \url{https://www.w3.org/TR/css3-selectors/}, XPath
+  CSS Selectors Level 4 \url{https://www.w3.org/TR/selectors-4/}, XPath
   \url{https://www.w3.org/TR/xpath/}.
 }
 \author{

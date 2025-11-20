@@ -408,7 +408,7 @@ GenericTranslator <- R6Class("GenericTranslator",
             }
             if (!is.null(selector$namespace)) {
                 # Namespace prefixes are case-sensitive.
-                # http://www.w3.org/TR/css3-namespace/#prefixes
+                # https://www.w3.org/TR/css-namespaces-3/#prefixes
                 element <- paste0(selector$namespace, ":", element)
                 safe <- safe && is_safe_name(selector$namespace)
             }
@@ -460,7 +460,7 @@ GenericTranslator <- R6Class("GenericTranslator",
                 stop("Invalid nth-child expression: could not parse as valid integers")
             }
 
-            # From https://www.w3.org/TR/css3-selectors/#structural-pseudos:
+            # From https://www.w3.org/TR/selectors-4/#structural-pseudos:
             #
             # :nth-child(an+b)
             #       an+b-1 siblings before
