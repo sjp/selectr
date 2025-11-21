@@ -11,7 +11,7 @@ License: BSD_3_clause + file LICENCE
 Depends: R (>= 3.0)
 Imports: methods, stringr, R6
 Suggests: testthat, XML, xml2
-URL: https://sjp.co.nz/projects/selectr
+URL: https://sjp.co.nz/projects/selectr/
 BugReports: https://github.com/sjp/selectr/issues
 Description: Translates a CSS selector into an equivalent XPath
   expression. This allows us to use CSS selectors when working with

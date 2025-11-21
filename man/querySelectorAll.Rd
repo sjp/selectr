@@ -74,7 +74,7 @@ querySelectorAllNS(doc, selector, ns,
   CSS Selectors Level 4 \url{https://www.w3.org/TR/selectors-4/}, XPath
   \url{https://www.w3.org/TR/xpath/}, querySelectorAll
   \url{https://developer.mozilla.org/en-US/docs/DOM/Document.querySelectorAll}
-  and \url{http://www.w3.org/TR/selectors-api/#interface-definitions}.
+  and \url{https://www.w3.org/TR/selectors-api/#interface-definitions}.
 }
 \author{
   Simon Potter
