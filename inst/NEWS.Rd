@@ -68,6 +68,9 @@
       better validation of class selector syntax and more robust handling of
       null or missing element components.
 
+      \item Simplified method registration for XML and xml2 objects. No longer
+      necessary to hook into package load/unload events.
+
     }
   }
 }
