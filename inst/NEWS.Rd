@@ -2,6 +2,21 @@
 \title{NEWS file for the selectr package}
 \encoding{UTF-8}
 
+\section{Changes in version 0.5-1}{
+  \subsection{BUG FIXES}{
+    \itemize{
+
+      \item Fixed handling of CSS unicode escapes in attribute values.
+      This would be observed when the attribute value contained hexadecimal
+      sequences like \code{(abcdef)} where the characters inside the parentheses
+      were not properly escaped. This fix ensures that such sequences are correctly
+      translated to their XPath equivalents. Thanks to André Veríssimo for
+      reporting the issue.
+
+    }
+  }
+}
+
 \section{Changes in version 0.5-0}{
   \subsection{NEW FEATURES}{
     \itemize{
