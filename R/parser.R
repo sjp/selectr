@@ -1,10 +1,10 @@
-escape <- paste0("([0-9a-f]{1,6})(\r\n|[ \n\r\t\f])?", "|[^\n\r\f0-9a-f]")
+escape <- paste0("\\\\([0-9a-f]{1,6})(\r\n|[ \n\r\t\f])?", "|\\\\[^\n\r\f0-9a-f]")
 nonascii <- "[^\1-\177]"
-hash_re <- "([_a-z0-9-]|([0-9a-f]{1,6})(\r\n|[ \n\r\t\f])?|[^\1-\177])"
+hash_re <- "([_a-z0-9-]|\\\\([0-9a-f]{1,6})(\r\n|[ \n\r\t\f])?|[^\1-\177])"
 
-TokenMacros <- list(unicode_escape = "\\([0-9a-f]{1,6})(?:\r\n|[ \n\r\t\f])?",
+TokenMacros <- list(unicode_escape = "\\\\([0-9a-f]{1,6})(?:\r\n|[ \n\r\t\f])?",
                     escape = escape,
-                    string_escape = paste0("\\(?:\n|\r\n|\r|\f)|", escape),
+                    string_escape = paste0("\\\\(?:\n|\r\n|\r|\f)|", escape),
                     nonascii = nonascii,
                     nmchar = paste0("([_a-z0-9-]|", escape, "|", nonascii, ")"),
                     nmstart = paste0("[_a-z]|", escape, "|", nonascii))
