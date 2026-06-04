@@ -67,6 +67,14 @@
   \subsection{BUG FIXES}{
     \itemize{
 
+      \item \code{css_to_xpath()} now signals an error when any of its
+      arguments contain \code{NA} values. Previously \code{NA}s were
+      removed from each argument independently before recycling, which
+      silently shifted the pairing of the remaining values: in
+      \code{css_to_xpath(c("a", "b", "c"), prefix = c("p1//", NA, "p3//"))}
+      the selector \code{"b"} was paired with \code{"p3//"} and
+      \code{"c"} wrapped around to \code{"p1//"}.
+
       \item The \code{An+B} expressions used by the \code{:nth-child()}
       family of pseudo-classes are now matched ASCII case-insensitively,
       as required by the CSS Syntax specification. Previously

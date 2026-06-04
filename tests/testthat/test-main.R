@@ -21,15 +21,18 @@ test_that("css_to_xpath handles bad arguments", {
     expect_error(css_to_xpath("a", prefix = 1), "The 'prefix' argument.*")
     expect_error(css_to_xpath("a", translator = 1), "The 'translator' argument.*")
 
-    # should strip the NA values out
-    expect_that(length(css_to_xpath(c("a", NA))), equals(1))
-    expect_that(length(css_to_xpath("a", prefix = c("", NA))), equals(1))
-    expect_that(length(css_to_xpath("a", translator = c("generic", NA))), equals(1))
+    # NA values are not allowed in any argument
+    expect_error(css_to_xpath(c("a", NA)), "NA values are not allowed in the 'selector' argument")
+    expect_error(css_to_xpath("a", prefix = c("", NA)), "NA values are not allowed in the 'prefix' argument")
+    expect_error(css_to_xpath("a", translator = c("generic", NA)), "NA values are not allowed in the 'translator' argument")
+    expect_error(css_to_xpath(NA_character_), "NA values are not allowed in the 'selector' argument")
+    expect_error(css_to_xpath("a", prefix = NA_character_), "NA values are not allowed in the 'prefix' argument")
+    expect_error(css_to_xpath("a", translator = NA_character_), "NA values are not allowed in the 'translator' argument")
 
-    # expect NAs to be stripped out resulting in zero length args (unusable)
-    expect_error(css_to_xpath(NA_character_), "Zero length character vector.*")
-    expect_error(css_to_xpath("a", prefix = NA_character_), "Zero length character vector.*")
-    expect_error(css_to_xpath("a", translator = NA_character_), "Zero length character vector.*")
+    # zero length arguments are unusable
+    expect_error(css_to_xpath(character(0)), "Zero length character vector.*")
+    expect_error(css_to_xpath("a", prefix = character(0)), "Zero length character vector.*")
+    expect_error(css_to_xpath("a", translator = character(0)), "Zero length character vector.*")
 
     # performs partial matching
     expect_that(css_to_xpath("a", translator = "g"),

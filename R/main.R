@@ -9,20 +9,12 @@ css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator =
     if (!is.character(translator))
         stop("The 'translator' argument must be a character vector")
 
-    if (anyNA(selector)) {
-        warning("NA values were found in the 'selector' argument, they have been removed")
-        selector <- selector[!is.na(selector)]
-    }
-
-    if (anyNA(prefix)) {
-        warning("NA values were found in the 'prefix' argument, they have been removed")
-        prefix <- prefix[!is.na(prefix)]
-    }
-
-    if (anyNA(translator)) {
-        warning("NA values were found in the 'translator' argument, they have been removed")
-        translator <- translator[!is.na(translator)]
-    }
+    if (anyNA(selector))
+        stop("NA values are not allowed in the 'selector' argument")
+    if (anyNA(prefix))
+        stop("NA values are not allowed in the 'prefix' argument")
+    if (anyNA(translator))
+        stop("NA values are not allowed in the 'translator' argument")
 
     zeroLengthArgs <- character(0)
     if (!length(selector))
