@@ -24,6 +24,15 @@
       \code{:nth-child(EVEN)} were rejected as invalid; they are now
       equivalent to their lowercase forms.
 
+      \item \code{An+B} expressions now only permit whitespace around the
+      \code{+}/\code{-} sign that separates the \code{B} value, as
+      required by the CSS Syntax specification. Previously whitespace
+      between tokens was silently discarded, so an invalid selector such
+      as \code{:nth-child(3 7)} was treated as \code{:nth-child(37)} and
+      silently matched the wrong elements. Such selectors are now
+      rejected as invalid; spec-legal forms like \code{:nth-child(2n + 1)}
+      are unaffected.
+
       \item Attribute selectors with an empty value no longer throw an
       error for the \code{=}, \code{|=}, and \code{!=} operators
       (e.g. \code{[attr=""]}). These now translate to XPath matching an

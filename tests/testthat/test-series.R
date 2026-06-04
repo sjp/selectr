@@ -47,3 +47,24 @@ test_that("series are parsed case-insensitively", {
     expect_error(css_to_xpath("e:nth-child(odds)"))
     expect_error(css_to_xpath("e:nth-child(m+1)"))
 })
+
+test_that("whitespace is only permitted around the sign before B", {
+    # spec-legal placements keep working
+    expect_that(css_to_xpath("e:nth-child(2n + 1)"),
+                equals(css_to_xpath("e:nth-child(2n+1)")))
+    expect_that(css_to_xpath("e:nth-child(2n +1)"),
+                equals(css_to_xpath("e:nth-child(2n+1)")))
+    expect_that(css_to_xpath("e:nth-child(n+ 1)"),
+                equals(css_to_xpath("e:nth-child(n+1)")))
+    expect_that(css_to_xpath("e:nth-child( 2n+1 )"),
+                equals(css_to_xpath("e:nth-child(2n+1)")))
+    # whitespace anywhere else is invalid (css-syntax-3 An+B grammar)
+    expect_error(css_to_xpath("e:nth-child(3 7)"))
+    expect_error(css_to_xpath("e:nth-child(2 n)"))
+    expect_error(css_to_xpath("e:nth-child(2n 1)"))
+    expect_error(css_to_xpath("e:nth-child(2n+1 3)"))
+    expect_error(css_to_xpath("e:nth-child(2 n + 1)"))
+    expect_error(css_to_xpath("e:nth-child(- n)"))
+    expect_error(css_to_xpath("e:nth-child(+ 2n)"))
+    expect_error(css_to_xpath("e:nth-child(o dd)"))
+})

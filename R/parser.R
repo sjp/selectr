@@ -655,6 +655,14 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
                         arguments[[i]] <- nt
                         i <- i + 1
                     } else if (nt$type == "S") {
+                        # Keep whitespace tokens for the An+B (nth-*)
+                        # functions so parse_series() can validate
+                        # whitespace placement; other functions simply
+                        # skip whitespace.
+                        if (startsWith(tolower(ident), "nth-")) {
+                            arguments[[i]] <- nt
+                            i <- i + 1
+                        }
                         next
                     } else if (token_equality(nt, "DELIM", ",") && allow_commas) {
                         # For :lang() and :dir(), commas separate multiple values
@@ -800,6 +808,17 @@ parse_series <- function(tokens) {
     # mapping is locale-independent; "nodev" covers every letter that
     # can appear in a valid series.
     s <- chartr("NODEV", "nodev", s)
+    # Validate against the An+B grammar (css-syntax-3 section 6):
+    # whitespace is permitted only around the +/- sign that separates
+    # the B value (e.g. "2n + 1"), never inside or between the other
+    # components ("3 7", "2 n", "- n" are all invalid).
+    anb <- paste0("^[ \t\r\n\f]*",
+                  "(odd|even|[+-]?[0-9]+|",
+                  "[+-]?[0-9]*n([ \t\r\n\f]*[+-][ \t\r\n\f]*[0-9]+)?)",
+                  "[ \t\r\n\f]*$")
+    if (!grepl(anb, s))
+        return(NULL)
+    s <- gsub("[ \t\r\n\f]+", "", s)
     if (s == "odd")
         return(2:1)
     else if (s == "even")
