@@ -150,7 +150,8 @@ querySelector.xml_node <- function(doc, selector, ns = NULL, ...) {
     validateSelector(selector)
     if (is.null(ns))
         ns <- xml2::xml_ns(doc)
-    validateNS(ns)
+    else
+        ns <- formatNS(ns)
     xpath <- css_to_xpath(selector, ...)
     result <- xml2::xml_find_first(doc, xpath, ns)
     if (length(result))
@@ -163,7 +164,8 @@ querySelectorAll.xml_node <- function(doc, selector, ns = NULL, ...) {
     validateSelector(selector)
     if (is.null(ns))
         ns <- xml2::xml_ns(doc)
-    validateNS(ns)
+    else
+        ns <- formatNS(ns)
     xpath <- css_to_xpath(selector, ...)
     xml2::xml_find_all(doc, xpath, ns)
 }
@@ -214,13 +216,4 @@ formatNSPrefix <- function(ns, prefix) {
     filters <- paste0("//", names(ns), ":*", collapse = "|")
     prefix <- paste0("(", filters, ")/", prefix)
     prefix
-}
-
-# Checks whether a vector is a valid character vector for namespaces
-validateNS <- function(ns) {
-    if (!is.character(ns))
-        stop("A namespace object must be comprised of characters")
-    nsNames <- names(ns)
-    if (is.null(nsNames) || anyNA(nsNames))
-        stop("The namespace object either missing some or all names for each element in its collection.")
 }

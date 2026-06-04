@@ -67,6 +67,13 @@
   \subsection{BUG FIXES}{
     \itemize{
 
+      \item The \code{querySelector()} and \code{querySelectorAll()}
+      methods for \pkg{xml2} documents now accept a named list as the
+      \code{ns} argument, consistent with the methods for \pkg{XML}
+      documents and with \code{querySelectorNS()} and
+      \code{querySelectorAllNS()}. Previously a named list was rejected
+      with "A namespace object must be comprised of characters".
+
       \item The \code{querySelector()}, \code{querySelectorAll()},
       \code{querySelectorNS()}, and \code{querySelectorAllNS()} functions
       now signal an error when the \code{selector} argument is not a

@@ -50,6 +50,9 @@ test_that("querySelector handles namespaces", {
                 equals(NULL))
     expect_that(p(querySelector(doc, "svg|circle", ns = c(svg = "http://www.w3.org/2000/svg"))),
                 equals(p(xml_find_all(doc, "//svg:circle", ns = c(svg = "http://www.w3.org/2000/svg"))[[1]])))
+    # a named list is also accepted, consistent with the 'XML' methods
+    expect_that(p(querySelector(doc, "svg|circle", ns = list(svg = "http://www.w3.org/2000/svg"))),
+                equals(p(xml_find_all(doc, "//svg:circle", ns = c(svg = "http://www.w3.org/2000/svg"))[[1]])))
 
     # now with querySelectorNS
     expect_that(querySelectorNS(doc, "circle", c(svg = "http://www.w3.org/2000/svg")), equals(NULL))
@@ -69,6 +72,9 @@ test_that("querySelectorAll handles namespaces", {
     expect_that(p(querySelectorAll(doc, "circle", ns = c(svg = "http://www.w3.org/2000/svg"))),
                 equals(p(xml_find_all(doc, "//circle", ns = c(svg = "http://www.w3.org/2000/svg")))))
     expect_that(p(querySelectorAll(doc, "svg|circle", ns = c(svg = "http://www.w3.org/2000/svg"))),
+                equals(p(xml_find_all(doc, "//svg:circle", ns = c(svg = "http://www.w3.org/2000/svg")))))
+    # a named list is also accepted, consistent with the 'XML' methods
+    expect_that(p(querySelectorAll(doc, "svg|circle", ns = list(svg = "http://www.w3.org/2000/svg"))),
                 equals(p(xml_find_all(doc, "//svg:circle", ns = c(svg = "http://www.w3.org/2000/svg")))))
 
     # now with querySelectorAllNS
@@ -110,9 +116,16 @@ test_that("querySelector methods handle invalid arguments", {
     expect_error(querySelectorAll(doc, c("a", "b")), selector_error, fixed = TRUE)
     expect_error(querySelectorNS(doc, c("a", "b"), c(svg = "http://www.w3.org/2000/svg")), selector_error, fixed = TRUE)
     expect_error(querySelectorAllNS(doc, c("a", "b"), c(svg = "http://www.w3.org/2000/svg")), selector_error, fixed = TRUE)
-    expect_error(querySelector(doc, 1), "A valid selector (single character string) must be provided.", fixed = TRUE)
+    expect_error(querySelector(doc, 1), selector_error, fixed = TRUE)
     expect_error(querySelector(doc, character(0)), selector_error, fixed = TRUE)
     expect_error(querySelector(doc, NA_character_), selector_error, fixed = TRUE)
+
+    # invalid namespace objects are rejected, consistent with the 'XML' methods
+    ns_object_error <- "A namespace object must be either a named list or a named character vector."
+    expect_error(querySelector(doc, "a", ns = 1), ns_object_error, fixed = TRUE)
+    expect_error(querySelectorAll(doc, "a", ns = 1), ns_object_error, fixed = TRUE)
+    expect_error(querySelector(doc, "a", ns = list("x")), "The namespace object either missing some or all names", fixed = TRUE)
+    expect_error(querySelectorAll(doc, "a", ns = c("x")), "The namespace object either missing some or all names", fixed = TRUE)
 
     namespace_error <- "A namespace must be provided"
     expect_error(querySelectorNS(doc, "a"), namespace_error, fixed = TRUE)
