@@ -69,6 +69,10 @@ xpath_literal <- function(literal) {
         stop("literal must be a single character string")
     }
 
+    if (!nzchar(literal)) {
+        return("''")
+    }
+
     lenseq <- seq_len(nchar(literal))
     split_chars <- substring(literal, lenseq, lenseq)
 
