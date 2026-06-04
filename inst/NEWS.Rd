@@ -11,6 +11,12 @@
       (e.g. \code{[attr=""]}). These now translate to XPath matching an
       attribute whose value is the empty string.
 
+      \item The HTML translator no longer lowercases attribute
+      \emph{values}, only attribute names. Previously a selector such as
+      \code{[data-state="Active"]} was translated to match the value
+      \code{'active'}, silently missing matches because HTML attribute
+      values are case-sensitive.
+
       \item Namespace selectors are now translated faithfully. Previously
       both the \emph{any namespace} selector \code{*|e} and the
       \emph{no namespace} selector \code{|e} collapsed to the bare name

@@ -46,6 +46,22 @@ test_that("HTML translator validates language arguments", {
                 equals("descendant-or-self::html[((ancestor-or-self::*[@lang][1][starts-with(concat(translate(@lang, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '-'), 'en-')] or ancestor-or-self::*[@lang][1][starts-with(concat(translate(@lang, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '-'), 'fr-')]))]"))
 })
 
+test_that("HTML translator lowercases attribute names but not values", {
+    translator <- HTMLTranslator$new()
+
+    # Attribute names in HTML are case-insensitive, but values are not
+    expect_that(translator$css_to_xpath('[Data-State="Active"]'),
+                equals("descendant-or-self::*[(@data-state = 'Active')]"))
+    expect_that(translator$css_to_xpath('[data-state~="Active"]'),
+                equals(paste0("descendant-or-self::*[(@data-state and ",
+                              "contains(concat(' ', ",
+                              "normalize-space(@data-state), ' '), ",
+                              "' Active '))]")))
+    # Element names are still lowercased
+    expect_that(translator$css_to_xpath('DIV[data-state="Active"]'),
+                equals("descendant-or-self::div[(@data-state = 'Active')]"))
+})
+
 test_that("Generic translator handles :lang() wildcards and comma lists", {
     translator <- GenericTranslator$new()
 

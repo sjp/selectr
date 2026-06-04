@@ -371,7 +371,7 @@ GenericTranslator <- R6Class("GenericTranslator",
                         "attribute::*[name() = ", xpath_literal(name), "]")
                 }
             }
-            if (self$lower_case_attribute_names) {
+            if (self$lower_case_attribute_values) {
                 value <- tolower(selector$value)
             } else {
                 value <- selector$value
