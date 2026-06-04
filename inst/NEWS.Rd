@@ -2,7 +2,7 @@
 \title{NEWS file for the selectr package}
 \encoding{UTF-8}
 
-\section{Changes in version 0.5-1}{
+\section{Changes in version 0.6-0}{
   \subsection{NEW FEATURES}{
     \itemize{
 
@@ -148,6 +148,14 @@
       tokenization error, and escapes that did tokenize kept their hex
       digits rather than the escaped character, so \code{"\\E9"} matched
       the literal value \code{E9} instead of \code{é}.
+
+    }
+  }
+}
+
+\section{Changes in version 0.5-1}{
+  \subsection{BUG FIXES}{
+    \itemize{
 
       \item Fixed handling of CSS unicode escapes in attribute values.
       This would be observed when the attribute value contained hexadecimal
