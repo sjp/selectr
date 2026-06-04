@@ -149,6 +149,25 @@ test_that("translation from parsed objects to XPath works", {
                 equals("e[((not((name() = 'f'))))]"))
     expect_that(xpath('e:has(:not(f))'),
                 equals("e[(.//*[(not((name() = 'f')))])]"))
+    # Selectors Level 4: complex selectors inside functional pseudo-classes
+    # apply the rightmost compound to the candidate and walk the rest
+    # through reversed axes
+    expect_that(xpath(':is(a b)'),
+                equals("*[((name() = 'b') and ancestor::*[(name() = 'a')])]"))
+    expect_that(xpath(':is(a > b)'),
+                equals("*[((name() = 'b') and parent::*[(name() = 'a')])]"))
+    expect_that(xpath(':is(a + b)'),
+                equals("*[((name() = 'b') and preceding-sibling::*[1][(name() = 'a')])]"))
+    expect_that(xpath(':is(a ~ b)'),
+                equals("*[((name() = 'b') and preceding-sibling::*[(name() = 'a')])]"))
+    expect_that(xpath(':is(a > b ~ c)'),
+                equals("*[((name() = 'c') and preceding-sibling::*[(name() = 'b') and parent::*[(name() = 'a')]])]"))
+    expect_that(xpath('e:not(a b)'),
+                equals("e[(not((name() = 'b') and ancestor::*[(name() = 'a')]))]"))
+    expect_that(xpath(':where(a + b)'),
+                equals("*[((name() = 'b') and preceding-sibling::*[1][(name() = 'a')])]"))
+    expect_that(xpath(':is(a.x > b#y)'),
+                equals("*[((@id = 'y') and (name() = 'b') and parent::*[(@class and contains(concat(' ', normalize-space(@class), ' '), ' x ')) and (name() = 'a')])]"))
     expect_that(xpath('e f'),
                 equals("e//f"))
     expect_that(xpath('e > f'),

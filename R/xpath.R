@@ -191,16 +191,52 @@ GenericTranslator <- R6Class("GenericTranslator",
                 stop("Unknown combinator '",
                      self$combinator_mapping[combined$combinator], "'")
         },
+        xpath_argument_condition = function(subselector) {
+            # Translate one functional pseudo-class argument into a
+            # condition on the candidate element. A complex argument
+            # (CombinedSelector) applies its rightmost compound to the
+            # candidate, with everything to its left becoming an
+            # existence test through reversed axes (e.g. :is(a > b)
+            # matches a 'b' whose parent is an 'a')
+            if (first_class_name(subselector) == "CombinedSelector") {
+                sub_xpath <- self$xpath(subselector$subselector)
+                sub_xpath$add_name_test()
+                rev_test <- self$reversed_combinator_test(
+                    subselector$selector, subselector$combinator)
+                if (nzchar(sub_xpath$condition))
+                    paste0(sub_xpath$condition, " and ", rev_test)
+                else
+                    rev_test
+            } else {
+                sub_xpath <- self$xpath(subselector)
+                sub_xpath$add_name_test()
+                sub_xpath$condition
+            }
+        },
+        reversed_combinator_test = function(selector, combinator) {
+            # Existence test, relative to the candidate element, for the
+            # left-hand side of a combinator inside a pseudo-class
+            # argument: ' ' -> an ancestor, '>' -> the parent, '~' -> any
+            # preceding sibling, '+' -> the immediately preceding sibling.
+            # The left-hand side may itself be complex, so recurse
+            inner <- self$xpath_argument_condition(selector)
+            axis <-
+                if (combinator == " ") "ancestor::*"
+                else if (combinator == ">") "parent::*"
+                else if (combinator == "~") "preceding-sibling::*"
+                else if (combinator == "+") "preceding-sibling::*[1]"
+                else stop("Unknown combinator '", combinator, "'")
+            if (nzchar(inner)) paste0(axis, "[", inner, "]") else axis
+        },
         xpath_negation = function(negation) {
             xpath <- self$xpath(negation$selector)
 
             # Collect all conditions from the selector list
             conditions <- character(0)
             for (subselector in negation$selector_list) {
-                sub_xpath <- self$xpath(subselector)
-                sub_xpath$add_name_test()
-                if (!is.null(sub_xpath$condition) && nzchar(sub_xpath$condition)) {
-                    conditions <- c(conditions, sub_xpath$condition)
+                condition <- self$xpath_argument_condition(subselector)
+                if (nzchar(condition)) {
+                    conditions <- c(conditions, condition)
                 }
             }
 
@@ -215,12 +251,11 @@ GenericTranslator <- R6Class("GenericTranslator",
         },
         xpath_matching = function(matching) {
             xpath <- self$xpath(matching$selector)
-            exprs <- sapply(matching$selector_list, function(s) self$xpath(s))
 
-            for (e in exprs) {
-                e$add_name_test()
-                if (nzchar(e$condition)) {
-                    xpath$add_condition(e$condition, "or")
+            for (subselector in matching$selector_list) {
+                condition <- self$xpath_argument_condition(subselector)
+                if (nzchar(condition)) {
+                    xpath$add_condition(condition, "or")
                 }
             }
 
@@ -230,34 +265,42 @@ GenericTranslator <- R6Class("GenericTranslator",
             # :where() behaves exactly like :is() in terms of matching,
             # but has zero specificity (handled in the Where class itself)
             xpath <- self$xpath(where$selector)
-            exprs <- sapply(where$selector_list, function(s) self$xpath(s))
 
-            for (e in exprs) {
-                e$add_name_test()
-                if (nzchar(e$condition)) {
-                    xpath$add_condition(e$condition, "or")
+            for (subselector in where$selector_list) {
+                condition <- self$xpath_argument_condition(subselector)
+                if (nzchar(condition)) {
+                    xpath$add_condition(condition, "or")
                 }
             }
 
             xpath
         },
-        xpath_has = function(has) {
-            # :has() takes a relative selector list (selectors-4
-            # section 17): each argument may carry a leading combinator
-            # scoping the match (> child, ~ subsequent sibling, + next
-            # sibling); the omitted combinator means descendant
-            xpath <- self$xpath(has$selector)
-
-            # Build conditions that check for the existence of a match
-            conditions <- character(0)
-            for (subselector in has$selector_list) {
-                if (first_class_name(subselector) == "RelativeSelector") {
-                    combinator <- subselector$combinator
-                    sub_xpath <- self$xpath(subselector$selector)
-                } else {
-                    combinator <- " "
-                    sub_xpath <- self$xpath(subselector)
+        xpath_has_test = function(selector, combinator) {
+            # Existence test for one :has() argument, as a path relative
+            # to the candidate element. Unlike the other functional
+            # pseudo-classes, :has() looks forward, so a complex argument
+            # extends the path step by step; the leading combinator
+            # applies to the leftmost compound
+            if (first_class_name(selector) == "CombinedSelector") {
+                left <- self$xpath_has_test(selector$selector, combinator)
+                sub_xpath <- self$xpath(selector$subselector)
+                sub_xpath$add_name_test()
+                joiner <-
+                    if (selector$combinator == " ") "//"
+                    else if (selector$combinator == ">") "/"
+                    else if (any(selector$combinator == c("~", "+")))
+                        "/following-sibling::"
+                    else stop("Unknown combinator '", selector$combinator, "'")
+                rel_test <- paste0(left, joiner, sub_xpath$element)
+                if (selector$combinator == "+") {
+                    rel_test <- paste0(rel_test, "[1]")
                 }
+                if (nzchar(sub_xpath$condition)) {
+                    rel_test <- paste0(rel_test, "[", sub_xpath$condition, "]")
+                }
+                rel_test
+            } else {
+                sub_xpath <- self$xpath(selector)
                 sub_xpath$add_name_test()
                 axis <-
                     if (combinator == ">") "child::"
@@ -273,7 +316,27 @@ GenericTranslator <- R6Class("GenericTranslator",
                 if (nzchar(sub_xpath$condition)) {
                     rel_test <- paste0(rel_test, "[", sub_xpath$condition, "]")
                 }
-                conditions <- c(conditions, rel_test)
+                rel_test
+            }
+        },
+        xpath_has = function(has) {
+            # :has() takes a relative selector list (selectors-4
+            # section 17): each argument may carry a leading combinator
+            # scoping the match (> child, ~ subsequent sibling, + next
+            # sibling); the omitted combinator means descendant
+            xpath <- self$xpath(has$selector)
+
+            # Build conditions that check for the existence of a match
+            conditions <- character(0)
+            for (subselector in has$selector_list) {
+                if (first_class_name(subselector) == "RelativeSelector") {
+                    conditions <- c(conditions,
+                                    self$xpath_has_test(subselector$selector,
+                                                        subselector$combinator))
+                } else {
+                    conditions <- c(conditions,
+                                    self$xpath_has_test(subselector, " "))
+                }
             }
 
             # Combine conditions with OR (any match means the element matches)
@@ -580,10 +643,9 @@ GenericTranslator <- R6Class("GenericTranslator",
                 if (!is.null(fn$selector_list) && length(fn$selector_list) > 0) {
                     conditions <- character(0)
                     for (subselector in fn$selector_list) {
-                        sub_xpath <- self$xpath(subselector)
-                        sub_xpath$add_name_test()
-                        if (!is.null(sub_xpath$condition) && nzchar(sub_xpath$condition)) {
-                            conditions <- c(conditions, sub_xpath$condition)
+                        condition <- self$xpath_argument_condition(subselector)
+                        if (nzchar(condition)) {
+                            conditions <- c(conditions, condition)
                         }
                     }
 
@@ -606,10 +668,9 @@ GenericTranslator <- R6Class("GenericTranslator",
                 if (!is.null(fn$selector_list) && length(fn$selector_list) > 0) {
                     conditions <- character(0)
                     for (subselector in fn$selector_list) {
-                        sub_xpath <- self$xpath(subselector)
-                        sub_xpath$add_name_test()
-                        if (!is.null(sub_xpath$condition) && nzchar(sub_xpath$condition)) {
-                            conditions <- c(conditions, sub_xpath$condition)
+                        condition <- self$xpath_argument_condition(subselector)
+                        if (nzchar(condition)) {
+                            conditions <- c(conditions, condition)
                         }
                     }
 
@@ -638,10 +699,9 @@ GenericTranslator <- R6Class("GenericTranslator",
                 # Generate XPath conditions for each selector in the list
                 conditions <- character(0)
                 for (subselector in fn$selector_list) {
-                    sub_xpath <- self$xpath(subselector)
-                    sub_xpath$add_name_test()
-                    if (!is.null(sub_xpath$condition) && nzchar(sub_xpath$condition)) {
-                        conditions <- c(conditions, sub_xpath$condition)
+                    condition <- self$xpath_argument_condition(subselector)
+                    if (nzchar(condition)) {
+                        conditions <- c(conditions, condition)
                     }
                 }
 
@@ -672,10 +732,9 @@ GenericTranslator <- R6Class("GenericTranslator",
                 if (!is.null(fn$selector_list) && length(fn$selector_list) > 0) {
                     conditions <- character(0)
                     for (subselector in fn$selector_list) {
-                        sub_xpath <- self$xpath(subselector)
-                        sub_xpath$add_name_test()
-                        if (!is.null(sub_xpath$condition) && nzchar(sub_xpath$condition)) {
-                            conditions <- c(conditions, sub_xpath$condition)
+                        condition <- self$xpath_argument_condition(subselector)
+                        if (nzchar(condition)) {
+                            conditions <- c(conditions, condition)
                         }
                     }
 
@@ -742,10 +801,9 @@ GenericTranslator <- R6Class("GenericTranslator",
             if (!is.null(fn$selector_list) && length(fn$selector_list) > 0) {
                 conditions <- character(0)
                 for (subselector in fn$selector_list) {
-                    sub_xpath <- self$xpath(subselector)
-                    sub_xpath$add_name_test()
-                    if (!is.null(sub_xpath$condition) && nzchar(sub_xpath$condition)) {
-                        conditions <- c(conditions, sub_xpath$condition)
+                    condition <- self$xpath_argument_condition(subselector)
+                    if (nzchar(condition)) {
+                        conditions <- c(conditions, condition)
                     }
                 }
 

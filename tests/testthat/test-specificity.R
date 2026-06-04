@@ -82,6 +82,16 @@ test_that("parser creates correct specificity", {
     expect_that(spec("e:has(~ .foo)"), equals(c(0, 1, 1)))
     expect_that(spec("e:has(> .foo, ~ #bar)"), equals(c(1, 0, 1)))
 
+    # complex selectors in arguments sum across their compounds
+    expect_that(spec(":is(a b)"), equals(c(0, 0, 2)))
+    expect_that(spec(":not(a > b, #c)"), equals(c(1, 0, 0)))
+    expect_that(spec("e:has(a b.foo)"), equals(c(0, 1, 3)))
+    expect_that(spec(":where(a b)"), equals(c(0, 0, 0)))
+
+    # single-argument :is() and a non-universal base compound compose
+    expect_that(spec(":is(.foo)"), equals(c(0, 1, 0)))
+    expect_that(spec("div:is(.foo)"), equals(c(0, 1, 1)))
+
     expect_that(spec("foo:empty"), equals(c(0, 1, 1)))
     expect_that(spec("foo:before"), equals(c(0, 0, 2)))
     expect_that(spec("foo::before"), equals(c(0, 0, 2)))

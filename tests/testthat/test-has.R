@@ -50,6 +50,48 @@ test_that(":has() generates correct XPath", {
                 equals("e[(child::*[(@class and contains(concat(' ', normalize-space(@class), ' '), ' foo '))])]"))
     expect_that(xpath("e:has(+ p.foo)"),
                 equals("e[(following-sibling::*[1][(@class and contains(concat(' ', normalize-space(@class), ' '), ' foo ')) and (name() = 'p')])]"))
+
+    # Complex relative selectors (selectors-4): forward axes step by step
+    expect_that(xpath("e:has(a b)"),
+                equals("e[(.//*[(name() = 'a')]//*[(name() = 'b')])]"))
+    expect_that(xpath("e:has(a > b)"),
+                equals("e[(.//*[(name() = 'a')]/*[(name() = 'b')])]"))
+    expect_that(xpath("e:has(a + b)"),
+                equals("e[(.//*[(name() = 'a')]/following-sibling::*[1][(name() = 'b')])]"))
+    expect_that(xpath("e:has(a ~ b)"),
+                equals("e[(.//*[(name() = 'a')]/following-sibling::*[(name() = 'b')])]"))
+    expect_that(xpath("e:has(> a b)"),
+                equals("e[(child::*[(name() = 'a')]//*[(name() = 'b')])]"))
+    expect_that(xpath("e:has(~ a > b)"),
+                equals("e[(following-sibling::*[(name() = 'a')]/*[(name() = 'b')])]"))
+})
+
+test_that(":has() with complex arguments matches correctly", {
+    library(xml2)
+
+    # d1 has ul > li; d2 has a li not inside a ul; d3 has nothing but is
+    # followed by a sibling ul with a li
+    html <- paste0(
+        '<root>',
+        '  <div id="d1"><ul><li/></ul></div>',
+        '  <div id="d2"><li/></div>',
+        '  <div id="d3"></div>',
+        '  <ul><li/></ul>',
+        '</root>'
+    )
+    doc <- read_xml(html)
+    get_ids <- function(css) {
+        xml_attr(querySelectorAll(doc, css), "id")
+    }
+
+    # descendant chains stay inside the subtree: the sibling ul li
+    # must not make d3 match
+    expect_that(get_ids("div:has(ul li)"), equals("d1"))
+    expect_that(get_ids("div:has(> ul > li)"), equals("d1"))
+    # but the sibling form reaches it
+    expect_that(get_ids("div:has(~ ul li)"), equals(c("d1", "d2", "d3")))
+    # a li outside a ul does not satisfy 'ul li'
+    expect_that(get_ids("div:has(li)"), equals(c("d1", "d2")))
 })
 
 test_that("leading combinators are :has()-only", {
@@ -60,7 +102,7 @@ test_that("leading combinators are :has()-only", {
     expect_error(css_to_xpath("e:has(> > a)"), "Expected selector")
     expect_error(css_to_xpath("e:has(>)"), "Expected selector")
     # trailing combinators are invalid everywhere
-    expect_error(css_to_xpath("e:has(a >)"), "Expected an argument")
+    expect_error(css_to_xpath("e:has(a >)"), "Expected selector")
     # nested :has() stays rejected in relative arguments
     expect_error(css_to_xpath("e:has(> a:has(b))"), "Got nested :has()")
 })

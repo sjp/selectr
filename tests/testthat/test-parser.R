@@ -140,6 +140,16 @@ test_that("parser parses canonical test expressions", {
     expect_that(parse_many("e:has(> a, ~ .foo, p)"),
                 equals("Has[Element[e]:has(RelativeSelector[> Element[a]], RelativeSelector[~ Class[Element[*].foo]], Element[p])]"))
 
+    # complex selectors inside functional pseudo-classes (selectors-4)
+    expect_that(parse_many(":is(a b)"),
+                equals("Matching[Element[*]:is(CombinedSelector[Element[a] <followed> Element[b]])]"))
+    expect_that(parse_many(":not(a > b)"),
+                equals("Negation[Element[*]:not(CombinedSelector[Element[a] > Element[b]])]"))
+    expect_that(parse_many(":where(a + b, c)"),
+                equals("Where[Element[*]:where(CombinedSelector[Element[a] + Element[b]], Element[c])]"))
+    expect_that(parse_many("e:has(> a b.x)"),
+                equals("Has[Element[e]:has(RelativeSelector[> CombinedSelector[Element[a] <followed> Class[Element[b].x]]])]"))
+
     expect_that(parse_many("td ~ th"),
                 equals("CombinedSelector[Element[td] ~ Element[th]]"))
 

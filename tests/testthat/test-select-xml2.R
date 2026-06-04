@@ -156,6 +156,17 @@ test_that("selection works correctly on a large barrage of tests", {
     # :has(.c) matches all ancestors of elements with class 'c'
     expect_that(pcss(':has(.c)'), equals(c('html', 'nil', 'outer-div', 'first-ol')))
 
+    # Complex selectors inside functional pseudo-classes (selectors-4)
+    expect_that(pcss(':is(ol li)'), equals(c('first-li', 'second-li', 'third-li', 'fourth-li', 'fifth-li', 'sixth-li', 'seventh-li')))
+    expect_that(pcss(':is(#outer-div > a)'), equals(c('name-anchor', 'tag-anchor', 'nofollow-anchor')))
+    expect_that(pcss(':is(a + a)'), equals(c('tag-anchor', 'nofollow-anchor')))
+    expect_that(pcss(':is(a ~ ol)'), equals(c('first-ol', 'second-ol')))
+    expect_that(pcss('li:not(ol li)'), equals(NULL))
+    expect_that(pcss(':where(ol > li)'), equals(c('first-li', 'second-li', 'third-li', 'fourth-li', 'fifth-li', 'sixth-li', 'seventh-li')))
+    expect_that(pcss('div:has(ol li)'), equals('outer-div'))
+    expect_that(pcss(':has(> li + li)'), equals('first-ol'))
+    expect_that(pcss('li:nth-child(2 of ol li)'), equals('second-li'))
+
     # Invalid characters in XPath element names, should not crash
     expect_that(pcss('di\ua0v', 'div\\['), equals(NULL))
     expect_that(pcss('[h\ua0ref]', '[h\\]ref]'), equals(NULL))

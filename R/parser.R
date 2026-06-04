@@ -209,10 +209,17 @@ Matching <- R6Class("Matching",
             )
         },
         specificity = function() {
-            specs <- sapply(self$selector_list, function(s) s$specificity())
-            specs <- t(specs)
-            specs <- specs[order(-specs[, 1], -specs[, 2], -specs[, 3]), ]
-            specs[1, ]
+            # :is() takes the specificity of its most specific argument,
+            # added to the base selector
+            base_specs <- self$selector$specificity()
+            sub_specs <- sapply(self$selector_list, function(s) s$specificity())
+            # sapply returns a matrix with each column being a selector's specificity
+            sub_specs <- t(sub_specs)
+            if (nrow(sub_specs) > 1) {
+                # sort by specificity (id, class, element) descending
+                sub_specs <- sub_specs[order(-sub_specs[, 1], -sub_specs[, 2], -sub_specs[, 3]), , drop = FALSE]
+            }
+            base_specs + sub_specs[1, ]
         },
         show = function() { # nocov start
             cat(self$repr(), "\n")
@@ -745,6 +752,16 @@ parse_simple_selector_arguments <- function(stream, function_name = NULL, # noli
     index <- 1
     arguments <- list()
 
+    check_no_pseudo_element <- function(pseudo_element) {
+        if (!is.null(pseudo_element)) {
+            if (!is.null(function_name)) {
+                stop("Got pseudo-element ::", pseudo_element, " inside :", function_name, "() at ", stream$peeked$pos)
+            } else {
+                stop("Got pseudo-element ::", pseudo_element, " inside function")
+            }
+        }
+    }
+
     while (TRUE) {
         combinator <- NULL
         if (relative) {
@@ -760,14 +777,36 @@ parse_simple_selector_arguments <- function(stream, function_name = NULL, # noli
         results <- parse_simple_selector(stream, inside_arguments = TRUE,
                                          inside_has = inside_has)
         result <- results$result
-        pseudo_element <- results$pseudo_element
+        check_no_pseudo_element(results$pseudo_element)
 
-        if (!is.null(pseudo_element)) {
-            if (!is.null(function_name)) {
-                stop("Got pseudo-element ::", pseudo_element, " inside :", function_name, "() at ", stream$peeked$pos)
+        # Arguments are complex selectors (selectors-4): consume any
+        # combinator chain following the compound, as parse_selector()
+        # does at the top level
+        while (TRUE) {
+            peek <- stream$peek()
+            if (peek$type == "S") {
+                stream$skip_whitespace()
+                peek <- stream$peek()
+                if (peek$is_delim(c(")", ","))) {
+                    break
+                }
+                if (peek$is_delim(c("+", ">", "~"))) {
+                    chain_combinator <- stream$nxt()$value
+                } else {
+                    # The whitespace was a descendant combinator
+                    chain_combinator <- " "
+                }
+            } else if (peek$is_delim(c("+", ">", "~"))) {
+                chain_combinator <- stream$nxt()$value
             } else {
-                stop("Got pseudo-element ::", pseudo_element, " inside function")
+                # ')', ',' or EOF: leave for the argument-list logic below
+                break
             }
+            stuff <- parse_simple_selector(stream, inside_arguments = TRUE,
+                                           inside_has = inside_has)
+            check_no_pseudo_element(stuff$pseudo_element)
+            result <- CombinedSelector$new(result, chain_combinator,
+                                           stuff$result)
         }
 
         if (!is.null(combinator)) {

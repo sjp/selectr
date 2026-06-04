@@ -30,6 +30,22 @@
       combinators remain invalid in other functional pseudo-classes
       such as \code{:is()}.
 
+      \item Functional pseudo-class arguments may now be complex
+      selectors (contain combinators), as permitted by CSS Selectors
+      Level 4: \code{:is()}, \code{:where()}, and \code{:not()} take a
+      \code{<complex-selector-list>}, \code{:has()} a
+      \code{<relative-selector-list>}, and the \code{of S} form of
+      \code{:nth-child()}/\code{:nth-last-child()} a
+      \code{<complex-selector-list>}. Selectors such as \code{:is(a b)},
+      \code{:not(a > b)}, \code{e:has(a + b)}, \code{e:has(> a b)}, and
+      \code{li:nth-child(2 of ol li)} previously produced an
+      "Expected an argument" error and are now translated. For
+      \code{:has()} the argument extends the search path forwards from
+      the candidate element; for the other pseudo-classes the rightmost
+      compound applies to the candidate element itself and the rest of
+      the selector is matched through reversed axes (ancestors,
+      parent, and preceding siblings).
+
     }
   }
   \subsection{REMOVED FEATURES}{
@@ -79,6 +95,13 @@
       single argument (e.g. \code{e:has(img)}) no longer fails with
       "incorrect number of dimensions"; multi-argument forms were
       unaffected.
+
+      \item Computing the specificity of an \code{:is()} (or
+      \code{:matches()}) selector with a single argument
+      (e.g. \code{:is(.foo)}) no longer fails with "incorrect number of
+      dimensions". In addition, the specificity of the compound the
+      pseudo-class is attached to is no longer dropped:
+      \code{div:is(.foo)} now reports (0, 1, 1) rather than (0, 1, 0).
 
       \item Nesting \code{:has()} inside \code{:has()} (at any depth,
       e.g. \code{section:has(article:has(div))}) is now rejected, as

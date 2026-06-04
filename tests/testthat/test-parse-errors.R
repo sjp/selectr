@@ -86,10 +86,14 @@ test_that("useful errors are returned", {
                 throws_error("Expected ')', got .*"))
     expect_that(get_error(":is(:before)"),
                 throws_error("Got pseudo-element ::before inside :is\\(\\) at 12"))
-    expect_that(get_error(":is(a b)"),
-                throws_error("Expected an argument, got <IDENT 'b' at 7>"))
     expect_that(get_error(":matches(:before)"),
                 throws_error("Got pseudo-element ::before inside :matches\\(\\) at 17"))
-    expect_that(get_error(":matches(a b)"),
-                throws_error("Expected an argument, got <IDENT 'b' at 12>"))
+    # pseudo-elements are rejected anywhere in a complex argument
+    expect_that(get_error(":is(a:before b)"),
+                throws_error("Got pseudo-element ::before inside :is\\(\\)"))
+    expect_that(get_error(":is(a b:before)"),
+                throws_error("Got pseudo-element ::before inside :is\\(\\)"))
+    # trailing combinators in arguments
+    expect_that(get_error(":is(a >)"),
+                throws_error("Expected selector, got <DELIM '\\)' at 8>"))
 })
