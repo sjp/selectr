@@ -67,6 +67,16 @@
   \subsection{BUG FIXES}{
     \itemize{
 
+      \item The \code{querySelector()}, \code{querySelectorAll()},
+      \code{querySelectorNS()}, and \code{querySelectorAllNS()} functions
+      now signal an error when the \code{selector} argument is not a
+      single character string, as the documentation has always required.
+      Previously a multi-element selector vector was translated to
+      multiple XPath expressions, of which all but the first were
+      silently ignored when querying the document. To match against a
+      group of selectors in one query, use a comma-separated selector
+      group, e.g. \code{"a, b"}.
+
       \item \code{css_to_xpath()} now signals an error when any of its
       arguments contain \code{NA} values. Previously \code{NA}s were
       removed from each argument independently before recycling, which
