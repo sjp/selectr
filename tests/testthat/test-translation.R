@@ -124,6 +124,21 @@ test_that("translation from parsed objects to XPath works", {
                 equals("e[(count(parent::*/child::*) = 1)]"))
     expect_that(xpath('e:only-of-type'),
                 equals("e[(count(parent::*/child::e) = 1)]"))
+    # element names that cannot be used as an XPath name test still
+    # support the of-type pseudo-classes via a name() node test
+    expect_that(xpath('é:first-of-type'),
+                equals("*[(name() = 'é') and (count(preceding-sibling::*[name() = 'é']) = 0)]"))
+    expect_that(xpath('é:last-of-type'),
+                equals("*[(name() = 'é') and (count(following-sibling::*[name() = 'é']) = 0)]"))
+    expect_that(xpath('é:only-of-type'),
+                equals("*[(name() = 'é') and (count(parent::*/child::*[name() = 'é']) = 1)]"))
+    expect_that(xpath('é:nth-of-type(2)'),
+                equals("*[(name() = 'é') and (count(preceding-sibling::*[name() = 'é']) = 1)]"))
+    expect_that(xpath('é:nth-last-of-type(2)'),
+                equals("*[(name() = 'é') and (count(following-sibling::*[name() = 'é']) = 1)]"))
+    # likewise for elements in any namespace, via local-name()
+    expect_that(xpath('*|e:first-of-type'),
+                equals("*[(local-name() = 'e') and (count(preceding-sibling::*[local-name() = 'e']) = 0)]"))
     expect_that(xpath('e:empty'),
                 equals("e[(not(*) and not(string-length()))]"))
     expect_that(xpath('e:EmPTY'),

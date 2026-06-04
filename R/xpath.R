@@ -4,6 +4,12 @@ XPathExpr <- R6Class("XPathExpr",
         element = "*",
         condition = "",
         star_prefix = FALSE,
+        # When an explicit element name cannot be used as an XPath name
+        # test (and so 'element' has been folded into a condition on
+        # '*'), an equivalent node test for that name; NULL otherwise.
+        # Lets the of-type pseudo-classes distinguish such elements from
+        # the universal selector and count their siblings correctly.
+        name_test = NULL,
         initialize = function(
             path = "", element = "*", condition = "", star_prefix = FALSE) {
             self$path <- path
@@ -38,6 +44,8 @@ XPathExpr <- R6Class("XPathExpr",
             if (self$element == "*")
                 return()
             self$add_condition(paste0("name() = ", xpath_literal(self$element)))
+            self$name_test <- paste0("*[name() = ",
+                                     xpath_literal(self$element), "]")
             self$element <- "*"
         },
         join = function(combiner, other) {
@@ -47,6 +55,7 @@ XPathExpr <- R6Class("XPathExpr",
             self$path <- p
             self$element <- other$element
             self$condition <- other$condition
+            self$name_test <- other$name_test
             self
         },
         show = function() { # nocov start
@@ -56,6 +65,16 @@ XPathExpr <- R6Class("XPathExpr",
 
 is_safe_name <- function(name) {
     grepl("^[a-zA-Z_][a-zA-Z0-9_.-]*$", name)
+}
+
+# The XPath node test matching the same elements as the subject of an
+# of-type pseudo-class, or NULL when the subject is the universal
+# selector (for which of-type pseudo-classes are not implemented)
+of_type_nodetest <- function(xpath) {
+    if (xpath$element != "*")
+        xpath$element
+    else
+        xpath$name_test
 }
 
 first_class_name <- function(obj) {
@@ -532,6 +551,8 @@ GenericTranslator <- R6Class("GenericTranslator",
                 xpath <- XPathExpr$new()
                 xpath$add_condition(paste0("local-name() = ",
                                            xpath_literal(element)))
+                xpath$name_test <- paste0("*[local-name() = ",
+                                          xpath_literal(element), "]")
                 return(xpath)
             }
             if (identical(namespace, "")) {
@@ -680,7 +701,7 @@ GenericTranslator <- R6Class("GenericTranslator",
             if (add_name_test) {
                 nodetest <- "*"
             } else {
-                nodetest <- xpath$element
+                nodetest <- of_type_nodetest(xpath)
             }
 
             # Build the predicate for selector list filtering (CSS Level 4):
@@ -775,13 +796,13 @@ GenericTranslator <- R6Class("GenericTranslator",
             self$xpath_nth_child_function(xpath, fn, last = TRUE)
         },
         xpath_nth_of_type_function = function(xpath, fn) {
-            if (xpath$element == "*") {
+            if (is.null(of_type_nodetest(xpath))) {
                 stop("*:nth-of-type() is not implemented")
             }
             self$xpath_nth_child_function(xpath, fn, add_name_test = FALSE)
         },
         xpath_nth_last_of_type_function = function(xpath, fn) {
-            if (xpath$element == "*") {
+            if (is.null(of_type_nodetest(xpath))) {
                 stop("*:nth-last-of-type() is not implemented")
             }
             self$xpath_nth_child_function(xpath, fn, last = TRUE,
@@ -883,19 +904,21 @@ GenericTranslator <- R6Class("GenericTranslator",
             xpath
         },
         xpath_first_of_type_pseudo = function(xpath) {
-            if (xpath$element == "*") {
+            nodetest <- of_type_nodetest(xpath)
+            if (is.null(nodetest)) {
                 stop("*:first-of-type is not implemented")
             }
             xpath$add_condition(paste0(
-                "count(preceding-sibling::", xpath$element, ") = 0"))
+                "count(preceding-sibling::", nodetest, ") = 0"))
             xpath
         },
         xpath_last_of_type_pseudo = function(xpath) {
-            if (xpath$element == "*") {
+            nodetest <- of_type_nodetest(xpath)
+            if (is.null(nodetest)) {
                 stop("*:last-of-type is not implemented")
             }
             xpath$add_condition(paste0(
-                "count(following-sibling::", xpath$element, ") = 0"))
+                "count(following-sibling::", nodetest, ") = 0"))
             xpath
         },
         xpath_only_child_pseudo = function(xpath) {
@@ -903,11 +926,12 @@ GenericTranslator <- R6Class("GenericTranslator",
             xpath
         },
         xpath_only_of_type_pseudo = function(xpath) {
-            if (xpath$element == "*") {
+            nodetest <- of_type_nodetest(xpath)
+            if (is.null(nodetest)) {
                 stop("*:only-of-type is not implemented")
             }
             xpath$add_condition(paste0(
-                "count(parent::*/child::", xpath$element, ") = 1"))
+                "count(parent::*/child::", nodetest, ") = 1"))
             xpath
         },
         xpath_empty_pseudo = function(xpath) {

@@ -67,6 +67,18 @@
   \subsection{BUG FIXES}{
     \itemize{
 
+      \item The of-type pseudo-classes (\code{:first-of-type},
+      \code{:last-of-type}, \code{:only-of-type}, \code{:nth-of-type()},
+      and \code{:nth-last-of-type()}) now work on element names that
+      cannot be written as an XPath name test, such as Unicode names
+      (e.g. \code{é:only-of-type}) and names in any namespace
+      (e.g. \code{*|e:first-of-type}). Previously these failed with the
+      misleading error "*:only-of-type is not implemented" even though
+      an explicit element was given; siblings of the same type are now
+      counted with a \code{name()} (or \code{local-name()}) node test.
+      The of-type pseudo-classes on the universal selector itself
+      (e.g. \code{*:only-of-type}) remain unimplemented.
+
       \item The \code{querySelector()} and \code{querySelectorAll()}
       methods for \pkg{xml2} documents now accept a named list as the
       \code{ns} argument, consistent with the methods for \pkg{XML}

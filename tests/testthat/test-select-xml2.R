@@ -189,3 +189,20 @@ test_that("selection works correctly on a large barrage of tests", {
     expect_that(pcss(':disabled', html_only = TRUE), equals(c('checkbox-disabled', 'checkbox-disabled-checked', 'fieldset', 'checkbox-fieldset-disabled')))
     expect_that(pcss(':checked', html_only = TRUE), equals(c('checkbox-checked', 'checkbox-disabled-checked')))
 })
+
+test_that("of-type pseudo-classes work on unsafe element names", {
+    library(xml2)
+    doc <- read_xml(paste0('<r><é id="first"/><b id="b"/>',
+                           '<é id="second"/><x id="only"/></r>'))
+    ids <- function(css) {
+        result <- unlist(lapply(querySelectorAll(doc, css), xml_attr, "id"))
+        if (is.null(result)) NULL else result
+    }
+
+    expect_that(ids('é:first-of-type'), equals('first'))
+    expect_that(ids('é:last-of-type'), equals('second'))
+    expect_that(ids('é:nth-of-type(2)'), equals('second'))
+    expect_that(ids('é:nth-last-of-type(2)'), equals('first'))
+    expect_that(ids('é:only-of-type'), equals(NULL))
+    expect_that(ids('x:only-of-type'), equals('only'))
+})
