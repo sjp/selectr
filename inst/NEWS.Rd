@@ -33,6 +33,14 @@
       rejected as invalid; spec-legal forms like \code{:nth-child(2n + 1)}
       are unaffected.
 
+      \item \code{An+B} expressions now reject non-integer \code{A} and
+      \code{B} values, as required by the CSS Syntax specification.
+      Previously these were coerced with \code{as.integer()} and silently
+      truncated, so \code{:nth-child(1.9)} matched the first child and
+      \code{:nth-child(2e1)} matched the twentieth. Such selectors are
+      now rejected as invalid; signed integers and leading zeros
+      (e.g. \code{:nth-child(+05)}) remain valid.
+
       \item Attribute selectors with an empty value no longer throw an
       error for the \code{=}, \code{|=}, and \code{!=} operators
       (e.g. \code{[attr=""]}). These now translate to XPath matching an

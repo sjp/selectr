@@ -68,3 +68,15 @@ test_that("whitespace is only permitted around the sign before B", {
     expect_error(css_to_xpath("e:nth-child(+ 2n)"))
     expect_error(css_to_xpath("e:nth-child(o dd)"))
 })
+
+test_that("non-integer A and B values are rejected", {
+    # An+B takes <integer> values only; these must not be truncated
+    expect_error(css_to_xpath("e:nth-child(2.5)"))
+    expect_error(css_to_xpath("e:nth-child(1.9)"))
+    expect_error(css_to_xpath("e:nth-child(2e1)"))
+    expect_error(css_to_xpath("e:nth-child(2.5n+1)"))
+    expect_error(css_to_xpath("e:nth-child(2n+1.5)"))
+    # signed integers and leading zeros remain valid
+    expect_that(css_to_xpath("e:nth-child(+05)"),
+                equals(css_to_xpath("e:nth-child(5)")))
+})

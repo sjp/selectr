@@ -794,6 +794,11 @@ parse_attrib <- function(selector, stream) {
 }
 
 str_int <- function(s) {
+    # An+B takes <integer> values only (css-syntax-3), so reject
+    # anything as.integer() would otherwise coerce through double
+    # and truncate, e.g. "2.5" -> 2L or "2e1" -> 20L.
+    if (!grepl("^[+-]?[0-9]+$", s))
+        return(NA_integer_)
     suppressWarnings(as.integer(s))
 }
 
