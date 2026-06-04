@@ -22,3 +22,31 @@ test_that("tokenizer extracts correct representation", {
                          "<EOF at 40>")
     expect_that(tokens, equals(expected_tokens))
 })
+
+test_that("unicode escapes are decoded in idents, hashes, and strings", {
+    reprs <- function(css) {
+        unlist(lapply(tokenize(css), function(x) x$repr()))
+    }
+
+    # '\31 ' is U+0031, i.e. '1' -- the only way to write an ID
+    # beginning with a digit
+    expect_that(reprs("#\\31 23"),
+                equals(c("<HASH '123' at 1>", "<EOF at 8>")))
+    expect_that(reprs("\\31 23"),
+                equals(c("<IDENT '123' at 1>", "<EOF at 7>")))
+    expect_that(reprs("x\\79 z"),
+                equals(c("<IDENT 'xyz' at 1>", "<EOF at 7>")))
+    # Hex digits in escapes are case-insensitive
+    expect_that(reprs("'\\4a b'"),
+                equals(c("<STRING 'Jb' at 1>", "<EOF at 8>")))
+    expect_that(reprs("'\\4A b'"),
+                equals(c("<STRING 'Jb' at 1>", "<EOF at 8>")))
+    # A whitespace terminator is consumed even after six hex digits
+    expect_that(reprs("'\\00004a b'"),
+                equals(c("<STRING 'Jb' at 1>", "<EOF at 12>")))
+    # Simple escapes of delimiters still work
+    expect_that(reprs("di\\[v"),
+                equals(c("<IDENT 'di[v' at 1>", "<EOF at 6>")))
+    expect_that(reprs("#a\\[b"),
+                equals(c("<HASH 'a[b' at 1>", "<EOF at 6>")))
+})

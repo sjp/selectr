@@ -35,6 +35,14 @@ test_that("translation from parsed objects to XPath works", {
     expect_that(xpath("e[foo='(test123)']"), equals("e[(@foo = '(test123)')]"))
     expect_that(xpath("e[foo='(abc)(def)']"), equals("e[(@foo = '(abc)(def)')]"))
     expect_that(xpath("e[foo='(abc )']"), equals("e[(@foo = '(abc )')]"))
+    # Unicode escapes are decoded to the characters they represent,
+    # in idents, hashes, and strings alike
+    expect_that(xpath("#\\31 23"), equals("*[(@id = '123')]"))
+    expect_that(xpath("\\31 23"), equals("*[(name() = '123')]"))
+    expect_that(xpath("[\\31 23]"),
+                equals("*[(attribute::*[name() = '123'])]"))
+    expect_that(xpath("e[foo='\\31 23']"), equals("e[(@foo = '123')]"))
+    expect_that(xpath("e[foo='x\\79 z']"), equals("e[(@foo = 'xyz')]"))
     expect_that(xpath('e[foo~="bar"]'),
                 equals("e[(@foo and contains(concat(' ', normalize-space(@foo), ' '), ' bar '))]"))
     expect_that(xpath('e[foo^="bar"]'),

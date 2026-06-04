@@ -1,6 +1,6 @@
-escape <- paste0("\\\\([0-9a-f]{1,6})(\r\n|[ \n\r\t\f])?", "|\\\\[^\n\r\f0-9a-f]")
+escape <- paste0("\\\\([0-9a-fA-F]{1,6})(\r\n|[ \n\r\t\f])?",
+                 "|\\\\[^\n\r\f0-9a-fA-F]")
 nonascii <- "[^\1-\177]"
-hash_re <- "([_a-z0-9-]|\\\\([0-9a-f]{1,6})(\r\n|[ \n\r\t\f])?|[^\1-\177])"
 
 TokenMacros <- list(unicode_escape = "\\\\([0-9a-f]{1,6})(?:\r\n|[ \n\r\t\f])?",
                     escape = escape,
@@ -864,14 +864,30 @@ delims_1ch <- c(">", "+", "~", ",", ".", "*", "=", "[", "]", "(", ")", "|", ":",
 delim_escapes <- paste0("\\", delims_1ch, collapse = "|")
 match_whitespace <- compile_("[ \t\r\n\f]+")
 match_number <- compile_("[+-]?(?:[0-9]*\\.[0-9]+|[0-9]+)")
-match_hash <- compile_(paste0("^#([_a-zA-Z0-9-]|", nonascii, "|\\\\(?:", delim_escapes, "))+"))
-match_ident <- compile_(paste0("^([_a-zA-Z0-9-]|", nonascii, "|\\\\(?:", delim_escapes, "))+"))
+# The escape alternative covers both unicode escapes (e.g. '\31 ') and
+# simple escapes of any non-hex character, which includes all delimiters
+match_hash <- compile_(paste0("^#([_a-zA-Z0-9-]|", nonascii, "|", escape, ")+"))
+match_ident <- compile_(paste0("^([_a-zA-Z0-9-]|", nonascii, "|", escape, ")+"))
 match_string_by_quote <- list("'" = compile_(paste0("([^\n\r\f\\']|", TokenMacros$string_escape, ")*")),
                               '"' = compile_(paste0('([^\n\r\f\\"]|', TokenMacros$string_escape, ")*")))
 
 # Substitution for escaped chars
 sub_simple_escape <- function(x) gsub("\\\\(.)", "\\1", x)
-sub_unicode_escape <- function(x) gsub(TokenMacros$unicode_escape, "\\1", x, ignore.case = TRUE)
+sub_unicode_escape <- function(x) {
+    # Decode unicode escapes to the characters they represent,
+    # e.g. '\31 ' is U+0031, i.e. '1'
+    m <- gregexpr(TokenMacros$unicode_escape, x, ignore.case = TRUE,
+                  perl = TRUE)
+    regmatches(x, m) <- lapply(regmatches(x, m), function(esc) {
+        if (length(esc) == 0) {
+            return(esc)
+        }
+        hex <- sub("^\\\\", "", esc)
+        hex <- sub("(?:\r\n|[ \n\r\t\f])$", "", hex, perl = TRUE)
+        intToUtf8(strtoi(hex, base = 16L), multiple = TRUE)
+    })
+    x
+}
 sub_newline_escape <- function(x) gsub("\\\\(?:\n|\r\n|\r|\f)", "", x)
 
 tokenize <- function(s) {

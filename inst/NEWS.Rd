@@ -25,6 +25,14 @@
       it matches \code{e} in any namespace, and similarly \code{[*|attr]}
       translates to a \code{local-name()} test on attributes.
 
+      \item Unicode escapes are now supported in identifiers and ID
+      selectors, not just strings, and are decoded to the characters
+      they represent. Previously \code{#\\31 23} (the only valid way to
+      write an ID starting with a digit, here \code{123}) was a
+      tokenization error, and escapes that did tokenize kept their hex
+      digits rather than the escaped character, so \code{"\\E9"} matched
+      the literal value \code{E9} instead of \code{é}.
+
       \item Fixed handling of CSS unicode escapes in attribute values.
       This would be observed when the attribute value contained hexadecimal
       sequences like \code{(abcdef)} where the characters inside the parentheses
