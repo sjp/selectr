@@ -41,6 +41,16 @@
       now rejected as invalid; signed integers and leading zeros
       (e.g. \code{:nth-child(+05)}) remain valid.
 
+      \item Nesting \code{:has()} inside \code{:has()} (at any depth,
+      e.g. \code{section:has(article:has(div))}) is now rejected, as
+      required by CSS Selectors Level 4, whose \code{:has()} argument
+      grammar excludes \code{:has()}. This matches the behaviour of
+      browsers. Sibling uses such as \code{e:has(a):has(b)} and
+      \code{:has()} inside other functional pseudo-classes
+      (e.g. \code{e:is(:has(b))}) remain valid; the previously
+      accepted nested form can be expressed with a descendant
+      argument instead (e.g. \code{section:has(div)}).
+
       \item Attribute selectors with an empty value no longer throw an
       error for the \code{=}, \code{|=}, and \code{!=} operators
       (e.g. \code{[attr=""]}). These now translate to XPath matching an

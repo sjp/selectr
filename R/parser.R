@@ -536,7 +536,8 @@ parse_selector <- function(stream) {
     list(result = result, pseudo_element = pseudo_element)
 }
 
-parse_simple_selector <- function(stream, inside_negation = FALSE) {
+parse_simple_selector <- function(stream, inside_negation = FALSE,
+                                  inside_has = FALSE) {
     stream$skip_whitespace()
     selector_start <- length(stream$used)
     peek <- stream$peek()
@@ -611,16 +612,25 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
                 if (inside_negation) {
                     stop("Got nested :not()")
                 }
-                selectors <- parse_simple_selector_arguments(stream, "not")
+                selectors <- parse_simple_selector_arguments(stream, "not",
+                                                             inside_has = inside_has)
                 result <- Negation$new(result, selectors)
             } else if (any(tolower(ident) == c("matches", "is"))) {
-                selectors <- parse_simple_selector_arguments(stream, tolower(ident))
+                selectors <- parse_simple_selector_arguments(stream, tolower(ident),
+                                                             inside_has = inside_has)
                 result <- Matching$new(result, selectors)
             } else if (tolower(ident) == "where") {
-                selectors <- parse_simple_selector_arguments(stream, "where")
+                selectors <- parse_simple_selector_arguments(stream, "where",
+                                                             inside_has = inside_has)
                 result <- Where$new(result, selectors)
             } else if (tolower(ident) == "has") {
-                selectors <- parse_simple_selector_arguments(stream, "has")
+                # The :has() argument grammar excludes :has() at any
+                # depth (selectors-4): "nesting :has() is not allowed"
+                if (inside_has) {
+                    stop("Got nested :has()")
+                }
+                selectors <- parse_simple_selector_arguments(stream, "has",
+                                                             inside_has = TRUE)
                 result <- Has$new(result, selectors)
             } else {
                 arguments <- list()
@@ -647,7 +657,8 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
 
                             # Parse the selector list that follows 'of'
                             stream$skip_whitespace()
-                            selector_list <- parse_simple_selector_arguments(stream, ident)
+                            selector_list <- parse_simple_selector_arguments(stream, ident,
+                                                                             inside_has = inside_has)
                             break
                         }
                     } else if (token_equality(nt, "DELIM", "*") && allow_commas) {
@@ -691,12 +702,14 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
     list(result = result, pseudo_element = pseudo_element)
 }
 
-parse_simple_selector_arguments <- function(stream, function_name = NULL) { # nolint: object_length_linter.
+parse_simple_selector_arguments <- function(stream, function_name = NULL, # nolint: object_length_linter.
+                                            inside_has = FALSE) {
     index <- 1
     arguments <- list()
 
     while (TRUE) {
-        results <- parse_simple_selector(stream, inside_negation = TRUE)
+        results <- parse_simple_selector(stream, inside_negation = TRUE,
+                                         inside_has = inside_has)
         result <- results$result
         pseudo_element <- results$pseudo_element
 

@@ -38,6 +38,21 @@ test_that(":has() generates correct XPath", {
                 equals("section[(.//*[(@class and contains(concat(' ', normalize-space(@class), ' '), ' content ')) and (name() = 'div')])]"))
 })
 
+test_that("nested :has() is rejected", {
+    # selectors-4: the :has() argument grammar excludes :has() at any
+    # depth, so nesting :has() is not allowed
+    expect_error(css_to_xpath("section:has(article:has(div))"),
+                 "Got nested :has()")
+    expect_error(css_to_xpath("e:has(:has(b))"),
+                 "Got nested :has()")
+    expect_error(css_to_xpath("e:has(a:is(:has(b)))"),
+                 "Got nested :has()")
+    # sibling :has()s remain fine
+    expect_error(css_to_xpath("e:has(a):has(b)"), NA)
+    # :has() nested in :is() is fine per spec
+    expect_error(css_to_xpath("e:is(:has(b))"), NA)
+})
+
 test_that(":has() works correctly with XML documents", {
     library(XML)
 
@@ -215,8 +230,11 @@ test_that(":has() handles edge cases correctly", {
     )
     doc2 <- xmlRoot(xmlParse(html2))
 
-    # Section containing article with div
-    result2 <- querySelectorAll(doc2, "section:has(article:has(div))")
+    # Nested :has() is invalid (selectors-4 excludes :has() from its
+    # own argument grammar); the descendant form expresses the same match
+    expect_error(querySelectorAll(doc2, "section:has(article:has(div))"),
+                 "Got nested :has()")
+    result2 <- querySelectorAll(doc2, "section:has(div)")
     expect_that(length(result2), equals(1))
     expect_that(xmlGetAttr(result2[[1]], "id"), equals("s1"))
 
