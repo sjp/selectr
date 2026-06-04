@@ -170,6 +170,16 @@
       lists whose only argument is \code{*} (e.g. \code{:not(*)}) were
       already translated correctly and are unchanged.
 
+      \item Wildcard language ranges such as \code{:lang(en-*)} now
+      match under the generic (XML) translator. Previously only the
+      \code{*} was stripped, producing \code{lang('en-')}, which can
+      never match: XPath's \code{lang()} function only extends its
+      argument at a \code{-} boundary, so \code{xml:lang="en-US"}
+      matches \code{lang('en')} but not \code{lang('en-')}. The
+      trailing \code{-*} is now stripped so \code{:lang(en-*)} matches
+      \code{en}, \code{en-US}, etc., per RFC 4647 extended filtering.
+      The HTML translator was unaffected.
+
     }
   }
 }

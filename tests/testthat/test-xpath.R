@@ -71,16 +71,18 @@ test_that("Generic translator handles :lang() wildcards and comma lists", {
     # Wildcard * matches everything
     expect_that(translator$css_to_xpath('div:lang(*)'), equals("descendant-or-self::div[(true())]"))
 
-    # Wildcard suffix like en-* for prefix matching
-    expect_that(translator$css_to_xpath('div:lang(en-*)'), equals("descendant-or-self::div[(lang('en-'))]"))
-    expect_that(translator$css_to_xpath('div:lang(fr-*)'), equals("descendant-or-self::div[(lang('fr-'))]"))
+    # Wildcard suffix like en-* for prefix matching; the trailing "-*" is
+    # stripped because XPath's lang() already matches at '-' boundaries
+    # (lang('en-') would match nothing)
+    expect_that(translator$css_to_xpath('div:lang(en-*)'), equals("descendant-or-self::div[(lang('en'))]"))
+    expect_that(translator$css_to_xpath('div:lang(fr-*)'), equals("descendant-or-self::div[(lang('fr'))]"))
 
     # Comma-separated lists with OR logic
     expect_that(translator$css_to_xpath('div:lang(en, fr)'), equals("descendant-or-self::div[((lang('en') or lang('fr')))]"))
     expect_that(translator$css_to_xpath('div:lang(en, de, fr)'), equals("descendant-or-self::div[((lang('en') or lang('de') or lang('fr')))]"))
 
     # Mixed wildcards and regular languages
-    expect_that(translator$css_to_xpath('div:lang(en-*, fr)'), equals("descendant-or-self::div[((lang('en-') or lang('fr')))]"))
+    expect_that(translator$css_to_xpath('div:lang(en-*, fr)'), equals("descendant-or-self::div[((lang('en') or lang('fr')))]"))
     expect_that(translator$css_to_xpath('div:lang(*, de)'), equals("descendant-or-self::div[((true() or lang('de')))]"))
 })
 

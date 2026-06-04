@@ -829,8 +829,11 @@ GenericTranslator <- R6Class("GenericTranslator",
                     conditions <- c(conditions, "true()")
                 } else if (grepl("\\*$", value)) {
                     # Wildcard suffix like "en-*" - match any language starting with prefix
-                    # Use XPath's lang() function which does prefix matching
-                    prefix <- sub("\\*$", "", value)  # Remove trailing *
+                    # Use XPath's lang() function which does prefix matching.
+                    # Strip the trailing "-*": lang('en') matches "en" and any
+                    # "en-..." tag, whereas lang('en-') would match nothing
+                    # because lang() only extends its argument at a '-' boundary.
+                    prefix <- sub("-?\\*$", "", value)
                     conditions <- c(conditions, paste0("lang(", xpath_literal(prefix), ")"))
                 } else {
                     # Regular language tag

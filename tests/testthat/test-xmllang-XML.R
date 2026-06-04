@@ -41,4 +41,8 @@ test_that("xml lang function matches correct elements", {
     expect_that(pid(':lang(de) :lang(zh)'), equals('eighth'))
     expect_that(pid(':lang(en), :lang(zh)'), equals(c('first', 'second', 'third', 'fourth', 'eighth')))
     expect_that(pid(":lang(es)"), equals(NULL))
+    # Wildcard language ranges match the primary subtag and any extension
+    expect_that(pid(':lang(en-*)'), equals(c('first', 'second', 'third', 'fourth')))
+    expect_that(pid(':lang(fr-*)'), equals('fifth'))
+    expect_that(pid(':lang(es-*)'), equals(NULL))
 })
