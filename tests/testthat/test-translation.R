@@ -53,6 +53,45 @@ test_that("translation from parsed objects to XPath works", {
                 equals("e[(@foo and contains(@foo, 'bar'))]"))
     expect_that(xpath('e[hreflang|="en"]'),
                 equals("e[(@hreflang and (@hreflang = 'en' or starts-with(@hreflang, 'en-')))]"))
+    # CSS Selectors Level 4 case-sensitivity flags
+    lower_foo <- paste0("translate(@foo, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',",
+                        " 'abcdefghijklmnopqrstuvwxyz')")
+    expect_that(xpath('e[foo="Bar" i]'),
+                equals(paste0("e[(", lower_foo, " = 'bar')]")))
+    expect_that(xpath('e[foo!="Bar" i]'),
+                equals(paste0("e[(not(", lower_foo, ") or ",
+                              lower_foo, " != 'bar')]")))
+    expect_that(xpath('e[foo^="Bar" i]'),
+                equals(paste0("e[(", lower_foo, " and starts-with(",
+                              lower_foo, ", 'bar'))]")))
+    expect_that(xpath('e[foo$="Bar" i]'),
+                equals(paste0("e[(", lower_foo, " and substring(",
+                              lower_foo, ", string-length(",
+                              lower_foo, ")-2) = 'bar')]")))
+    expect_that(xpath('e[foo*="Bar" i]'),
+                equals(paste0("e[(", lower_foo, " and contains(",
+                              lower_foo, ", 'bar'))]")))
+    expect_that(xpath('e[foo~="Bar" i]'),
+                equals(paste0("e[(", lower_foo,
+                              " and contains(concat(' ', normalize-space(",
+                              lower_foo, "), ' '), ' bar '))]")))
+    expect_that(xpath('e[foo|="Bar" i]'),
+                equals(paste0("e[(", lower_foo, " and (",
+                              lower_foo, " = 'bar' or starts-with(",
+                              lower_foo, ", 'bar-')))]")))
+    # The 'i' flag is ASCII case-insensitive: non-ASCII characters such
+    # as 'É' are left alone
+    expect_that(xpath("e[foo='\\C9 x' i]"),
+                equals(paste0("e[(", lower_foo, " = '\uC9x')]")))
+    # An empty value cannot differ by case, so it keeps the exact
+    # (existence-preserving) translation
+    expect_that(xpath('e[foo="" i]'), equals("e[(@foo = '')]"))
+    expect_that(xpath('e[foo!="" i]'),
+                equals("e[(not(@foo) or @foo != '')]"))
+    # The 's' flag requests the default case-sensitive matching
+    expect_that(xpath('e[foo="Bar" s]'), equals("e[(@foo = 'Bar')]"))
+    expect_that(xpath('e[foo^="Bar" s]'),
+                equals("e[(@foo and starts-with(@foo, 'Bar'))]"))
     expect_that(xpath('e:nth-child(1)'),
                 equals("e[(count(preceding-sibling::*) = 0)]"))
     expect_that(xpath('e:nth-child(3n+2)'),

@@ -293,12 +293,15 @@ Attrib <- R6Class("Attrib",
         attrib = NULL,
         operator = NULL,
         value = NULL,
-        initialize = function(selector, namespace, attrib, operator, value) {
+        flag = NULL,
+        initialize = function(selector, namespace, attrib, operator, value,
+                              flag = NULL) {
             self$selector <- selector
             self$namespace <- namespace
             self$attrib <- attrib
             self$operator <- operator
             self$value <- value
+            self$flag <- flag
         },
         repr = function() {
             attr <-
@@ -325,7 +328,9 @@ Attrib <- R6Class("Attrib",
                     self$operator,
                     " '",
                     self$value,
-                    "']]")
+                    "'",
+                    if (!is.null(self$flag)) paste0(" ", self$flag) else "",
+                    "]]")
         },
         specificity = function() {
             specs <- self$selector$specificity()
@@ -766,10 +771,18 @@ parse_attrib <- function(selector, stream) {
     }
     stream$skip_whitespace()
     nt <- stream$nxt()
+    # CSS Selectors Level 4 allows an optional case-sensitivity flag
+    # before the closing bracket, e.g. '[attr="value" i]'
+    flag <- NULL
+    if (nt$type == "IDENT" && tolower(nt$value) %in% c("i", "s")) {
+        flag <- tolower(nt$value)
+        stream$skip_whitespace()
+        nt <- stream$nxt()
+    }
     if (!token_equality(nt, "DELIM", "]")) {
         stop("Expected ']', got ", nt$repr())
     }
-    Attrib$new(selector, namespace, attrib, op, value$value)
+    Attrib$new(selector, namespace, attrib, op, value$value, flag)
 }
 
 str_int <- function(s) {

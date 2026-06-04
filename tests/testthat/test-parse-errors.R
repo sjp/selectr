@@ -50,6 +50,15 @@ test_that("useful errors are returned", {
                 throws_error("Operator expected, got <DELIM ':' at 5>"))
     expect_that(get_error("[rel=stylesheet"),
                 throws_error("Expected ']', got <EOF at 16>"))
+    expect_that(get_error("[rel=stylesheet i"),
+                throws_error("Expected ']', got <EOF at 18>"))
+    expect_that(get_error("[rel=stylesheet k]"),
+                throws_error("Expected ']', got <IDENT 'k' at 17>"))
+    expect_that(get_error("[rel=stylesheet i i]"),
+                throws_error("Expected ']', got <IDENT 'i' at 19>"))
+    # A case-sensitivity flag requires an operator and value
+    expect_that(get_error("[rel i]"),
+                throws_error("Operator expected, got <IDENT 'i' at 6>"))
     expect_that(get_error(":lang(fr)"),
                 equals(NULL))
     expect_that(get_error(":lang(fr"),

@@ -3,6 +3,17 @@
 \encoding{UTF-8}
 
 \section{Changes in version 0.5-1}{
+  \subsection{NEW FEATURES}{
+    \itemize{
+
+      \item Added support for the CSS Selectors Level 4 case-sensitivity
+      flags in attribute selectors. \code{[attr="value" i]} matches the
+      attribute value ASCII case-insensitively, while
+      \code{[attr="value" s]} explicitly requests the default
+      case-sensitive matching.
+
+    }
+  }
   \subsection{BUG FIXES}{
     \itemize{
 

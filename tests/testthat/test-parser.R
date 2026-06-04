@@ -61,6 +61,16 @@ test_that("parser parses canonical test expressions", {
                 equals(rep("Attrib[Element[a][rel = 'include']]", 2)))
     expect_that(parse_many(c("a[hreflang |= 'en']", "a[hreflang|=en]")),
                 equals(rep("Attrib[Element[a][hreflang |= 'en']]", 2)))
+    expect_that(parse_many(c('a[rel="include" i]', "a[rel = include I]",
+                             'a[rel="include"i]')),
+                equals(rep("Attrib[Element[a][rel = 'include' i]]", 3)))
+    expect_that(parse_many(c('a[rel="include" s]', "a[rel = include S]")),
+                equals(rep("Attrib[Element[a][rel = 'include' s]]", 2)))
+    # 'i' and 's' are only flags in the flag position, not as values
+    expect_that(parse_many("a[rel=i]"),
+                equals("Attrib[Element[a][rel = 'i']]"))
+    expect_that(parse_many('a[rel="s" i]'),
+                equals("Attrib[Element[a][rel = 's' i]]"))
     expect_that(parse_many("div:nth-child(10)"),
                 equals("Function[Element[div]:nth-child(['10'])]"))
     expect_that(parse_many(":nth-child(2n+2)"),

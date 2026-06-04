@@ -78,6 +78,25 @@ test_that("querySelectorAll handles namespaces", {
                 equals(p(xml_find_all(doc, "//svg:circle", ns = c(svg = "http://www.w3.org/2000/svg")))))
 })
 
+test_that("querySelectorAll honours attribute case-sensitivity flags", {
+    library(xml2)
+    doc <- read_xml('<r><a rel="NoFollow"/><a rel="nofollow"/><a rel="other"/></r>')
+    rels <- function(css) {
+        unlist(lapply(querySelectorAll(doc, css), xml_attr, "rel"))
+    }
+
+    expect_that(rels('a[rel="nofollow"]'), equals("nofollow"))
+    expect_that(rels('a[rel="nofollow" i]'),
+                equals(c("NoFollow", "nofollow")))
+    expect_that(rels('a[rel="NOFOLLOW" i]'),
+                equals(c("NoFollow", "nofollow")))
+    expect_that(rels('a[rel="nofollow" s]'), equals("nofollow"))
+    expect_that(rels('a[rel^="NO" i]'), equals(c("NoFollow", "nofollow")))
+    expect_that(rels('a[rel$="LOW" i]'), equals(c("NoFollow", "nofollow")))
+    expect_that(rels('a[rel*="FOLL" i]'), equals(c("NoFollow", "nofollow")))
+    expect_that(rels('a[rel!="nofollow" i]'), equals("other"))
+})
+
 test_that("querySelector methods handle invalid arguments", {
     library(xml2)
     doc <- read_xml('<a><b id="#test"/><c class="ex"/><c class="xmp"/></a>')

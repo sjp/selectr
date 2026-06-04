@@ -371,13 +371,31 @@ GenericTranslator <- R6Class("GenericTranslator",
                         "attribute::*[name() = ", xpath_literal(name), "]")
                 }
             }
-            if (self$lower_case_attribute_values) {
+            if (self$lower_case_attribute_values &&
+                !identical(selector$flag, "s")) {
+                # An explicit 's' flag opts out of any implicit
+                # case-insensitivity
                 value <- tolower(selector$value)
             } else {
                 value <- selector$value
             }
 
             xp <- self$xpath(selector$selector)
+            if (identical(selector$flag, "i") &&
+                !is.null(value) && nzchar(value)) {
+                # '[attr="value" i]': match the value ASCII
+                # case-insensitively, so compare the ASCII-lowercased
+                # attribute against the ASCII-lowercased value.
+                # An empty value needs no lowercasing, and skipping it
+                # keeps the existence tests (e.g. 'not(@attr)') exact.
+                value <- chartr("ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+                                "abcdefghijklmnopqrstuvwxyz", value)
+                attrib <- paste0(
+                    "translate(",
+                    attrib,
+                    ", 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',",
+                    " 'abcdefghijklmnopqrstuvwxyz')")
+            }
             if (method_name == "xpath_attrib_dashmatch")
                 self$xpath_attrib_dashmatch(xp, attrib, value)
             else if (method_name == "xpath_attrib_different")
