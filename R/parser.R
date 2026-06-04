@@ -682,8 +682,9 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                 i <- 1
 
                 # Parse the function arguments (e.g., "2n+1" for nth-child)
-                # :lang() and :dir() can accept comma-separated lists
-                allow_commas <- tolower(ident) %in% c("lang", "dir")
+                # :lang() can accept a comma-separated list; :dir() takes
+                # exactly one identifier (CSS Selectors Level 4)
+                allow_commas <- tolower(ident) == "lang"
 
                 while (TRUE) {
                     nt <- stream$nxt()
@@ -706,7 +707,7 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                             break
                         }
                     } else if (token_equality(nt, "DELIM", "*") && allow_commas) {
-                        # For :lang() and :dir(), allow * as a wildcard
+                        # For :lang(), allow * as a wildcard
                         arguments[[i]] <- nt
                         i <- i + 1
                     } else if (nt$type == "S") {
@@ -720,7 +721,7 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                         }
                         next
                     } else if (token_equality(nt, "DELIM", ",") && allow_commas) {
-                        # For :lang() and :dir(), commas separate multiple values
+                        # For :lang(), commas separate multiple values
                         stream$skip_whitespace()
                         next
                     } else if (token_equality(nt, "DELIM", ")")) {

@@ -905,16 +905,14 @@ GenericTranslator <- R6Class("GenericTranslator",
             xpath
         },
         xpath_dir_function = function(xpath, fn) {
-            # validate all arguments are STRING, IDENT, or * (DELIM).
+            # :dir() takes exactly one identifier (CSS Selectors Level 4).
             # A lone '-' lexes as an IDENT but is not a valid <ident>
             # per css-syntax, so reject it too.
             arg_types <- fn$argument_types()
             arg_values <- sapply(fn$arguments, function(a) a$value)
-            valid_types <- (arg_types %in% c("STRING", "IDENT") |
-                          (arg_types == "DELIM" & arg_values == "*")) &
-                          !(arg_types == "IDENT" & arg_values == "-")
-            if (!all(valid_types)) {
-                stop("Expected string, ident, or * arguments for :dir(), got ",
+            if (length(fn$arguments) != 1 || arg_types != "IDENT" ||
+                arg_values == "-") {
+                stop("Expected a single ident argument for :dir(), got ",
                      fn$arguments[[1]]$repr())
             }
             # :dir() requires runtime directionality detection based on
@@ -1172,25 +1170,6 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                 xpath$add_condition(combined)
             }
 
-            xpath
-        },
-        xpath_dir_function = function(xpath, fn) {
-            # Validate all arguments are STRING, IDENT, or * (DELIM).
-            # A lone '-' lexes as an IDENT but is not a valid <ident>
-            # per css-syntax, so reject it too.
-            arg_types <- fn$argument_types()
-            arg_values <- sapply(fn$arguments, function(a) a$value)
-            valid_types <- (arg_types %in% c("STRING", "IDENT") |
-                          (arg_types == "DELIM" & arg_values == "*")) &
-                          !(arg_types == "IDENT" & arg_values == "-")
-            if (!all(valid_types)) {
-                stop("Expected string, ident, or * arguments for :dir(), got ",
-                     fn$arguments[[1]]$repr())
-            }
-            # :dir() requires runtime directionality detection based on
-            # document language, inherited dir attributes, and text analysis.
-            # Not possible in static XPath, so we make it never match.
-            xpath$add_condition("0")
             xpath
         },
         xpath_link_pseudo = function(xpath) {

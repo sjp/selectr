@@ -108,9 +108,16 @@ test_that("Generic translator handles :dir() function", {
     expect_that(translator$css_to_xpath("div:dir(ltr)"), equals("descendant-or-self::div[(0)]"))
     expect_that(translator$css_to_xpath("div:dir(rtl)"), equals("descendant-or-self::div[(0)]"))
     expect_that(translator$css_to_xpath(":dir(ltr)"), equals("descendant-or-self::*[(0)]"))
+    # values other than ltr/rtl are not invalid, they just never match
+    expect_that(translator$css_to_xpath(":dir(foo)"), equals("descendant-or-self::*[(0)]"))
 
     expect_error(translator$css_to_xpath("div:dir()"), "Expected at least one argument.*")
-    expect_error(translator$css_to_xpath("div:dir(1)"), "Expected string, ident, or \\* arguments.*")
+    # :dir() takes exactly one identifier (CSS Selectors Level 4)
+    expect_error(translator$css_to_xpath("div:dir(1)"), "Expected a single ident argument.*")
+    expect_error(translator$css_to_xpath('div:dir("ltr")'), "Expected a single ident argument.*")
+    expect_error(translator$css_to_xpath("div:dir(ltr rtl)"), "Expected a single ident argument.*")
+    expect_error(translator$css_to_xpath("div:dir(ltr, rtl)"), "Expected an argument.*")
+    expect_error(translator$css_to_xpath("div:dir(*)"), "Expected an argument.*")
 })
 
 test_that("HTML translator handles :dir() function", {
@@ -122,7 +129,12 @@ test_that("HTML translator handles :dir() function", {
     expect_that(translator$css_to_xpath(":dir(ltr)"), equals("descendant-or-self::*[(0)]"))
 
     expect_error(translator$css_to_xpath("div:dir()"), "Expected at least one argument.*")
-    expect_error(translator$css_to_xpath("div:dir(1)"), "Expected string, ident, or \\* arguments.*")
+    # :dir() takes exactly one identifier (CSS Selectors Level 4)
+    expect_error(translator$css_to_xpath("div:dir(1)"), "Expected a single ident argument.*")
+    expect_error(translator$css_to_xpath('div:dir("ltr")'), "Expected a single ident argument.*")
+    expect_error(translator$css_to_xpath("div:dir(ltr rtl)"), "Expected a single ident argument.*")
+    expect_error(translator$css_to_xpath("div:dir(ltr, rtl)"), "Expected an argument.*")
+    expect_error(translator$css_to_xpath("div:dir(*)"), "Expected an argument.*")
 })
 
 test_that(":lang() and :dir() reject a lone '-' argument", {
@@ -133,7 +145,7 @@ test_that(":lang() and :dir() reject a lone '-' argument", {
         expect_error(translator$css_to_xpath("e:lang(-)"),
                      "Expected string, ident, or \\* arguments.*")
         expect_error(translator$css_to_xpath("e:dir(-)"),
-                     "Expected string, ident, or \\* arguments.*")
+                     "Expected a single ident argument.*")
         expect_error(translator$css_to_xpath("e:lang(en, -)"),
                      "Expected string, ident, or \\* arguments.*")
         # valid idents starting or ending with '-' keep working

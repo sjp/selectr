@@ -67,6 +67,16 @@
   \subsection{BUG FIXES}{
     \itemize{
 
+      \item \code{:dir()} now enforces its argument grammar from CSS
+      Selectors Level 4: exactly one identifier. It previously shared
+      the \code{:lang()} grammar, accepting strings, the \code{*}
+      wildcard, and comma- or space-separated lists (e.g.
+      \code{:dir(ltr, rtl)} or \code{:dir("ltr")}); these are now
+      rejected as parse errors. As before, identifiers other than
+      \code{ltr}/\code{rtl} are valid but never match, and \code{:dir()}
+      always translates to a never-matching condition since static XPath
+      cannot determine directionality.
+
       \item Element names inside pseudo-class arguments (e.g.
       \code{:is(svg|g)}, \code{:not(svg|g)}, \code{:has(svg|g)},
       \code{:nth-child(2 of svg|g)}) are now matched with a self-axis
