@@ -773,10 +773,14 @@ GenericTranslator <- R6Class("GenericTranslator",
             xpath
         },
         xpath_lang_function = function(xpath, fn) {
-            # Validate all arguments are STRING, IDENT, or * (DELIM)
+            # Validate all arguments are STRING, IDENT, or * (DELIM).
+            # A lone '-' lexes as an IDENT but is not a valid <ident>
+            # per css-syntax, so reject it too.
             arg_types <- fn$argument_types()
-            valid_types <- arg_types %in% c("STRING", "IDENT") |
-                          (arg_types == "DELIM" & sapply(fn$arguments, function(a) a$value == "*"))
+            arg_values <- sapply(fn$arguments, function(a) a$value)
+            valid_types <- (arg_types %in% c("STRING", "IDENT") |
+                          (arg_types == "DELIM" & arg_values == "*")) &
+                          !(arg_types == "IDENT" & arg_values == "-")
             if (!all(valid_types)) {
                 stop("Expected string, ident, or * arguments for :lang(), got ",
                      fn$arguments[[1]]$repr())
@@ -830,10 +834,14 @@ GenericTranslator <- R6Class("GenericTranslator",
             xpath
         },
         xpath_dir_function = function(xpath, fn) {
-            # validate all arguments are STRING, IDENT, or * (DELIM)
+            # validate all arguments are STRING, IDENT, or * (DELIM).
+            # A lone '-' lexes as an IDENT but is not a valid <ident>
+            # per css-syntax, so reject it too.
             arg_types <- fn$argument_types()
-            valid_types <- arg_types %in% c("STRING", "IDENT") |
-                          (arg_types == "DELIM" & sapply(fn$arguments, function(a) a$value == "*"))
+            arg_values <- sapply(fn$arguments, function(a) a$value)
+            valid_types <- (arg_types %in% c("STRING", "IDENT") |
+                          (arg_types == "DELIM" & arg_values == "*")) &
+                          !(arg_types == "IDENT" & arg_values == "-")
             if (!all(valid_types)) {
                 stop("Expected string, ident, or * arguments for :dir(), got ",
                      fn$arguments[[1]]$repr())
@@ -1020,10 +1028,14 @@ HTMLTranslator <- R6Class("HTMLTranslator",
             xpath
         },
         xpath_lang_function = function(xpath, fn) {
-            # Validate all arguments are STRING, IDENT, or * (DELIM)
+            # Validate all arguments are STRING, IDENT, or * (DELIM).
+            # A lone '-' lexes as an IDENT but is not a valid <ident>
+            # per css-syntax, so reject it too.
             arg_types <- fn$argument_types()
-            valid_types <- arg_types %in% c("STRING", "IDENT") |
-                          (arg_types == "DELIM" & sapply(fn$arguments, function(a) a$value == "*"))
+            arg_values <- sapply(fn$arguments, function(a) a$value)
+            valid_types <- (arg_types %in% c("STRING", "IDENT") |
+                          (arg_types == "DELIM" & arg_values == "*")) &
+                          !(arg_types == "IDENT" & arg_values == "-")
             if (!all(valid_types)) {
                 stop("Expected string, ident, or * arguments for :lang(), got ",
                      fn$arguments[[1]]$repr())
@@ -1094,10 +1106,14 @@ HTMLTranslator <- R6Class("HTMLTranslator",
             xpath
         },
         xpath_dir_function = function(xpath, fn) {
-            # Validate all arguments are STRING, IDENT, or * (DELIM)
+            # Validate all arguments are STRING, IDENT, or * (DELIM).
+            # A lone '-' lexes as an IDENT but is not a valid <ident>
+            # per css-syntax, so reject it too.
             arg_types <- fn$argument_types()
-            valid_types <- arg_types %in% c("STRING", "IDENT") |
-                          (arg_types == "DELIM" & sapply(fn$arguments, function(a) a$value == "*"))
+            arg_values <- sapply(fn$arguments, function(a) a$value)
+            valid_types <- (arg_types %in% c("STRING", "IDENT") |
+                          (arg_types == "DELIM" & arg_values == "*")) &
+                          !(arg_types == "IDENT" & arg_values == "-")
             if (!all(valid_types)) {
                 stop("Expected string, ident, or * arguments for :dir(), got ",
                      fn$arguments[[1]]$repr())

@@ -123,6 +123,24 @@ test_that("HTML translator handles :dir() function", {
     expect_error(translator$css_to_xpath("div:dir(1)"), "Expected string, ident, or \\* arguments.*")
 })
 
+test_that(":lang() and :dir() reject a lone '-' argument", {
+    # A lone '-' is not a valid <ident> per css-syntax (an ident may
+    # start with '-' only when followed by an ident-start code point
+    # or a second '-')
+    for (translator in list(GenericTranslator$new(), HTMLTranslator$new())) {
+        expect_error(translator$css_to_xpath("e:lang(-)"),
+                     "Expected string, ident, or \\* arguments.*")
+        expect_error(translator$css_to_xpath("e:dir(-)"),
+                     "Expected string, ident, or \\* arguments.*")
+        expect_error(translator$css_to_xpath("e:lang(en, -)"),
+                     "Expected string, ident, or \\* arguments.*")
+        # valid idents starting or ending with '-' keep working
+        expect_error(translator$css_to_xpath("e:lang(--x)"), NA)
+        expect_error(translator$css_to_xpath("e:lang(en--)"), NA)
+        expect_error(translator$css_to_xpath("e:lang(en-*)"), NA)
+    }
+})
+
 test_that("unimplemented methods throw errors", {
     translator <- GenericTranslator$new()
 

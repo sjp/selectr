@@ -51,6 +51,15 @@
       accepted nested form can be expressed with a descendant
       argument instead (e.g. \code{section:has(div)}).
 
+      \item \code{:lang()} and \code{:dir()} no longer accept a lone
+      \code{-} as an argument. A lone \code{-} is not a valid CSS
+      identifier (an identifier may start with \code{-} only when
+      followed by an identifier-start character or a second \code{-}),
+      but the tokenizer lexed it as one and it passed argument
+      validation. Valid identifiers such as \code{:lang(--x)} and
+      \code{:lang(en--)}, and the wildcard form \code{:lang(en-*)},
+      are unaffected.
+
       \item Attribute selectors with an empty value no longer throw an
       error for the \code{=}, \code{|=}, and \code{!=} operators
       (e.g. \code{[attr=""]}). These now translate to XPath matching an
