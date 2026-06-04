@@ -20,6 +20,16 @@
       translated. Note that nesting \code{:has()} inside \code{:has()}
       remains an error, as required by the specification.
 
+      \item \code{:has()} now supports leading combinators in its
+      arguments, as permitted by CSS Selectors Level 4 relative
+      selectors. \code{e:has(> img)} matches an \code{e} with a child
+      \code{img}, \code{e:has(~ p)} one with a subsequent sibling
+      \code{p}, and \code{e:has(+ p)} one whose next sibling is a
+      \code{p}; previously all three were parse errors. The omitted
+      combinator retains its implied-descendant meaning, and leading
+      combinators remain invalid in other functional pseudo-classes
+      such as \code{:is()}.
+
     }
   }
   \subsection{REMOVED FEATURES}{
@@ -64,6 +74,11 @@
       \code{:nth-child(2e1)} matched the twentieth. Such selectors are
       now rejected as invalid; signed integers and leading zeros
       (e.g. \code{:nth-child(+05)}) remain valid.
+
+      \item Computing the specificity of a \code{:has()} selector with a
+      single argument (e.g. \code{e:has(img)}) no longer fails with
+      "incorrect number of dimensions"; multi-argument forms were
+      unaffected.
 
       \item Nesting \code{:has()} inside \code{:has()} (at any depth,
       e.g. \code{section:has(article:has(div))}) is now rejected, as

@@ -36,6 +36,33 @@ test_that(":has() generates correct XPath", {
     # Complex: :has() with class on descendant
     expect_that(xpath("section:has(div.content)"),
                 equals("section[(.//*[(@class and contains(concat(' ', normalize-space(@class), ' '), ' content ')) and (name() = 'div')])]"))
+
+    # Leading combinators (selectors-4 relative selectors)
+    expect_that(xpath("e:has(> img)"),
+                equals("e[(child::*[(name() = 'img')])]"))
+    expect_that(xpath("e:has(~ p)"),
+                equals("e[(following-sibling::*[(name() = 'p')])]"))
+    expect_that(xpath("e:has(+ p)"),
+                equals("e[(following-sibling::*[1][(name() = 'p')])]"))
+    expect_that(xpath("e:has(> a, ~ p)"),
+                equals("e[(child::*[(name() = 'a')] | following-sibling::*[(name() = 'p')])]"))
+    expect_that(xpath("e:has(> .foo)"),
+                equals("e[(child::*[(@class and contains(concat(' ', normalize-space(@class), ' '), ' foo '))])]"))
+    expect_that(xpath("e:has(+ p.foo)"),
+                equals("e[(following-sibling::*[1][(@class and contains(concat(' ', normalize-space(@class), ' '), ' foo ')) and (name() = 'p')])]"))
+})
+
+test_that("leading combinators are :has()-only", {
+    expect_error(css_to_xpath("e:is(> a)"), "Expected selector")
+    expect_error(css_to_xpath("e:where(~ a)"), "Expected selector")
+    expect_error(css_to_xpath("e:not(+ a)"), "Expected selector")
+    # combinator must be followed by a selector
+    expect_error(css_to_xpath("e:has(> > a)"), "Expected selector")
+    expect_error(css_to_xpath("e:has(>)"), "Expected selector")
+    # trailing combinators are invalid everywhere
+    expect_error(css_to_xpath("e:has(a >)"), "Expected an argument")
+    # nested :has() stays rejected in relative arguments
+    expect_error(css_to_xpath("e:has(> a:has(b))"), "Got nested :has()")
 })
 
 test_that("nested :has() is rejected", {
@@ -251,6 +278,68 @@ test_that(":has() handles edge cases correctly", {
     result4 <- querySelectorAll(doc3, "div:has(*)")
     expect_that(length(result4), equals(1))
     expect_that(xmlGetAttr(result4[[1]], "id"), equals("d1"))
+})
+
+test_that(":has() with leading combinators matches correctly", {
+    library(xml2)
+
+    # d1 has a child img; d2 has only a grandchild img; d3 has none but
+    # is followed by a sibling img
+    html <- paste0(
+        '<root>',
+        '  <div id="d1"><img id="i1"/></div>',
+        '  <div id="d2"><span><img id="i2"/></span></div>',
+        '  <div id="d3"></div>',
+        '  <img id="i3"/>',
+        '</root>'
+    )
+    doc <- read_xml(html)
+    get_ids <- function(css) {
+        results <- querySelectorAll(doc, css)
+        xml_attr(results, "id")
+    }
+
+    # implied descendant: child and grandchild both count
+    expect_that(get_ids("div:has(img)"), equals(c("d1", "d2")))
+    # > child only: a grandchild img must not match, nor a sibling img
+    expect_that(get_ids("div:has(> img)"), equals("d1"))
+    expect_that(get_ids("div:has(> span)"), equals("d2"))
+
+    # sibling document: a1 p1 a2 b1 p2
+    html2 <- paste0(
+        '<root>',
+        '  <a id="a1"/><p id="p1"/><a id="a2"/><b id="b1"/><p id="p2"/>',
+        '</root>'
+    )
+    doc2 <- read_xml(html2)
+    get_ids2 <- function(css) {
+        results <- querySelectorAll(doc2, css)
+        xml_attr(results, "id")
+    }
+
+    # ~ subsequent sibling: both a elements precede a p
+    expect_that(get_ids2("a:has(~ p)"), equals(c("a1", "a2")))
+    # + next sibling: a1 is immediately followed by p1; a2 is followed
+    # by b1, so it must not match
+    expect_that(get_ids2("a:has(+ p)"), equals("a1"))
+    expect_that(get_ids2("a:has(+ b)"), equals("a2"))
+    expect_that(get_ids2("b:has(~ p)"), equals("b1"))
+    # sibling forms look at siblings, not the subtree: da has a child p
+    # but no sibling p, so it must not match either sibling form
+    html3 <- paste0(
+        '<root>',
+        '  <section><div id="da"><p/></div><div id="db"/></section>',
+        '  <section><div id="dc"/><p/></section>',
+        '</root>'
+    )
+    doc3 <- read_xml(html3)
+    ids3 <- xml_attr(querySelectorAll(doc3, "div:has(~ p)"), "id")
+    expect_that(ids3, equals("dc"))
+    ids4 <- xml_attr(querySelectorAll(doc3, "div:has(+ p)"), "id")
+    expect_that(ids4, equals("dc"))
+
+    # mixed relative list: child a OR subsequent-sibling p
+    expect_that(get_ids2("a:has(+ b, + p)"), equals(c("a1", "a2")))
 })
 
 test_that(":has() works with querySelector (returns first match)", {

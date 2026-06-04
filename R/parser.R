@@ -251,6 +251,38 @@ Where <- R6Class("Where",
     )
 )
 
+# A :has() argument with an explicit leading combinator (selectors-4
+# <relative-selector>): wraps the parsed selector alongside its combinator.
+# Arguments with the omitted (implied descendant) combinator are stored
+# unwrapped in Has$selector_list.
+RelativeSelector <- R6Class("RelativeSelector",
+    public = list(
+        combinator = NULL,
+        selector = NULL,
+        initialize = function(combinator, selector) {
+            self$combinator <- combinator
+            self$selector <- selector
+        },
+        repr = function() {
+            paste0(
+                first_class_name(self),
+                "[",
+                self$combinator,
+                " ",
+                self$selector$repr(),
+                "]"
+            )
+        },
+        specificity = function() {
+            # The leading combinator contributes no specificity
+            self$selector$specificity()
+        },
+        show = function() { # nocov start
+            cat(self$repr(), "\n")
+        } # nocov end
+    )
+)
+
 Has <- R6Class("Has",
     public = list(
         selector = NULL,
@@ -273,12 +305,17 @@ Has <- R6Class("Has",
             )
         },
         specificity = function() {
-            specs <- sapply(self$selector_list, function(s) s$specificity())
-            specs <- t(specs)
-            specs <- specs[order(-specs[, 1], -specs[, 2], -specs[, 3]), ]
-            # Add the maximum specificity from the selector list to the base selector
+            # :has() takes the specificity of its most specific argument,
+            # added to the base selector
             base_specs <- self$selector$specificity()
-            base_specs + specs[1, ]
+            sub_specs <- sapply(self$selector_list, function(s) s$specificity())
+            # sapply returns a matrix with each column being a selector's specificity
+            sub_specs <- t(sub_specs)
+            if (nrow(sub_specs) > 1) {
+                # sort by specificity (id, class, element) descending
+                sub_specs <- sub_specs[order(-sub_specs[, 1], -sub_specs[, 2], -sub_specs[, 3]), , drop = FALSE]
+            }
+            base_specs + sub_specs[1, ]
         },
         show = function() { # nocov start
             cat(self$repr(), "\n")
@@ -629,7 +666,8 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                     stop("Got nested :has()")
                 }
                 selectors <- parse_simple_selector_arguments(stream, "has",
-                                                             inside_has = TRUE)
+                                                             inside_has = TRUE,
+                                                             relative = TRUE)
                 result <- Has$new(result, selectors)
             } else {
                 arguments <- list()
@@ -702,11 +740,23 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
 }
 
 parse_simple_selector_arguments <- function(stream, function_name = NULL, # nolint: object_length_linter.
-                                            inside_has = FALSE) {
+                                            inside_has = FALSE,
+                                            relative = FALSE) {
     index <- 1
     arguments <- list()
 
     while (TRUE) {
+        combinator <- NULL
+        if (relative) {
+            # :has() takes a <relative-selector-list> (selectors-4
+            # section 17): each argument may begin with an explicit
+            # combinator; the omitted combinator means descendant
+            stream$skip_whitespace()
+            peek <- stream$peek()
+            if (peek$is_delim(c(">", "~", "+"))) {
+                combinator <- stream$nxt()$value
+            }
+        }
         results <- parse_simple_selector(stream, inside_arguments = TRUE,
                                          inside_has = inside_has)
         result <- results$result
@@ -720,6 +770,9 @@ parse_simple_selector_arguments <- function(stream, function_name = NULL, # noli
             }
         }
 
+        if (!is.null(combinator)) {
+            result <- RelativeSelector$new(combinator, result)
+        }
         arguments[[index]] <- result
         index <- index + 1
 

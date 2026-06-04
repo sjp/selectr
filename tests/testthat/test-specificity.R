@@ -73,6 +73,15 @@ test_that("parser creates correct specificity", {
     expect_that(spec("#main:has(.foo, .bar)"), equals(c(1, 1, 0)))
     expect_that(spec(".test:has(#foo, [bar])"), equals(c(1, 1, 0)))
 
+    # single-argument :has()
+    expect_that(spec(":has(.foo)"), equals(c(0, 1, 0)))
+    expect_that(spec("e:has(img)"), equals(c(0, 0, 2)))
+
+    # leading combinators contribute no specificity
+    expect_that(spec("e:has(> img)"), equals(c(0, 0, 2)))
+    expect_that(spec("e:has(~ .foo)"), equals(c(0, 1, 1)))
+    expect_that(spec("e:has(> .foo, ~ #bar)"), equals(c(1, 0, 1)))
+
     expect_that(spec("foo:empty"), equals(c(0, 1, 1)))
     expect_that(spec("foo:before"), equals(c(0, 0, 2)))
     expect_that(spec("foo::before"), equals(c(0, 0, 2)))

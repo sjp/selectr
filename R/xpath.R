@@ -242,23 +242,41 @@ GenericTranslator <- R6Class("GenericTranslator",
             xpath
         },
         xpath_has = function(has) {
-            # :has() matches elements that have descendants matching the selector list
+            # :has() takes a relative selector list (selectors-4
+            # section 17): each argument may carry a leading combinator
+            # scoping the match (> child, ~ subsequent sibling, + next
+            # sibling); the omitted combinator means descendant
             xpath <- self$xpath(has$selector)
 
-            # Build conditions that check for the existence of descendants
+            # Build conditions that check for the existence of a match
             conditions <- character(0)
             for (subselector in has$selector_list) {
-                sub_xpath <- self$xpath(subselector)
-                # Build the full descendant path
-                sub_xpath$add_name_test()
-                desc_test <- paste0(".//", sub_xpath$element)
-                if (nzchar(sub_xpath$condition)) {
-                    desc_test <- paste0(desc_test, "[", sub_xpath$condition, "]")
+                if (first_class_name(subselector) == "RelativeSelector") {
+                    combinator <- subselector$combinator
+                    sub_xpath <- self$xpath(subselector$selector)
+                } else {
+                    combinator <- " "
+                    sub_xpath <- self$xpath(subselector)
                 }
-                conditions <- c(conditions, desc_test)
+                sub_xpath$add_name_test()
+                axis <-
+                    if (combinator == ">") "child::"
+                    else if (any(combinator == c("~", "+"))) "following-sibling::"
+                    else ".//"
+                rel_test <- paste0(axis, sub_xpath$element)
+                if (combinator == "+") {
+                    # Only the immediately following sibling: constrain
+                    # position before applying the match conditions, as in
+                    # xpath_direct_adjacent_combinator
+                    rel_test <- paste0(rel_test, "[1]")
+                }
+                if (nzchar(sub_xpath$condition)) {
+                    rel_test <- paste0(rel_test, "[", sub_xpath$condition, "]")
+                }
+                conditions <- c(conditions, rel_test)
             }
 
-            # Combine conditions with OR (any descendant match means the element matches)
+            # Combine conditions with OR (any match means the element matches)
             if (length(conditions) > 0) {
                 combined_condition <- paste0(conditions, collapse = " | ")
                 xpath$add_condition(combined_condition)

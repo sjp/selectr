@@ -129,7 +129,17 @@ test_that("parser parses canonical test expressions", {
                 equals("Has[Element[ul]:has(Element[li])]"))
     expect_that(parse_many(":has(p, div)"),
                 equals("Has[Element[*]:has(Element[p], Element[div])]"))
- 
+
+    # :has() with leading combinators (selectors-4 relative selectors)
+    expect_that(parse_many("e:has(> img)"),
+                equals("Has[Element[e]:has(RelativeSelector[> Element[img]])]"))
+    expect_that(parse_many("e:has(~ p)"),
+                equals("Has[Element[e]:has(RelativeSelector[~ Element[p]])]"))
+    expect_that(parse_many("e:has(+ p)"),
+                equals("Has[Element[e]:has(RelativeSelector[+ Element[p]])]"))
+    expect_that(parse_many("e:has(> a, ~ .foo, p)"),
+                equals("Has[Element[e]:has(RelativeSelector[> Element[a]], RelativeSelector[~ Class[Element[*].foo]], Element[p])]"))
+
     expect_that(parse_many("td ~ th"),
                 equals("CombinedSelector[Element[td] ~ Element[th]]"))
 
