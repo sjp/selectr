@@ -43,9 +43,21 @@ XPathExpr <- R6Class("XPathExpr",
         add_name_test = function() {
             if (self$element == "*")
                 return()
-            self$add_condition(paste0("name() = ", xpath_literal(self$element)))
-            self$name_test <- paste0("*[name() = ",
-                                     xpath_literal(self$element), "]")
+            if (is_safe_nodetest(self$element)) {
+                # A safe name stays an XPath name test on the self axis,
+                # so namespace prefixes keep resolving through the
+                # namespace map supplied at evaluation time (URI-based),
+                # exactly as the same name is matched at the top level
+                # of a selector. A name() comparison would instead match
+                # the document's literal prefix.
+                self$add_condition(paste0("self::", self$element))
+                self$name_test <- self$element
+            } else {
+                self$add_condition(paste0("name() = ",
+                                          xpath_literal(self$element)))
+                self$name_test <- paste0("*[name() = ",
+                                         xpath_literal(self$element), "]")
+            }
             self$element <- "*"
         },
         join = function(combiner, other) {
@@ -65,6 +77,13 @@ XPathExpr <- R6Class("XPathExpr",
 
 is_safe_name <- function(name) {
     grepl("^[a-zA-Z_][a-zA-Z0-9_.-]*$", name)
+}
+
+# A name (optionally prefixed, e.g. 'svg:g') that can be used directly
+# as an XPath name test
+is_safe_nodetest <- function(name) {
+    parts <- strsplit(name, ":", fixed = TRUE)[[1]]
+    length(parts) <= 2 && all(is_safe_name(parts))
 }
 
 # The XPath node test matching the same elements as the subject of an

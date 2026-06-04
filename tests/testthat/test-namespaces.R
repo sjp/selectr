@@ -36,6 +36,13 @@ test_that("namespace selectors translate faithfully", {
     # Composability
     expect_that(xpath(":not(*|e)"), equals("*[(not((local-name() = 'e')))]"))
     expect_that(xpath("div > *|e"), equals("div/*[(local-name() = 'e')]"))
+
+    # Inside pseudo-class arguments, prefixed names keep resolving
+    # through the namespace map (a self-axis name test), rather than
+    # comparing against the document's literal prefix with name()
+    expect_that(xpath(":is(ns|e)"), equals("*[((self::ns:e))]"))
+    expect_that(xpath(":not(ns|e)"), equals("*[(not((self::ns:e)))]"))
+    expect_that(xpath(":has(ns|e)"), equals("*[(.//*[(self::ns:e)])]"))
 })
 
 test_that("namespace selector specificity is correct", {
@@ -76,6 +83,29 @@ test_that("namespace selectors match correct elements", {
     expect_that(matches("svg|e"), equals("svg:e"))
     expect_that(matches("[*|a]"), equals(c("r", "svg:e")))
     expect_that(matches("[|a]"), equals("r"))
+})
+
+test_that("namespaced pseudo-class arguments match by URI, not prefix", {
+    skip_if_not_installed("xml2")
+
+    # the document binds the SVG namespace to 's', the query to 'svg':
+    # matching must go through the namespace map (URI), not compare
+    # qualified names as strings
+    doc <- xml2::read_xml(paste0(
+        '<r xmlns:s="http://www.w3.org/2000/svg">',
+        '<s:g id="g1"/><b id="b1"/></r>'))
+    ns <- c(svg = "http://www.w3.org/2000/svg")
+    ids <- function(sel) {
+        nodes <- xml2::xml_find_all(doc, css_to_xpath(sel, prefix = "//"), ns)
+        xml2::xml_attr(nodes, "id")
+    }
+
+    expect_that(ids("svg|g"), equals("g1"))
+    expect_that(ids(":is(svg|g)"), equals("g1"))
+    expect_that(ids(":not(svg|g)"), equals(c(NA, "b1"))) # r and b
+    expect_that(xml2::xml_name(xml2::xml_find_all(
+                    doc, css_to_xpath(":has(svg|g)", prefix = "//"), ns)),
+                equals("r"))
 })
 
 test_that("'|e' with an unsafe name does not match a default namespace", {

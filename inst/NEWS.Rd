@@ -67,6 +67,21 @@
   \subsection{BUG FIXES}{
     \itemize{
 
+      \item Element names inside pseudo-class arguments (e.g.
+      \code{:is(svg|g)}, \code{:not(svg|g)}, \code{:has(svg|g)},
+      \code{:nth-child(2 of svg|g)}) are now matched with a self-axis
+      name test (\code{self::svg:g}) instead of a \code{name()} string
+      comparison. Namespace prefixes therefore keep resolving through
+      the namespace map supplied at evaluation time (URI-based), just
+      as they do at the top level of a selector; previously a document
+      binding the same URI to a different prefix matched \code{svg|g}
+      at the top level but not inside a pseudo-class argument. This
+      also means an unqualified argument such as \code{:is(e)} now
+      matches only elements in no namespace, consistent with a
+      top-level \code{e}; previously it also matched an \code{e} in a
+      default namespace. Names that cannot be written as an XPath name
+      test continue to use the \code{name()} comparison.
+
       \item The no-namespace form \code{|e} now retains its namespace
       constraint when the element name cannot be written as an XPath
       name test (e.g. a Unicode name such as \code{|é}). Previously
