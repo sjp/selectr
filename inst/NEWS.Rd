@@ -160,6 +160,16 @@
       \code{e:is(.a):is(.b)} now correctly require both conditions
       rather than either.
 
+      \item The universal selector \code{*} is no longer silently
+      dropped when it appears alongside other arguments in a selector
+      list. A list containing \code{*} matches everything, so
+      \code{:is(div, *)} now matches every element rather than only
+      \code{div}, \code{:not(div, *)} now matches nothing rather than
+      excluding only \code{div}, and \code{:nth-child(2 of div, *)} now
+      counts all siblings rather than only \code{div} siblings. Selector
+      lists whose only argument is \code{*} (e.g. \code{:not(*)}) were
+      already translated correctly and are unchanged.
+
     }
   }
 }

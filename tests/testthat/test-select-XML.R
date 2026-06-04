@@ -154,6 +154,11 @@ test_that("selection works correctly on a large barrage of tests", {
     expect_that(pcss('li.c:where(#third-li, #fifth-li)'), equals('third-li'))
     expect_that(pcss(':is(li, ol):first-child'), equals('first-li'))
     expect_that(pcss('li:is(.c):is(#fourth-li)'), equals('fourth-li'))
+    # An always-true '*' argument makes the whole selector list match
+    # everything; it must not be silently dropped
+    expect_that(pcss('li:is(#first-li, *)'), equals(c('first-li', 'second-li', 'third-li', 'fourth-li', 'fifth-li', 'sixth-li', 'seventh-li')))
+    expect_that(pcss('li:not(#first-li, *)'), equals(NULL))
+    expect_that(pcss('ol:nth-child(6 of a, *)'), equals('second-ol'))
 
     expect_that(pcss('ol:has(li)'), equals('first-ol'))
     # :has(.c) matches all ancestors of elements with class 'c'

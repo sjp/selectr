@@ -179,6 +179,20 @@ test_that("translation from parsed objects to XPath works", {
                 equals("e[((@class and contains(concat(' ', normalize-space(@class), ' '), ' a '))) and ((@class and contains(concat(' ', normalize-space(@class), ' '), ' b ')))]"))
     expect_that(xpath('e.warning:where(f, g)'),
                 equals("e[(@class and contains(concat(' ', normalize-space(@class), ' '), ' warning ')) and ((name() = 'f') or (name() = 'g'))]"))
+    # An always-true argument (a bare '*') must not be dropped from a
+    # selector list: the whole list then matches everything, so :is()
+    # imposes no condition, :not() never matches, and the "of S" form
+    # counts all siblings
+    expect_that(xpath(':is(f, *)'),
+                equals("*"))
+    expect_that(xpath('e.warning:is(f, *)'),
+                equals("e[(@class and contains(concat(' ', normalize-space(@class), ' '), ' warning '))]"))
+    expect_that(xpath('e:not(f, *)'),
+                equals("e[(0)]"))
+    expect_that(xpath('e:nth-child(2 of f, *)'),
+                equals("e[(count(preceding-sibling::*) = 1)]"))
+    expect_that(xpath('e:nth-last-child(2 of f, *)'),
+                equals("e[(count(following-sibling::*) = 1)]"))
     expect_that(xpath('e f'),
                 equals("e//f"))
     expect_that(xpath('e > f'),

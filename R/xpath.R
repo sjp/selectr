@@ -215,8 +215,29 @@ GenericTranslator <- R6Class("GenericTranslator",
             } else {
                 sub_xpath <- self$xpath(subselector)
                 sub_xpath$add_name_test()
-                sub_xpath$condition
+                # An argument that imposes no condition (a bare '*')
+                # matches everything; return an explicit "true()" so
+                # callers can tell "always true" apart from "no
+                # condition" instead of silently dropping the argument
+                # from the selector list
+                if (nzchar(sub_xpath$condition)) sub_xpath$condition
+                else "true()"
             }
+        },
+        selector_list_condition = function(selector_list) {
+            # OR-join the conditions imposed by a selector list's
+            # arguments into a single condition. NULL when the list
+            # imposes no condition: either it is absent, or one of its
+            # arguments (e.g. the universal selector '*') is always
+            # true, making the whole list match unconditionally
+            if (is.null(selector_list) || length(selector_list) == 0)
+                return(NULL)
+            conditions <- vapply(selector_list,
+                                 self$xpath_argument_condition,
+                                 character(1))
+            if (any(conditions == "true()"))
+                return(NULL)
+            paste0(conditions, collapse = " or ")
         },
         reversed_combinator_test = function(selector, combinator) {
             # Existence test, relative to the candidate element, for the
@@ -231,47 +252,32 @@ GenericTranslator <- R6Class("GenericTranslator",
                 else if (combinator == "~") "preceding-sibling::*"
                 else if (combinator == "+") "preceding-sibling::*[1]"
                 else stop("Unknown combinator '", combinator, "'")
-            if (nzchar(inner)) paste0(axis, "[", inner, "]") else axis
+            if (inner == "true()") axis else paste0(axis, "[", inner, "]")
         },
         xpath_negation = function(negation) {
             xpath <- self$xpath(negation$selector)
 
-            # Collect all conditions from the selector list
-            conditions <- character(0)
-            for (subselector in negation$selector_list) {
-                condition <- self$xpath_argument_condition(subselector)
-                if (nzchar(condition)) {
-                    conditions <- c(conditions, condition)
-                }
-            }
-
-            # Combine conditions with OR (any match means element is excluded)
-            if (length(conditions) > 0) {
-                combined_condition <- paste0(conditions, collapse = " or ")
-                xpath$add_condition(paste0("not(", combined_condition, ")"))
-            } else {
+            # Negate the OR of the argument conditions (any match means
+            # the element is excluded); a list that matches everything
+            # (e.g. :not(*), :not(a, *)) can never be satisfied
+            condition <- self$selector_list_condition(negation$selector_list)
+            if (is.null(condition)) {
                 xpath$add_condition("0")
+            } else {
+                xpath$add_condition(paste0("not(", condition, ")"))
             }
             xpath
         },
         xpath_matching = function(matching) {
             xpath <- self$xpath(matching$selector)
 
-            # Collect all conditions from the selector list
-            conditions <- character(0)
-            for (subselector in matching$selector_list) {
-                condition <- self$xpath_argument_condition(subselector)
-                if (nzchar(condition)) {
-                    conditions <- c(conditions, condition)
-                }
-            }
-
-            # Combine conditions with OR (any match suffices) and add the
-            # result as a single condition so the alternatives stay grouped
-            # and AND with the rest of the compound selector
-            if (length(conditions) > 0) {
-                combined_condition <- paste0(conditions, collapse = " or ")
-                xpath$add_condition(combined_condition)
+            # Add the OR of the argument conditions (any match suffices)
+            # as a single condition so the alternatives stay grouped and
+            # AND with the rest of the compound selector; a list that
+            # matches everything (e.g. :is(a, *)) imposes no condition
+            condition <- self$selector_list_condition(matching$selector_list)
+            if (!is.null(condition)) {
+                xpath$add_condition(condition)
             }
 
             xpath
@@ -646,20 +652,9 @@ GenericTranslator <- R6Class("GenericTranslator",
             # there is always an "n" matching any number of siblings (maybe none)
             if (a == 1 && b_min_1 <= 0) {
                 # CSS Level 4: When selector list is provided, ensure current element matches
-                if (!is.null(fn$selector_list) && length(fn$selector_list) > 0) {
-                    conditions <- character(0)
-                    for (subselector in fn$selector_list) {
-                        condition <- self$xpath_argument_condition(subselector)
-                        if (nzchar(condition)) {
-                            conditions <- c(conditions, condition)
-                        }
-                    }
-
-                    if (length(conditions) > 0) {
-                        # Current element must match at least one selector (OR)
-                        combined_condition <- paste0(conditions, collapse = " or ")
-                        xpath$add_condition(combined_condition)
-                    }
+                condition <- self$selector_list_condition(fn$selector_list)
+                if (!is.null(condition)) {
+                    xpath$add_condition(condition)
                 }
                 return(xpath)
             }
@@ -671,20 +666,9 @@ GenericTranslator <- R6Class("GenericTranslator",
 
                 # CSS Level 4: When selector list is provided, ensure current element matches
                 # Even though the condition is always false, we should still check the selector
-                if (!is.null(fn$selector_list) && length(fn$selector_list) > 0) {
-                    conditions <- character(0)
-                    for (subselector in fn$selector_list) {
-                        condition <- self$xpath_argument_condition(subselector)
-                        if (nzchar(condition)) {
-                            conditions <- c(conditions, condition)
-                        }
-                    }
-
-                    if (length(conditions) > 0) {
-                        # Current element must match at least one selector (OR)
-                        combined_condition <- paste0(conditions, collapse = " or ")
-                        xpath$add_condition(combined_condition)
-                    }
+                condition <- self$selector_list_condition(fn$selector_list)
+                if (!is.null(condition)) {
+                    xpath$add_condition(condition)
                 }
 
                 return(xpath)
@@ -699,24 +683,13 @@ GenericTranslator <- R6Class("GenericTranslator",
                 nodetest <- xpath$element
             }
 
-            # Build the predicate for selector list filtering (CSS Level 4)
-            selector_predicate <- ""
-            if (!is.null(fn$selector_list) && length(fn$selector_list) > 0) {
-                # Generate XPath conditions for each selector in the list
-                conditions <- character(0)
-                for (subselector in fn$selector_list) {
-                    condition <- self$xpath_argument_condition(subselector)
-                    if (nzchar(condition)) {
-                        conditions <- c(conditions, condition)
-                    }
-                }
-
-                if (length(conditions) > 0) {
-                    # Combine conditions with OR (any match counts the sibling)
-                    combined_condition <- paste0(conditions, collapse = " or ")
-                    selector_predicate <- paste0("[", combined_condition, "]")
-                }
-            }
+            # Build the predicate for selector list filtering (CSS Level 4):
+            # only siblings matching the list are counted; a list that
+            # matches everything counts all siblings (no predicate)
+            selector_list_cond <- self$selector_list_condition(fn$selector_list)
+            selector_predicate <-
+                if (is.null(selector_list_cond)) ""
+                else paste0("[", selector_list_cond, "]")
 
             # count siblings before or after the element
             if (!last) {
@@ -735,20 +708,8 @@ GenericTranslator <- R6Class("GenericTranslator",
                 xpath$add_condition(paste0(siblings_count, " = ", b_min_1))
 
                 # CSS Level 4: When selector list is provided, ensure current element matches
-                if (!is.null(fn$selector_list) && length(fn$selector_list) > 0) {
-                    conditions <- character(0)
-                    for (subselector in fn$selector_list) {
-                        condition <- self$xpath_argument_condition(subselector)
-                        if (nzchar(condition)) {
-                            conditions <- c(conditions, condition)
-                        }
-                    }
-
-                    if (length(conditions) > 0) {
-                        # Current element must match at least one selector (OR)
-                        combined_condition <- paste0(conditions, collapse = " or ")
-                        xpath$add_condition(combined_condition)
-                    }
+                if (!is.null(selector_list_cond)) {
+                    xpath$add_condition(selector_list_cond)
                 }
 
                 return(xpath)
@@ -804,20 +765,8 @@ GenericTranslator <- R6Class("GenericTranslator",
             }
 
             # CSS Level 4: When selector list is provided, ensure current element matches
-            if (!is.null(fn$selector_list) && length(fn$selector_list) > 0) {
-                conditions <- character(0)
-                for (subselector in fn$selector_list) {
-                    condition <- self$xpath_argument_condition(subselector)
-                    if (nzchar(condition)) {
-                        conditions <- c(conditions, condition)
-                    }
-                }
-
-                if (length(conditions) > 0) {
-                    # Current element must match at least one selector (OR)
-                    combined_condition <- paste0(conditions, collapse = " or ")
-                    xpath$add_condition(combined_condition)
-                }
+            if (!is.null(selector_list_cond)) {
+                xpath$add_condition(selector_list_cond)
             }
 
             xpath
