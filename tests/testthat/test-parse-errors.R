@@ -69,6 +69,9 @@ test_that("useful errors are returned", {
                 throws_error("Unclosed string at 11"))
     expect_that(get_error("foo!"),
                 throws_error("Unexpected character"))
+    # The non-standard != attribute operator is not supported
+    expect_that(get_error("a[rel!=nofollow]"),
+                throws_error("Unexpected character"))
     expect_that(get_error("a:not(b;)"),
                 throws_error("Unexpected character"))
 

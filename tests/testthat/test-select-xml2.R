@@ -123,10 +123,6 @@ test_that("selection works correctly on a large barrage of tests", {
     expect_that(pcss('li:empty'), equals(c('third-li', 'fourth-li', 'fifth-li', 'sixth-li')))
     expect_that(pcss(':root', 'html:root'), equals('html'))
     expect_that(pcss('li:root', '* :root'), equals(NULL))
-    expect_that(pcss('*:contains("link")', ':CONtains("link")'), equals(c('html', 'nil', 'outer-div', 'tag-anchor', 'nofollow-anchor')))
-    expect_that(pcss('*:contains("LInk")'), equals(NULL))  # case sensitive
-    expect_that(pcss('*:contains("e")'), equals(c('html', 'nil', 'outer-div', 'first-ol', 'first-li', 'paragraph', 'p-em')))
-    expect_that(pcss('*:contains("E")'), equals(NULL))  # case-sensitive
     expect_that(pcss('.a', c('.b', '*.a', 'ol.a')), equals('first-ol'))
     expect_that(pcss('.c', '*.c'), equals(c('first-ol', 'third-li', 'fourth-li')))
     expect_that(pcss('ol *.c', c('ol li.c', 'li ~ li.c', 'ol > li.c')), equals(c('third-li', 'fourth-li')))

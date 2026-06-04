@@ -150,12 +150,3 @@ test_that("unimplemented methods throw errors", {
     expect_error(translator$css_to_xpath("*:last-of-type"), ".* is not implemented")
     expect_error(translator$css_to_xpath("*:only-of-type"), ".* is not implemented")
 })
-
-test_that("contains method only takes string arguments", {
-    expect_that(css_to_xpath("a:contains(b)"),
-                equals("descendant-or-self::a[(contains(., 'b'))]"))
-    expect_that(css_to_xpath("a:contains('b')"),
-                equals("descendant-or-self::a[(contains(., 'b'))]"))
-    expect_error(css_to_xpath("a:contains(1)"),
-                 "Expected a single string or ident for :contains\\(\\), got .*")
-})

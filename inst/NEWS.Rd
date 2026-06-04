@@ -14,6 +14,22 @@
 
     }
   }
+  \subsection{REMOVED FEATURES}{
+    \itemize{
+
+      \item The non-standard extensions inherited from the Python
+      'cssselect' package have been removed: the \code{:contains("text")}
+      pseudo-class and the \code{[attr!=value]} attribute operator. Both
+      now produce an error. Neither has ever been part of any CSS
+      Selectors specification, so removing them makes \pkg{selectr}
+      reject the same selectors a spec-conformant parser rejects.
+      Equivalent standard alternatives: \code{[attr!=value]} can be
+      written as \code{:not([attr=value])}, and \code{:contains()} as an
+      XPath \code{contains(., 'text')} predicate applied outside of
+      \pkg{selectr}.
+
+    }
+  }
   \subsection{BUG FIXES}{
     \itemize{
 
@@ -61,7 +77,7 @@
       are unaffected.
 
       \item Attribute selectors with an empty value no longer throw an
-      error for the \code{=}, \code{|=}, and \code{!=} operators
+      error for the \code{=} and \code{|=} operators
       (e.g. \code{[attr=""]}). These now translate to XPath matching an
       attribute whose value is the empty string.
 

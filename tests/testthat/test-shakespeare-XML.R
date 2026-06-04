@@ -219,7 +219,6 @@ test_that("selection works correctly on a shakespearean document", {
     ## searching the body.
     #expect_that(count('*'), equals(252))
     expect_that(count('*'), equals(246))
-    expect_that(count('div:contains(CELIA)'), equals(26))
     expect_that(count('div:only-child'), equals(22)) # ?
     expect_that(count('div:nth-child(even)'), equals(106))
     expect_that(count('div:nth-child(2n)'), equals(106))
@@ -262,6 +261,5 @@ test_that("selection works correctly on a shakespearean document", {
     expect_that(count('div[class$=log]'), equals(50))
     expect_that(count('div[class*=sce]'), equals(1))
     expect_that(count('div[class|=dialog]'), equals(50)) # ? Seems right
-    expect_that(count('div[class!=madeup]'), equals(243)) # ? Seems right
     expect_that(count('div[class~=dialog]'), equals(51)) # ? Seems right
 })

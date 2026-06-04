@@ -94,7 +94,6 @@ test_that("querySelectorAll honours attribute case-sensitivity flags", {
     expect_that(rels('a[rel^="NO" i]'), equals(c("NoFollow", "nofollow")))
     expect_that(rels('a[rel$="LOW" i]'), equals(c("NoFollow", "nofollow")))
     expect_that(rels('a[rel*="FOLL" i]'), equals(c("NoFollow", "nofollow")))
-    expect_that(rels('a[rel!="nofollow" i]'), equals("other"))
 })
 
 test_that("querySelector methods handle invalid arguments", {

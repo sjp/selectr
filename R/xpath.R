@@ -99,15 +99,13 @@ GenericTranslator <- R6Class("GenericTranslator",
                                ">" = "child",
                                "+" = "direct_adjacent",
                                "~" = "indirect_adjacent"),
-        # != is not in Selectors Level 3, but included anyway
         attribute_operator_mapping = c("exists" = "exists",
                                        "=" = "equals",
                                        "~=" = "includes",
                                        "|=" = "dashmatch",
                                        "^=" = "prefixmatch",
                                        "$=" = "suffixmatch",
-                                       "*=" = "substringmatch",
-                                       "!=" = "different"),
+                                       "*=" = "substringmatch"),
         id_attribute = "id",
         lang_attribute = "xml:lang",
         lower_case_element_names = FALSE,
@@ -275,9 +273,7 @@ GenericTranslator <- R6Class("GenericTranslator",
                 "_function")
             xp <- self$xpath(fn$selector)
 
-            if (method_name == "xpath_contains_function")
-                self$xpath_contains_function(xp, fn)
-            else if (method_name == "xpath_lang_function")
+            if (method_name == "xpath_lang_function")
                 self$xpath_lang_function(xp, fn)
             else if (method_name == "xpath_dir_function")
                 self$xpath_dir_function(xp, fn)
@@ -398,8 +394,6 @@ GenericTranslator <- R6Class("GenericTranslator",
             }
             if (method_name == "xpath_attrib_dashmatch")
                 self$xpath_attrib_dashmatch(xp, attrib, value)
-            else if (method_name == "xpath_attrib_different")
-                self$xpath_attrib_different(xp, attrib, value)
             else if (method_name == "xpath_attrib_equals")
                 self$xpath_attrib_equals(xp, attrib, value)
             else if (method_name == "xpath_attrib_exists")
@@ -762,16 +756,6 @@ GenericTranslator <- R6Class("GenericTranslator",
             self$xpath_nth_child_function(xpath, fn, last = TRUE,
                                           add_name_test = FALSE)
         },
-        xpath_contains_function = function(xpath, fn) {
-            if (!(fn$argument_types() %in% c("STRING", "IDENT"))) {
-                stop("Expected a single string or ident for :contains(), got (",
-                     paste0(fn$argument_types(), collapse = ", "), ")")
-            }
-            value <- fn$arguments[[1]]$value
-            xpath$add_condition(paste0(
-                "contains(., ", xpath_literal(value), ")"))
-            xpath
-        },
         xpath_lang_function = function(xpath, fn) {
             # Validate all arguments are STRING, IDENT, or * (DELIM).
             # A lone '-' lexes as an IDENT but is not a valid <ident>
@@ -922,11 +906,6 @@ GenericTranslator <- R6Class("GenericTranslator",
         },
         xpath_attrib_equals = function(xpath, name, value) {
             xpath$add_condition(paste0(name, " = ", xpath_literal(value)))
-            xpath
-        },
-        xpath_attrib_different = function(xpath, name, value) {
-            xpath$add_condition(paste0("not(", name, ") or ", name, " != ",
-                                       xpath_literal(value)))
             xpath
         },
         xpath_attrib_includes = function(xpath, name, value) {

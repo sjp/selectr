@@ -14,7 +14,6 @@ test_that("translation from parsed objects to XPath works", {
     expect_that(xpath("e[foo]"), equals("e[(@foo)]"))
     expect_that(xpath("e[foo|bar]"), equals("e[(@foo:bar)]"))
     expect_that(xpath('e[foo="bar"]'), equals("e[(@foo = 'bar')]"))
-    expect_that(xpath('e[foo!="bar"]'), equals("e[(not(@foo) or @foo != 'bar')]"))
     expect_that(xpath("e[foo='(test)']"), equals("e[(@foo = '(test)')]"))
     expect_that(xpath('e[foo="(test)"]'), equals("e[(@foo = '(test)')]"))
     expect_that(xpath("e[foo='(abc)']"), equals("e[(@foo = '(abc)')]"))
@@ -58,9 +57,6 @@ test_that("translation from parsed objects to XPath works", {
                         " 'abcdefghijklmnopqrstuvwxyz')")
     expect_that(xpath('e[foo="Bar" i]'),
                 equals(paste0("e[(", lower_foo, " = 'bar')]")))
-    expect_that(xpath('e[foo!="Bar" i]'),
-                equals(paste0("e[(not(", lower_foo, ") or ",
-                              lower_foo, " != 'bar')]")))
     expect_that(xpath('e[foo^="Bar" i]'),
                 equals(paste0("e[(", lower_foo, " and starts-with(",
                               lower_foo, ", 'bar'))]")))
@@ -86,8 +82,6 @@ test_that("translation from parsed objects to XPath works", {
     # An empty value cannot differ by case, so it keeps the exact
     # (existence-preserving) translation
     expect_that(xpath('e[foo="" i]'), equals("e[(@foo = '')]"))
-    expect_that(xpath('e[foo!="" i]'),
-                equals("e[(not(@foo) or @foo != '')]"))
     # The 's' flag requests the default case-sensitive matching
     expect_that(xpath('e[foo="Bar" s]'), equals("e[(@foo = 'Bar')]"))
     expect_that(xpath('e[foo^="Bar" s]'),
@@ -138,10 +132,8 @@ test_that("translation from parsed objects to XPath works", {
                 equals("e[(not(parent::*))]"))
     expect_that(xpath('e:hover'),
                 equals("e[(0)]")) #never matches
-    expect_that(xpath('e:contains("foo")'),
-                equals("e[(contains(., 'foo'))]"))
-    expect_that(xpath('e:ConTains(foo)'),
-                equals("e[(contains(., 'foo'))]"))
+    expect_error(xpath('e:contains("foo")'),
+                 "The pseudo-class :contains\\(\\) is unknown")
     expect_that(xpath('e.warning'),
                 equals("e[(@class and contains(concat(' ', normalize-space(@class), ' '), ' warning '))]"))
     expect_that(xpath('e#myid'),

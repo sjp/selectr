@@ -779,7 +779,7 @@ parse_attrib <- function(selector, stream) {
             return(Attrib$new(selector, namespace, attrib, "exists", NULL))
         } else if (token_equality(nt, "DELIM", "=")) {
             op <- "="
-        } else if (nt$is_delim(c("^=", "$=", "*=", "~=", "|=", "!="))) {
+        } else if (nt$is_delim(c("^=", "$=", "*=", "~=", "|="))) {
             op <- nt$value
         } else {
             stop("Operator expected, got ", nt$repr())
@@ -914,7 +914,7 @@ compile_ <- function(pattern) {
     }
 }
 
-delims_2ch <- c("~=", "|=", "^=", "$=", "*=", "::", "!=")
+delims_2ch <- c("~=", "|=", "^=", "$=", "*=", "::")
 delims_1ch <- c(">", "+", "~", ",", ".", "*", "=", "[", "]", "(", ")", "|", ":", "#")
 delim_escapes <- paste0("\\", delims_1ch, collapse = "|")
 match_whitespace <- compile_("[ \t\r\n\f]+")

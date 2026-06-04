@@ -83,8 +83,8 @@ test_that("parser parses canonical test expressions", {
                 equals("Pseudo[Element[label]:only]"))
     expect_that(parse_many("a:lang(fr)"),
                 equals("Function[Element[a]:lang(['fr'])]"))
-    expect_that(parse_many('div:contains("foo")'),
-                equals("Function[Element[div]:contains(['foo'])]"))
+    expect_that(parse_many('div:lang("foo")'),
+                equals("Function[Element[div]:lang(['foo'])]"))
     expect_that(parse_many("div#foobar"),
                 equals("Hash[Element[div]#foobar]"))
     expect_that(parse_many("div:not(div.foo)"),
