@@ -26,3 +26,24 @@ test_that("parser generates correct series", {
     expect_that(series("foo"), equals(NULL))
     expect_that(series("n+"), equals(NULL))
 })
+
+test_that("series are parsed case-insensitively", {
+    xpath <- function(css) css_to_xpath(paste0("e:nth-child(", css, ")"))
+
+    expect_that(xpath("2N"), equals(xpath("2n")))
+    expect_that(xpath("ODD"), equals(xpath("odd")))
+    expect_that(xpath("EVEN"), equals(xpath("even")))
+    expect_that(xpath("Odd"), equals(xpath("odd")))
+    expect_that(xpath("eVen"), equals(xpath("even")))
+    expect_that(xpath("N"), equals(xpath("n")))
+    expect_that(xpath("N+1"), equals(xpath("n+1")))
+    expect_that(xpath("-N+3"), equals(xpath("-n+3")))
+    expect_that(xpath("2N+1"), equals(xpath("2n+1")))
+    expect_that(css_to_xpath("e:nth-last-of-type(2N)"),
+                equals(css_to_xpath("e:nth-last-of-type(2n)")))
+
+    # Genuinely invalid input must still error
+    expect_error(css_to_xpath("e:nth-child(2x)"))
+    expect_error(css_to_xpath("e:nth-child(odds)"))
+    expect_error(css_to_xpath("e:nth-child(m+1)"))
+})

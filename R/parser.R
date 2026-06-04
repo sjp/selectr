@@ -795,6 +795,11 @@ parse_series <- function(tokens) {
             stop("String tokens not allowed in series.")
     }
     s <- paste0(sapply(tokens, function(x) x$value), collapse = "")
+    # The An+B microsyntax is ASCII case-insensitive (css-syntax-3),
+    # e.g. "2N", "ODD", "EVEN". chartr() rather than tolower() so the
+    # mapping is locale-independent; "nodev" covers every letter that
+    # can appear in a valid series.
+    s <- chartr("NODEV", "nodev", s)
     if (s == "odd")
         return(2:1)
     else if (s == "even")

@@ -17,6 +17,13 @@
   \subsection{BUG FIXES}{
     \itemize{
 
+      \item The \code{An+B} expressions used by the \code{:nth-child()}
+      family of pseudo-classes are now matched ASCII case-insensitively,
+      as required by the CSS Syntax specification. Previously
+      \code{:nth-child(2N)}, \code{:nth-child(ODD)}, and
+      \code{:nth-child(EVEN)} were rejected as invalid; they are now
+      equivalent to their lowercase forms.
+
       \item Attribute selectors with an empty value no longer throw an
       error for the \code{=}, \code{|=}, and \code{!=} operators
       (e.g. \code{[attr=""]}). These now translate to XPath matching an
