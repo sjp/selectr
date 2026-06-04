@@ -11,6 +11,11 @@ test_that("namespace selectors translate faithfully", {
     # '|e' matches 'e' in no namespace, which is what an unprefixed
     # XPath name test already means
     expect_that(xpath("|e"), equals("e"))
+    # '|e' with a name unusable as an XPath name test must still pin the
+    # null namespace: a bare name() test is also unprefixed for an
+    # element in a default namespace
+    expect_that(xpath("|é"),
+                equals("*[(namespace-uri() = '' and local-name() = 'é')]"))
     # '*|*' is equivalent to '*'
     expect_that(xpath("*|*"), equals("*"))
     # '|*' matches any element in no namespace
@@ -71,4 +76,19 @@ test_that("namespace selectors match correct elements", {
     expect_that(matches("svg|e"), equals("svg:e"))
     expect_that(matches("[*|a]"), equals(c("r", "svg:e")))
     expect_that(matches("[|a]"), equals("r"))
+})
+
+test_that("'|e' with an unsafe name does not match a default namespace", {
+    skip_if_not_installed("xml2")
+
+    doc <- xml2::read_xml(paste0(
+        '<r><é id="plain"/>',
+        '<w><é xmlns="http://default" id="defaulted"/></w></r>'))
+    ids <- function(sel) {
+        nodes <- xml2::xml_find_all(doc, css_to_xpath(sel, prefix = "//"))
+        xml2::xml_attr(nodes, "id")
+    }
+
+    expect_that(ids("|é"), equals("plain"))
+    expect_that(ids("|é:first-of-type"), equals("plain"))
 })

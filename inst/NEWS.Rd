@@ -67,6 +67,15 @@
   \subsection{BUG FIXES}{
     \itemize{
 
+      \item The no-namespace form \code{|e} now retains its namespace
+      constraint when the element name cannot be written as an XPath
+      name test (e.g. a Unicode name such as \code{|é}). Previously
+      such names fell back to a bare \code{name()} comparison, which
+      also matched an element of that name in a \emph{default}
+      namespace, since its \code{name()} carries no prefix; the
+      translation now tests \code{namespace-uri() = ''} alongside
+      \code{local-name()}.
+
       \item The of-type pseudo-classes (\code{:first-of-type},
       \code{:last-of-type}, \code{:only-of-type}, \code{:nth-of-type()},
       and \code{:nth-last-of-type()}) now work on element names that
