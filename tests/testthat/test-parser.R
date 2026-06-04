@@ -20,9 +20,9 @@ test_that("parser parses canonical test expressions", {
     }
 
     expect_that(parse_many("*"), equals("Element[*]"))
-    expect_that(parse_many("*|*"), equals("Element[*]"))
-    expect_that(parse_many("*|foo"), equals("Element[foo]"))
-    expect_that(parse_many("|foo"), equals("Element[foo]"))
+    expect_that(parse_many("*|*"), equals("Element[*|*]"))
+    expect_that(parse_many("*|foo"), equals("Element[*|foo]"))
+    expect_that(parse_many("|foo"), equals("Element[|foo]"))
     expect_that(parse_many("foo|*"), equals("Element[foo|*]"))
     expect_that(parse_many("foo|bar"), equals("Element[foo|bar]"))
     expect_that(parse_many('foo[lang|="zh"]'), equals("Attrib[Element[foo][lang |= 'zh']]"))

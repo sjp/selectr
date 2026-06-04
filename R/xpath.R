@@ -353,14 +353,23 @@ GenericTranslator <- R6Class("GenericTranslator",
                 name <- selector$attrib
             }
             safe <- is_safe_name(name)
-            if (!is.null(selector$namespace)) {
-                name <- paste0(selector$namespace, ":", name)
-            }
-            if (safe) {
-                attrib <- paste0("@", name)
-            } else {
+            if (identical(selector$namespace, "*")) {
+                # '[*|attr]': 'attr' in any namespace, including none.
+                # An unprefixed XPath attribute test only matches
+                # attributes with no namespace, so test against
+                # local-name() instead.
                 attrib <- paste0(
-                    "attribute::*[name() = ", xpath_literal(name), "]")
+                    "@*[local-name() = ", xpath_literal(name), "]")
+            } else {
+                if (!is.null(selector$namespace)) {
+                    name <- paste0(selector$namespace, ":", name)
+                }
+                if (safe) {
+                    attrib <- paste0("@", name)
+                } else {
+                    attrib <- paste0(
+                        "attribute::*[name() = ", xpath_literal(name), "]")
+                }
             }
             if (self$lower_case_attribute_names) {
                 value <- tolower(selector$value)
@@ -410,11 +419,32 @@ GenericTranslator <- R6Class("GenericTranslator",
                 if (self$lower_case_element_names)
                     element <- tolower(element)
             }
-            if (!is.null(selector$namespace)) {
+            namespace <- selector$namespace
+            if (identical(namespace, "*") && element != "*") {
+                # '*|e': 'e' in any namespace, including none.  An
+                # unprefixed XPath name test only matches the null
+                # namespace, so test against local-name() instead.
+                xpath <- XPathExpr$new()
+                xpath$add_condition(paste0("local-name() = ",
+                                           xpath_literal(element)))
+                return(xpath)
+            }
+            if (identical(namespace, "")) {
+                # '|e': 'e' in no namespace, which is exactly what an
+                # unprefixed XPath name test matches.  '|*' needs an
+                # explicit namespace-uri() check.
+                if (element == "*") {
+                    xpath <- XPathExpr$new()
+                    xpath$add_condition("namespace-uri() = ''")
+                    return(xpath)
+                }
+                namespace <- NULL
+            }
+            if (!is.null(namespace) && namespace != "*") {
                 # Namespace prefixes are case-sensitive.
                 # https://www.w3.org/TR/css-namespaces-3/#prefixes
-                element <- paste0(selector$namespace, ":", element)
-                safe <- safe && is_safe_name(selector$namespace)
+                element <- paste0(namespace, ":", element)
+                safe <- safe && is_safe_name(namespace)
             }
             xpath <- XPathExpr$new(element = element)
             if (!safe)

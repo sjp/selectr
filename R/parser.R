@@ -535,18 +535,23 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
     stream$skip_whitespace()
     selector_start <- length(stream$used)
     peek <- stream$peek()
-    if (peek$type == "IDENT" || token_equality(peek, "DELIM", "*")) {
+    if (peek$type == "IDENT" || token_equality(peek, "DELIM", "*") ||
+        token_equality(peek, "DELIM", "|")) {
         if (peek$type == "IDENT") {
             namespace <- stream$nxt()$value
-        } else {
+        } else if (token_equality(peek, "DELIM", "*")) {
             stream$nxt()
-            namespace <- NULL
+            # '*|e': any namespace, including none
+            namespace <- "*"
+        } else {
+            # Leading '|', i.e. '|e' or '|*': explicitly no namespace
+            namespace <- ""
         }
         if (token_equality(stream$peek(), "DELIM", "|")) {
             stream$nxt()
             element <- stream$next_ident_or_star()
         } else {
-            element <- namespace
+            element <- if (identical(namespace, "*")) NULL else namespace
             namespace <- NULL
         }
     } else {
@@ -571,9 +576,6 @@ parse_simple_selector <- function(stream, inside_negation = FALSE) {
         } else if (token_equality(peek, "DELIM", ".")) {
             stream$nxt()
             result <- ClassSelector$new(result, stream$next_ident())
-        } else if (token_equality(peek, "DELIM", "|")) {
-            stream$nxt()
-            result <- Element$new(element = stream$next_ident())
         } else if (token_equality(peek, "DELIM", "[")) {
             stream$nxt()
             result <- parse_attrib(result, stream)
@@ -720,20 +722,29 @@ parse_simple_selector_arguments <- function(stream, function_name = NULL) { # no
 
 parse_attrib <- function(selector, stream) {
     stream$skip_whitespace()
-    attrib <- stream$next_ident_or_star()
-    if (is.null(attrib) && !token_equality(stream$peek(), "DELIM", "|"))
-        stop("Expected '|', got ", stream$peek()$repr())
     if (token_equality(stream$peek(), "DELIM", "|")) {
+        # '[|attr]': explicitly no namespace, equivalent to '[attr]'
+        # because unprefixed attribute names have no namespace
         stream$nxt()
-        namespace <- attrib
         attrib <- stream$next_ident()
-        op <- NULL
-    } else if (token_equality(stream$peek(), "DELIM", "|=")) {
-        namespace <- NULL
-        stream$nxt()
-        op <- "|="
-    } else {
         namespace <- op <- NULL
+    } else {
+        attrib <- stream$next_ident_or_star()
+        if (is.null(attrib) && !token_equality(stream$peek(), "DELIM", "|"))
+            stop("Expected '|', got ", stream$peek()$repr())
+        if (token_equality(stream$peek(), "DELIM", "|")) {
+            stream$nxt()
+            # next_ident_or_star() returns NULL for '*', i.e. '[*|attr]'
+            namespace <- if (is.null(attrib)) "*" else attrib
+            attrib <- stream$next_ident()
+            op <- NULL
+        } else if (token_equality(stream$peek(), "DELIM", "|=")) {
+            namespace <- NULL
+            stream$nxt()
+            op <- "|="
+        } else {
+            namespace <- op <- NULL
+        }
     }
     if (is.null(op)) {
         stream$skip_whitespace()

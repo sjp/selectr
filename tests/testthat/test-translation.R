@@ -8,7 +8,8 @@ test_that("translation from parsed objects to XPath works", {
 
     expect_that(xpath("*"), equals("*"))
     expect_that(xpath("e"), equals("e"))
-    expect_that(xpath("*|e"), equals("e"))
+    expect_that(xpath("*|e"), equals("*[(local-name() = 'e')]"))
+    expect_that(xpath("|e"), equals("e"))
     expect_that(xpath("e|f"), equals("e:f"))
     expect_that(xpath("e[foo]"), equals("e[(@foo)]"))
     expect_that(xpath("e[foo|bar]"), equals("e[(@foo:bar)]"))

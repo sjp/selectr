@@ -6,6 +6,19 @@
   \subsection{BUG FIXES}{
     \itemize{
 
+      \item Attribute selectors with an empty value no longer throw an
+      error for the \code{=}, \code{|=}, and \code{!=} operators
+      (e.g. \code{[attr=""]}). These now translate to XPath matching an
+      attribute whose value is the empty string.
+
+      \item Namespace selectors are now translated faithfully. Previously
+      both the \emph{any namespace} selector \code{*|e} and the
+      \emph{no namespace} selector \code{|e} collapsed to the bare name
+      \code{e}, which in XPath only matches elements with no namespace.
+      \code{*|e} now translates to \code{*[local-name() = 'e']} so that
+      it matches \code{e} in any namespace, and similarly \code{[*|attr]}
+      translates to a \code{local-name()} test on attributes.
+
       \item Fixed handling of CSS unicode escapes in attribute values.
       This would be observed when the attribute value contained hexadecimal
       sequences like \code{(abcdef)} where the characters inside the parentheses
