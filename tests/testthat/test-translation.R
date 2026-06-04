@@ -142,6 +142,13 @@ test_that("translation from parsed objects to XPath works", {
                 equals("e[(not((count(preceding-sibling::*) mod 2 = 0)))]"))
     expect_that(xpath('e:nOT(*)'),
                 equals("e[(0)]")) # never matches
+    # Selectors Level 4: :not() can nest inside functional pseudo-classes
+    expect_that(xpath(':not(:not(a))'),
+                equals("*[(not((not((name() = 'a')))))]"))
+    expect_that(xpath('e:is(:not(f))'),
+                equals("e[((not((name() = 'f'))))]"))
+    expect_that(xpath('e:has(:not(f))'),
+                equals("e[(.//*[(not((name() = 'f')))])]"))
     expect_that(xpath('e f'),
                 equals("e//f"))
     expect_that(xpath('e > f'),

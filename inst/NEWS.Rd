@@ -12,6 +12,14 @@
       \code{[attr="value" s]} explicitly requests the default
       case-sensitive matching.
 
+      \item \code{:not()} may now appear inside the argument list of
+      functional pseudo-classes, as permitted by CSS Selectors Level 4.
+      Selectors such as \code{:not(:not(a))}, \code{:is(:not(.x))},
+      \code{:has(:not(a))}, and \code{:nth-child(2 of :not(.foo))}
+      previously produced a "Got nested :not()" error and are now
+      translated. Note that nesting \code{:has()} inside \code{:has()}
+      remains an error, as required by the specification.
+
     }
   }
   \subsection{REMOVED FEATURES}{

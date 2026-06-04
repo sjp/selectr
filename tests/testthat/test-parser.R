@@ -104,6 +104,11 @@ test_that("parser parses canonical test expressions", {
     expect_that(parse_many("a:not(.link, [href], #special)"),
                 equals("Negation[Element[a]:not(Class[Element[*].link], Attrib[Element[*][href]], Hash[Element[*]#special])]"))
 
+    expect_that(parse_many(":not(:not(a))"),
+                equals("Negation[Element[*]:not(Negation[Element[*]:not(Element[a])])]"))
+    expect_that(parse_many("div:is(:not(.foo))"),
+                equals("Matching[Element[div]:is(Negation[Element[*]:not(Class[Element[*].foo])])]"))
+
     expect_that(parse_many("div:is(.foo, #bar)"),
                 equals("Matching[Element[div]:is(Class[Element[*].foo], Hash[Element[*]#bar])]"))
     expect_that(parse_many(":is(:hover, :visited)"),

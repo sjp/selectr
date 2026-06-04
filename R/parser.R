@@ -536,7 +536,7 @@ parse_selector <- function(stream) {
     list(result = result, pseudo_element = pseudo_element)
 }
 
-parse_simple_selector <- function(stream, inside_negation = FALSE,
+parse_simple_selector <- function(stream, inside_arguments = FALSE,
                                   inside_has = FALSE) {
     stream$skip_whitespace()
     selector_start <- length(stream$used)
@@ -569,7 +569,7 @@ parse_simple_selector <- function(stream, inside_negation = FALSE,
         peek <- stream$peek()
         if (any(peek$type == c("S", "EOF")) ||
             peek$is_delim(c(",", "+", ">", "~")) ||
-            (inside_negation && token_equality(peek, "DELIM", ")"))) {
+            (inside_arguments && token_equality(peek, "DELIM", ")"))) {
             break
         }
         if (!is.null(pseudo_element)) {
@@ -609,9 +609,8 @@ parse_simple_selector <- function(stream, inside_negation = FALSE,
             stream$nxt()
             stream$skip_whitespace()
             if (tolower(ident) == "not") {
-                if (inside_negation) {
-                    stop("Got nested :not()")
-                }
+                # Selectors Level 4 places no nesting restriction on
+                # :not(), so :not(:not(a)), :is(:not(a)), etc. are valid.
                 selectors <- parse_simple_selector_arguments(stream, "not",
                                                              inside_has = inside_has)
                 result <- Negation$new(result, selectors)
@@ -708,7 +707,7 @@ parse_simple_selector_arguments <- function(stream, function_name = NULL, # noli
     arguments <- list()
 
     while (TRUE) {
-        results <- parse_simple_selector(stream, inside_negation = TRUE,
+        results <- parse_simple_selector(stream, inside_arguments = TRUE,
                                          inside_has = inside_has)
         result <- results$result
         pseudo_element <- results$pseudo_element

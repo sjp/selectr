@@ -40,6 +40,12 @@ test_that("parser creates correct specificity", {
     expect_that(spec(":not(:hover, :visited)"), equals(c(0, 1, 0)))
     expect_that(spec(":not(.foo, [bar], #baz)"), equals(c(1, 0, 0)))
 
+    # Nested :not() - specificity composes through nesting
+    expect_that(spec(":not(:not(foo))"), equals(c(0, 0, 1)))
+    expect_that(spec(":not(:not(.foo))"), equals(c(0, 1, 0)))
+    expect_that(spec(":not(:not(#foo))"), equals(c(1, 0, 0)))
+    expect_that(spec(":is(:not(.foo), bar)"), equals(c(0, 1, 0)))
+
     # :not() with multiple arguments in combinations
     expect_that(spec("div:not(.foo, #bar)"), equals(c(1, 0, 1)))
     expect_that(spec("p:not(span, .foo)"), equals(c(0, 1, 1)))

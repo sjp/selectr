@@ -141,6 +141,9 @@ test_that("selection works correctly on a large barrage of tests", {
     expect_that(pcss(':not(*)'), equals(NULL))
     expect_that(pcss('a:not([href])'), equals('name-anchor'))
     expect_that(pcss('ol :Not(li[class])'), equals(c('first-li', 'second-li', 'li-div', 'fifth-li', 'sixth-li', 'seventh-li')))
+    expect_that(pcss('a:not(:not([href]))', 'a[href]'), equals(c('tag-anchor', 'nofollow-anchor')))
+    expect_that(pcss('li:is(:not([class]))'), equals(c('first-li', 'second-li', 'fifth-li', 'sixth-li', 'seventh-li')))
+    expect_that(pcss('ol:has(:not(li))'), equals('first-ol'))
 
     expect_that(pcss(':is(#first-li, #second-li)'), equals(c('first-li', 'second-li')))
     expect_that(pcss('a:is(#name-anchor, #tag-anchor)'), equals(c('name-anchor', 'tag-anchor')))
