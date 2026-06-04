@@ -149,6 +149,17 @@
       digits rather than the escaped character, so \code{"\\E9"} matched
       the literal value \code{E9} instead of \code{é}.
 
+      \item The alternatives of \code{:is()}, \code{:matches()}, and
+      \code{:where()} are now grouped as a single condition. Previously
+      each alternative was OR-ed onto the compound selector's whole
+      condition chain, so \code{div.foo:is(.a, .b)} translated to
+      \code{foo or a or b} (matching any \code{div.foo}) instead of
+      \code{foo and (a or b)}, and conditions following the
+      pseudo-class, as in \code{:is(.a, .b):first-child}, bound only to
+      the last alternative. Stacked pseudo-classes such as
+      \code{e:is(.a):is(.b)} now correctly require both conditions
+      rather than either.
+
     }
   }
 }

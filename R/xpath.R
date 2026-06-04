@@ -22,10 +22,15 @@ XPathExpr <- R6Class("XPathExpr",
         repr = function() {
             paste0(first_class_name(self), "[", self$str(), "]")
         },
-        add_condition = function(condition, conjunction = "and") {
+        add_condition = function(condition) {
+            # Always AND with the existing condition: an "or" appended here
+            # would flatten into the accumulated condition chain (XPath
+            # "and" binds tighter than "or"), changing its meaning.
+            # Callers wanting alternatives must OR-join them and add the
+            # result as one condition.
             self$condition <-
                 if (nzchar(self$condition))
-                    paste0(self$condition, " ", conjunction, " (", condition, ")")
+                    paste0(self$condition, " and (", condition, ")")
                 else
                     paste0("(", condition, ")")
         },
@@ -252,11 +257,21 @@ GenericTranslator <- R6Class("GenericTranslator",
         xpath_matching = function(matching) {
             xpath <- self$xpath(matching$selector)
 
+            # Collect all conditions from the selector list
+            conditions <- character(0)
             for (subselector in matching$selector_list) {
                 condition <- self$xpath_argument_condition(subselector)
                 if (nzchar(condition)) {
-                    xpath$add_condition(condition, "or")
+                    conditions <- c(conditions, condition)
                 }
+            }
+
+            # Combine conditions with OR (any match suffices) and add the
+            # result as a single condition so the alternatives stay grouped
+            # and AND with the rest of the compound selector
+            if (length(conditions) > 0) {
+                combined_condition <- paste0(conditions, collapse = " or ")
+                xpath$add_condition(combined_condition)
             }
 
             xpath
@@ -264,16 +279,7 @@ GenericTranslator <- R6Class("GenericTranslator",
         xpath_where = function(where) {
             # :where() behaves exactly like :is() in terms of matching,
             # but has zero specificity (handled in the Where class itself)
-            xpath <- self$xpath(where$selector)
-
-            for (subselector in where$selector_list) {
-                condition <- self$xpath_argument_condition(subselector)
-                if (nzchar(condition)) {
-                    xpath$add_condition(condition, "or")
-                }
-            }
-
-            xpath
+            self$xpath_matching(where)
         },
         xpath_has_test = function(selector, combinator) {
             # Existence test for one :has() argument, as a path relative

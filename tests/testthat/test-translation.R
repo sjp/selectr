@@ -168,6 +168,17 @@ test_that("translation from parsed objects to XPath works", {
                 equals("*[((name() = 'b') and preceding-sibling::*[1][(name() = 'a')])]"))
     expect_that(xpath(':is(a.x > b#y)'),
                 equals("*[((@id = 'y') and (name() = 'b') and parent::*[(@class and contains(concat(' ', normalize-space(@class), ' '), ' x ')) and (name() = 'a')])]"))
+    # The :is()/:where() alternatives must stay grouped: conditions added
+    # before or after the pseudo-class AND with the whole selector list,
+    # rather than the ORs flattening into the compound's condition chain
+    expect_that(xpath('e.warning:is(.a, .b)'),
+                equals("e[(@class and contains(concat(' ', normalize-space(@class), ' '), ' warning ')) and ((@class and contains(concat(' ', normalize-space(@class), ' '), ' a ')) or (@class and contains(concat(' ', normalize-space(@class), ' '), ' b ')))]"))
+    expect_that(xpath(':is(f, g):first-child'),
+                equals("*[((name() = 'f') or (name() = 'g')) and (count(preceding-sibling::*) = 0)]"))
+    expect_that(xpath('e:is(.a):is(.b)'),
+                equals("e[((@class and contains(concat(' ', normalize-space(@class), ' '), ' a '))) and ((@class and contains(concat(' ', normalize-space(@class), ' '), ' b ')))]"))
+    expect_that(xpath('e.warning:where(f, g)'),
+                equals("e[(@class and contains(concat(' ', normalize-space(@class), ' '), ' warning ')) and ((name() = 'f') or (name() = 'g'))]"))
     expect_that(xpath('e f'),
                 equals("e//f"))
     expect_that(xpath('e > f'),

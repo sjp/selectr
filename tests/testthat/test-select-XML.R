@@ -148,6 +148,12 @@ test_that("selection works correctly on a large barrage of tests", {
     expect_that(pcss(':matches(#first-li, #second-li)'), equals(c('first-li', 'second-li')))
     expect_that(pcss('a:matches(#name-anchor, #tag-anchor)'), equals(c('name-anchor', 'tag-anchor')))
     expect_that(pcss(':matches(.c)'), equals(c('first-ol', 'third-li', 'fourth-li')))
+    # :is()/:where() alternatives stay grouped: they AND with conditions
+    # before and after the pseudo-class instead of OR-ing across the compound
+    expect_that(pcss('li.c:is(#third-li, #fifth-li)'), equals('third-li'))
+    expect_that(pcss('li.c:where(#third-li, #fifth-li)'), equals('third-li'))
+    expect_that(pcss(':is(li, ol):first-child'), equals('first-li'))
+    expect_that(pcss('li:is(.c):is(#fourth-li)'), equals('fourth-li'))
 
     expect_that(pcss('ol:has(li)'), equals('first-ol'))
     # :has(.c) matches all ancestors of elements with class 'c'
