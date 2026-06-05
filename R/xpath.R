@@ -73,17 +73,25 @@ XPathExpr <- R6Class("XPathExpr",
         add_name_test = function(as_predicate = FALSE) {
             if (self$element == "*")
                 return()
-            add <-
-                if (as_predicate) self$add_predicate
-                else self$add_condition
-            if (is_prefixed_nodetest(self$element)) {
+            if (as_predicate) {
+                # Any name still held in 'element' is a safe node test
+                # (one that cannot be written as a node test was folded
+                # into a condition on '*' when the element was
+                # translated), so it can be matched on the self axis.
+                # That gives it the same semantics as the bare name
+                # test in a path step: an unprefixed name matches the
+                # null namespace only, and a prefix resolves through
+                # the namespace map supplied at evaluation time.
+                self$add_predicate(paste0("self::", self$element))
+                self$name_test <- self$element
+            } else if (is_prefixed_nodetest(self$element)) {
                 # A prefixed safe name stays an XPath name test on the
                 # self axis, so the prefix keeps resolving through the
                 # namespace map supplied at evaluation time (URI-based),
                 # exactly as the same name is matched at the top level
                 # of a selector. A name() comparison would instead
                 # match the document's literal prefix.
-                add(paste0("self::", self$element))
+                self$add_condition(paste0("self::", self$element))
                 self$name_test <- self$element
             } else {
                 # An unprefixed name is compared against name(): unlike
@@ -91,8 +99,8 @@ XPathExpr <- R6Class("XPathExpr",
                 # in no namespace, this also matches the name in a
                 # default namespace — the same policy already applied
                 # to names that cannot be written as a node test.
-                add(paste0("name() = ",
-                           xpath_literal(self$element)))
+                self$add_condition(paste0("name() = ",
+                                          xpath_literal(self$element)))
                 self$name_test <- paste0("*[name() = ",
                                          xpath_literal(self$element), "]")
             }
@@ -643,11 +651,11 @@ GenericTranslator <- R6Class("GenericTranslator",
         xpath_direct_adjacent_combinator = function(left, right) {
             xpath <- left$join("/following-sibling::", right)
             # Constrain position before testing the name:
-            # *[1][name() = 'e'] is "the first following sibling, if
-            # it is an e", whereas *[name() = 'e'][1] would wrongly
-            # select the first following e. Conditions from the right
-            # selector (e.g. attribute tests) stay behind both, giving
-            # *[1][name() = 'e'][condition].
+            # *[1][self::e] is "the first following sibling, if it is
+            # an e", whereas *[self::e][1] would wrongly select the
+            # first following e. Conditions from the right selector
+            # (e.g. attribute tests) stay behind both, giving
+            # *[1][self::e][condition].
             xpath$add_predicate("1")
             xpath$add_name_test(as_predicate = TRUE)
             xpath

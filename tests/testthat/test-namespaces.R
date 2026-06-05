@@ -37,6 +37,19 @@ test_that("namespace selectors translate faithfully", {
     expect_that(xpath(":not(*|e)"), equals("*[not(local-name() = 'e')]"))
     expect_that(xpath("div > *|e"), equals("div/*[local-name() = 'e']"))
 
+    # On the right of '+' the name becomes a node test on the self
+    # axis, which like the bare name test in a path step matches an
+    # unprefixed name in the null namespace only; '|e' and 'e'
+    # coincide there too
+    expect_that(xpath("e + f"),
+                equals("e/following-sibling::*[1][self::f]"))
+    expect_that(xpath("e + |f"),
+                equals("e/following-sibling::*[1][self::f]"))
+    expect_that(xpath("e + ns|f"),
+                equals("e/following-sibling::*[1][self::ns:f]"))
+    expect_that(xpath("e + *|f"),
+                equals("e/following-sibling::*[1][local-name() = 'f']"))
+
     # Inside pseudo-class arguments, prefixed names keep resolving
     # through the namespace map (a name test on the self axis or the
     # path step itself), rather than comparing against the document's
@@ -142,6 +155,28 @@ test_that("unprefixed pseudo-class argument names match default namespaces", {
     expect_that(ids("p"), equals("plain"))
     expect_that(ids(":is(p)"), equals(c("plain", "defaulted")))
     expect_that(ids(":has(p)"), equals(c("root", "wrapper")))
+})
+
+test_that("'+' matches type selectors by namespace like '~'", {
+    skip_if_not_installed("xml2")
+
+    # The element following the first p is in a default namespace; a
+    # bare type selector must not match it under '+', just as it does
+    # not under '~'
+    doc <- xml2::read_xml(paste0(
+        '<r><w><p/><span xmlns="http://d" id="defaulted"/></w>',
+        '<v><p/><span id="plain"/></v></r>'))
+    ids <- function(sel) {
+        nodes <- xml2::xml_find_all(doc, css_to_xpath(sel, prefix = "//"))
+        xml2::xml_attr(nodes, "id")
+    }
+
+    expect_that(ids("p + span"), equals("plain"))
+    expect_that(ids("p ~ span"), equals("plain"))
+    # '|span' pins the null namespace explicitly: same elements
+    expect_that(ids("p + |span"), equals("plain"))
+    # the universal selector matches either way
+    expect_that(ids("p + *"), equals(c("defaulted", "plain")))
 })
 
 test_that("'|e' with an unsafe name does not match a default namespace", {
