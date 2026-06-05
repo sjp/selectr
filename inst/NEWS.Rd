@@ -119,6 +119,14 @@
   \subsection{BUG FIXES}{
     \itemize{
 
+      \item With the \code{html} or \code{xhtml} translator,
+      \code{:any-link} now matches the same elements as \code{:link}.
+      \code{:any-link} means ":link or :visited", a superset of
+      \code{:link}, but it previously translated to a never-matching
+      expression while \code{:link} matched - the subset relation
+      inverted. (In a static document no link is visited, so the two
+      pseudo-classes coincide.)
+
       \item Escape sequences in identifiers, hashes, and strings are
       now decoded in a single left-to-right pass, as css-syntax
       requires, so an escaped backslash followed by hex digits is no

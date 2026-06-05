@@ -201,3 +201,24 @@ test_that(":empty keeps the Selectors 3 white space semantics", {
     expect_that(xml_attr(querySelectorAll(doc2, "p:empty"), "id"),
                 equals(c("truly-empty", "comment")))
 })
+
+test_that(":any-link matches the same elements as :link", {
+    # ':any-link' is ':link or :visited'; the static-document
+    # convention treats every link as unvisited, so the HTML
+    # translators give it the :link condition verbatim (the design
+    # shared with selectrs: internal consistency over the spec-exact
+    # a/area element set, which would omit 'link')
+    link_xpath <- paste0(
+        "descendant-or-self::e[@href and ",
+        "(name(.) = 'a' or name(.) = 'link' or name(.) = 'area')]")
+    for (translator in c("html", "xhtml")) {
+        expect_that(css_to_xpath("e:any-link", translator = translator),
+                    equals(link_xpath))
+        expect_that(css_to_xpath("e:any-link", translator = translator),
+                    equals(css_to_xpath("e:link", translator = translator)))
+    }
+
+    # The generic translator has no link semantics: never matches
+    expect_that(css_to_xpath("e:any-link"),
+                equals("descendant-or-self::e[0]"))
+})

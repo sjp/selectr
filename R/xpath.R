@@ -1247,6 +1247,15 @@ HTMLTranslator <- R6Class("HTMLTranslator",
             xpath$add_condition("@href and (name(.) = 'a' or name(.) = 'link' or name(.) = 'area')")
             xpath
         },
+        xpath_any_link_pseudo = function(xpath) {
+            # ':any-link' is ':link or :visited' (selectors-4 section
+            # 9.1), and a static document has no visited state, so
+            # every link is unvisited and ':any-link' collapses to
+            # ':link'. Sharing the :link condition (rather than the
+            # spec-exact a/area set, which omits 'link') keeps the
+            # subset relation between the two by construction
+            self$xpath_link_pseudo(xpath)
+        },
         xpath_disabled_pseudo = function(xpath) {
             xpath$add_condition(
                 paste("(",
