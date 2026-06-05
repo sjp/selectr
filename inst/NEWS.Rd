@@ -51,6 +51,15 @@
   \subsection{MINOR CHANGES}{
     \itemize{
 
+      \item The tokenizer no longer splits the entire remaining input
+      into one- and two-character pieces at each delimiter, nor into
+      single characters for each string token; delimiters are tested at
+      the current position directly and string contents are matched
+      with a single anchored regular expression. This removes the
+      dominant quadratic component of tokenization: an ~6 KB selector
+      group now tokenizes around three times faster, with the advantage
+      growing with input size.
+
       \item The minimum required version of R has been increased from
       \code{3.0} to \code{3.3}, matching what the code has in fact
       required for some time: \code{anyNA()} needs R 3.1,
@@ -78,6 +87,18 @@
   }
   \subsection{BUG FIXES}{
     \itemize{
+
+      \item A string opened by the last character of a selector
+      (e.g. \code{"a'"}) is now reported as "Unclosed string"; the
+      out-of-range scan for a closing quote previously found the
+      opening quote itself, accidentally emitting an empty string token
+      and a misleading "Expected selector, got <STRING '' at 2>" error.
+
+      \item Strings containing a raw newline (e.g. in an attribute
+      value selector) are now rejected with "Unclosed string", as the
+      CSS grammar requires; newlines in strings must be escaped.
+      Previously the tokenizer scanned past the newline to the closing
+      quote and accepted the selector.
 
       \item The namespace argument of the \code{querySelector()} family
       of functions now signals an error when given a list containing an

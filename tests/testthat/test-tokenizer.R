@@ -50,3 +50,30 @@ test_that("unicode escapes are decoded in idents, hashes, and strings", {
     expect_that(reprs("#a\\[b"),
                 equals(c("<HASH 'a[b' at 1>", "<EOF at 6>")))
 })
+
+test_that("string tokens handle quotes, escapes, and unclosed strings", {
+    reprs <- function(css) {
+        unlist(lapply(tokenize(css), function(x) x$repr()))
+    }
+
+    expect_that(reprs("''"),
+                equals(c("<STRING '' at 1>", "<EOF at 3>")))
+    expect_that(reprs("'a''b'"),
+                equals(c("<STRING 'a' at 1>", "<STRING 'b' at 4>",
+                         "<EOF at 7>")))
+    # The other quote character is just content
+    expect_that(reprs("'\"'"),
+                equals(c("<STRING '\"' at 1>", "<EOF at 4>")))
+    # Escaped quotes do not close the string
+    expect_that(reprs("'a\\'b'"),
+                equals(c("<STRING 'a'b' at 1>", "<EOF at 7>")))
+    # An escaped backslash does not escape a following quote
+    expect_that(reprs("'a\\\\'"),
+                equals(c("<STRING 'a\\' at 1>", "<EOF at 6>")))
+
+    expect_error(tokenize("'abc"), "Unclosed string at 1")
+    expect_error(tokenize("a'"), "Unclosed string at 2")
+    expect_error(tokenize("'a\\'"), "Unclosed string at 1")
+    # A raw newline may not appear in a string
+    expect_error(tokenize("'a\nb'"), "Unclosed string at 1")
+})

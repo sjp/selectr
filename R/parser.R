@@ -1009,14 +1009,17 @@ compile_ <- function(pattern) {
 delims_2ch <- c("~=", "|=", "^=", "$=", "*=", "::")
 delims_1ch <- c(">", "+", "~", ",", ".", "*", "=", "[", "]", "(", ")", "|", ":", "#")
 delim_escapes <- paste0("\\", delims_1ch, collapse = "|")
-match_whitespace <- compile_("[ \t\r\n\f]+")
-match_number <- compile_("[+-]?(?:[0-9]*\\.[0-9]+|[0-9]+)")
+match_whitespace <- compile_("^[ \t\r\n\f]+")
+match_number <- compile_("^[+-]?(?:[0-9]*\\.[0-9]+|[0-9]+)")
 # The escape alternative covers both unicode escapes (e.g. '\31 ') and
 # simple escapes of any non-hex character, which includes all delimiters
 match_hash <- compile_(paste0("^#([_a-zA-Z0-9-]|", nonascii, "|", escape, ")+"))
 match_ident <- compile_(paste0("^([_a-zA-Z0-9-]|", nonascii, "|", escape, ")+"))
-match_string_by_quote <- list("'" = compile_(paste0("([^\n\r\f\\']|", TokenMacros$string_escape, ")*")),
-                              '"' = compile_(paste0('([^\n\r\f\\"]|', TokenMacros$string_escape, ")*")))
+# String content: any character except a newline, backslash, or the
+# quote character, or an escape sequence. Anchored so the match end
+# gives the content length; the closing quote must follow immediately.
+match_string_by_quote <- list("'" = compile_(paste0("^([^\n\r\f\\\\']|", TokenMacros$string_escape, ")*")),
+                              '"' = compile_(paste0('^([^\n\r\f\\\\"]|', TokenMacros$string_escape, ")*")))
 
 # Substitution for escaped chars
 sub_simple_escape <- function(x) gsub("\\\\(.)", "\\1", x)
@@ -1085,70 +1088,44 @@ tokenize <- function(s) {
             i <- i + 1
             next
         }
-        # Testing presence of two char delims
-        nc_inds <- seq_len(nchar(ss))
-        if (length(nc_inds) %% 2 == 1)
-            nc_inds <- c(nc_inds, length(nc_inds) + 1)
-        split_ss_2ch <- substring(ss, nc_inds[(nc_inds %% 2) == 1],
-                                      nc_inds[(nc_inds %% 2) == 0])
-        delim_inds_2ch <- which(split_ss_2ch %in% delims_2ch)
-        if (length(delim_inds_2ch) && delim_inds_2ch[1] == 1) {
-            # We have a 2ch delim
-            results[[i]] <- Token$new("DELIM", split_ss_2ch[1], pos)
+        # Testing presence of a two char delim at the current position
+        two_ch <- substring(s, pos, pos + 1)
+        if (two_ch %in% delims_2ch) {
+            results[[i]] <- Token$new("DELIM", two_ch, pos)
             pos <- pos + 2
             i <- i + 1
             next
         }
 
-        # Testing presence of single char delims
-        split_ss_1ch <- substring(ss, nc_inds, nc_inds)
-        delim_inds_1ch <- which(split_ss_1ch %in% delims_1ch)
-        if (length(delim_inds_1ch) && delim_inds_1ch[1] == 1) {
-            # We have a single char delim
-            results[[i]] <- Token$new("DELIM", split_ss_1ch[1], pos)
+        # Testing presence of a single char delim at the current position
+        ch <- substring(s, pos, pos)
+        if (ch %in% delims_1ch) {
+            results[[i]] <- Token$new("DELIM", ch, pos)
             pos <- pos + 1
             i <- i + 1
             next
         }
-        quote <- substring(s, pos, pos)
-        if (quote %in% c("'", '"')) {
-            ncs <- nchar(s)
-            split_chars <- substring(s, (pos + 1):ncs, (pos + 1):ncs)
-            matching_quotes <- which(split_chars == quote)
-            is_escaped <- logical(length(matching_quotes))
-            if (length(matching_quotes)) {
-                for (j in seq_along(matching_quotes)) {
-                    end_quote <- matching_quotes[j]
-                    if (end_quote > 1) {
-                        # Count consecutive backslashes before the quote
-                        # If odd number of backslashes, the quote is escaped
-                        backslash_count <- 0
-                        check_pos <- end_quote - 1
-                        while (check_pos >= 1 && split_chars[check_pos] == "\\") {
-                            backslash_count <- backslash_count + 1
-                            check_pos <- check_pos - 1
-                        }
-                        is_escaped[j] <- (backslash_count %% 2) == 1
-                    }
-                }
-                if (all(is_escaped)) {
-                    stop("Unclosed string at ", pos)
-                }
-                end_quote <- matching_quotes[min(which(!is_escaped))]
-                value <- substring(s, pos + 1, pos + end_quote - 1)
-                value <- sub_simple_escape(
-                             sub_unicode_escape(
-                                 sub_newline_escape(value)))
-                results[[i]] <- Token$new("STRING", value, pos)
-                pos <- pos + end_quote + 1 # one for each quote char
-                i <- i + 1
-            } else {
+        if (ch %in% c("'", '"')) {
+            # Match the string content after the opening quote; the
+            # closing quote must follow immediately
+            match <- match_string_by_quote[[ch]](substring(s, pos + 1, len_s))
+            content_end <- if (anyNA(match)) 0 else match[2]
+            end_quote <- pos + 1 + content_end
+            if (end_quote > len_s ||
+                substring(s, end_quote, end_quote) != ch) {
                 stop("Unclosed string at ", pos)
             }
+            value <- substring(s, pos + 1, pos + content_end)
+            value <- sub_simple_escape(
+                         sub_unicode_escape(
+                             sub_newline_escape(value)))
+            results[[i]] <- Token$new("STRING", value, pos)
+            pos <- end_quote + 1
+            i <- i + 1
+            next
         }
         # Remove comments
-        pos1 <- pos + 1
-        if (substring(s, pos, pos1) == "/*") {
+        if (two_ch == "/*") {
             rel_pos <- str_locate(ss, "\\*/")[1]
             pos <-
                 if (is.na(rel_pos)) {
@@ -1158,15 +1135,12 @@ tokenize <- function(s) {
                 }
             next
         }
-        # Because we always call 'next', if we're here there must have
-        # been an error
-        tmp <- substring(ss, 1, 1)
-        if (!tmp %in% c(delims_1ch, '"', "'")) {
-            stop("Unexpected character '",
-                 tmp,
-                 "' found at position ",
-                 pos)
-        }
+        # Every successful match ends in 'next', so reaching here means
+        # the character cannot start any token
+        stop("Unexpected character '",
+             ch,
+             "' found at position ",
+             pos)
     }
     results[[i]] <- EOFToken$new(pos)
     results
