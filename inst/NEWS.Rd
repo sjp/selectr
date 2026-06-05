@@ -48,6 +48,18 @@
 
     }
   }
+  \subsection{MINOR CHANGES}{
+    \itemize{
+
+      \item The minimum required version of R has been increased from
+      \code{3.0} to \code{3.3}, matching what the code has in fact
+      required for some time: \code{anyNA()} needs R 3.1,
+      \code{lengths()} R 3.2, and \code{startsWith()} R 3.3. On older
+      versions the package installed but failed at runtime with
+      "could not find function".
+
+    }
+  }
   \subsection{REMOVED FEATURES}{
     \itemize{
 
