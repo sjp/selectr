@@ -2,6 +2,12 @@ XPathExpr <- R6Class("XPathExpr",
     public = list(
         path = "",
         element = "*",
+        # Sequential predicates rendered as [p1][p2]... between the
+        # element and the condition. Unlike conditions (which are
+        # AND-ed together into a single predicate), the order of
+        # predicates is significant: a positional predicate such as [1]
+        # filters the node set produced by the predicates before it
+        predicates = character(0),
         condition = "",
         star_prefix = FALSE,
         # When an explicit element name cannot be used as an XPath name
@@ -21,6 +27,9 @@ XPathExpr <- R6Class("XPathExpr",
         },
         str = function() {
             p <- paste0(self$path, self$element)
+            if (length(self$predicates))
+                p <- paste0(p,
+                            paste0("[", self$predicates, "]", collapse = ""))
             if (nzchar(self$condition))
                 p <- paste0(p, "[", self$condition, "]")
             p
@@ -40,9 +49,15 @@ XPathExpr <- R6Class("XPathExpr",
                 else
                     paste0("(", condition, ")")
         },
-        add_name_test = function() {
+        add_predicate = function(predicate) {
+            self$predicates <- c(self$predicates, predicate)
+        },
+        add_name_test = function(as_predicate = FALSE) {
             if (self$element == "*")
                 return()
+            add <-
+                if (as_predicate) self$add_predicate
+                else self$add_condition
             if (is_safe_nodetest(self$element)) {
                 # A safe name stays an XPath name test on the self axis,
                 # so namespace prefixes keep resolving through the
@@ -50,11 +65,11 @@ XPathExpr <- R6Class("XPathExpr",
                 # exactly as the same name is matched at the top level
                 # of a selector. A name() comparison would instead match
                 # the document's literal prefix.
-                self$add_condition(paste0("self::", self$element))
+                add(paste0("self::", self$element))
                 self$name_test <- self$element
             } else {
-                self$add_condition(paste0("name() = ",
-                                          xpath_literal(self$element)))
+                add(paste0("name() = ",
+                           xpath_literal(self$element)))
                 self$name_test <- paste0("*[name() = ",
                                          xpath_literal(self$element), "]")
             }
@@ -66,6 +81,7 @@ XPathExpr <- R6Class("XPathExpr",
                 p <- paste0(p, other$path)
             self$path <- p
             self$element <- other$element
+            self$predicates <- other$predicates
             self$condition <- other$condition
             self$name_test <- other$name_test
             self
@@ -564,19 +580,14 @@ GenericTranslator <- R6Class("GenericTranslator",
         },
         xpath_direct_adjacent_combinator = function(left, right) {
             xpath <- left$join("/following-sibling::", right)
-            target_element <- xpath$element
-            existing_condition <- xpath$condition
-            xpath$add_name_test()
-
-            if (nzchar(existing_condition)) {
-                # Has existing conditions from right selector (e.g., attributes)
-                # Result: *[1][self::element][existing_condition]
-                xpath$condition <- paste0("1][self::", target_element, "][", existing_condition)
-            } else {
-                # No existing conditions, just position and element test
-                xpath$condition <- paste0("1][self::", target_element)
-            }
-
+            # Constrain position before testing the name:
+            # *[1][self::e] is "the first following sibling, if it is
+            # an e", whereas *[self::e][1] would wrongly select the
+            # first following e. Conditions from the right selector
+            # (e.g. attribute tests) stay behind both, giving
+            # *[1][self::e][condition].
+            xpath$add_predicate("1")
+            xpath$add_name_test(as_predicate = TRUE)
             xpath
         },
         xpath_indirect_adjacent_combinator = function(left, right) {

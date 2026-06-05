@@ -40,9 +40,9 @@ test_that("adjacent sibling combinator generates simplified XPath", {
     expect_that(xpath('div#main + p.intro[title]'),
                 equals("div[(@id = 'main')]/following-sibling::*[1][self::p][(@class and contains(concat(' ', normalize-space(@class), ' '), ' intro ')) and (@title)]"))
 
-    # Universal selector on right
+    # Universal selector on right needs no (tautological) name test
     expect_that(xpath('h1 + *[rel=up]'),
-                equals("h1/following-sibling::*[1][self::*][(@rel = 'up')]"))
+                equals("h1/following-sibling::*[1][(@rel = 'up')]"))
 
     # Combined with child combinator
     expect_that(xpath('div > h1 + p'),

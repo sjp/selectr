@@ -51,6 +51,13 @@
   \subsection{MINOR CHANGES}{
     \itemize{
 
+      \item The adjacent sibling combinator no longer emits a
+      tautological \code{[self::*]} predicate when the right-hand side
+      does not name an element: \code{h1 + *[rel=up]} now translates to
+      \code{h1/following-sibling::*[1][(@rel = 'up')]} rather than
+      \code{h1/following-sibling::*[1][self::*][(@rel = 'up')]}. The
+      selected nodes are unchanged.
+
       \item The tokenizer no longer splits the entire remaining input
       into one- and two-character pieces at each delimiter, nor into
       single characters for each string token; delimiters are tested at
