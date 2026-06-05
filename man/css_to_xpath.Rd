@@ -50,6 +50,16 @@ css_to_xpath(selector,
   functional pseudo-class such as \code{:is()} or \code{:has()}) cannot
   be expressed in XPath 1.0 and is an error.
 
+  The of-type pseudo-classes (\code{:first-of-type},
+  \code{:last-of-type}, \code{:only-of-type}, \code{:nth-of-type()} and
+  \code{:nth-last-of-type()}) are only supported when their compound
+  selector names an element, as in \code{"p:first-of-type"}. Applied to
+  the universal selector, as in \code{"*:first-of-type"}, they would
+  have to compare each sibling's name against the matched element's own
+  name, which XPath 1.0 cannot express, so the translation is an
+  error. The Python \sQuote{cssselect} library, from which selectr is
+  ported, has the same limitation.
+
   The translator used is usually unnecessary to specify as the default
   is sufficient for most cases. However, it is of use when creating
   expressions relating to (X)HTML pseudo elements and languages. In

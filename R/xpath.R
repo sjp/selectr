@@ -157,7 +157,12 @@ is_prefixed_nodetest <- function(name) {
 
 # The XPath node test matching the same elements as the subject of an
 # of-type pseudo-class, or NULL when the subject is the universal
-# selector (for which of-type pseudo-classes are not implemented)
+# selector. Selectors 4 does define the of-type pseudo-classes on '*'
+# ("same expanded element name as its siblings"), but counting the
+# siblings would mean comparing their names against the matched
+# element's own name, which XPath 1.0 cannot express (no current()
+# outside XSLT) - so that case is not implemented, an error shared
+# with the Python cssselect library
 of_type_nodetest <- function(xpath) {
     if (xpath$element != "*")
         xpath$element
