@@ -7,7 +7,7 @@ test_that("css_to_xpath vectorises arguments", {
     expect_that(css_to_xpath("a b", prefix = ""), equals("a//b"))
     expect_that(css_to_xpath("a b", prefix = c("descendant-or-self::", "")), equals(c("descendant-or-self::a//b", "a//b")))
     expect_that(css_to_xpath("a:checked", prefix = "", translator = c("generic", "html", "xhtml")),
-                             equals(c("a[(0)]", "a[((@selected and name(.) = 'option') or (@checked and (name(.) = 'input' or name(.) = 'command')and (@type = 'checkbox' or @type = 'radio')))]", "a[((@selected and name(.) = 'option') or (@checked and (name(.) = 'input' or name(.) = 'command')and (@type = 'checkbox' or @type = 'radio')))]")))
+                             equals(c("a[0]", "a[((@selected and name(.) = 'option') or (@checked and (name(.) = 'input' or name(.) = 'command')and (@type = 'checkbox' or @type = 'radio')))]", "a[((@selected and name(.) = 'option') or (@checked and (name(.) = 'input' or name(.) = 'command')and (@type = 'checkbox' or @type = 'radio')))]")))
     expect_that(css_to_xpath(c("a b", "b c"), prefix = ""), equals(c("a//b", "b//c")))
 })
 
@@ -19,7 +19,7 @@ test_that("css_to_xpath translates duplicate selectors only once per call", {
     on.exit(suppressMessages(untrace("parse", where = ns)))
 
     expect_that(css_to_xpath(c("#a", "#b", "#a"), prefix = ""),
-                equals(c("*[(@id = 'a')]", "*[(@id = 'b')]", "*[(@id = 'a')]")))
+                equals(c("*[@id = 'a']", "*[@id = 'b']", "*[@id = 'a']")))
     expect_that(parses, equals(2L))
 
     # A repeated selector still re-parses when the prefix or
@@ -27,8 +27,8 @@ test_that("css_to_xpath translates duplicate selectors only once per call", {
     # across calls
     parses <- 0L
     expect_that(css_to_xpath(c("#a", "#a"), prefix = c("", "p//")),
-                equals(c("*[(@id = 'a')]", "p//*[(@id = 'a')]")))
-    expect_that(css_to_xpath("#a", prefix = ""), equals("*[(@id = 'a')]"))
+                equals(c("*[@id = 'a']", "p//*[@id = 'a']")))
+    expect_that(css_to_xpath("#a", prefix = ""), equals("*[@id = 'a']"))
     expect_that(parses, equals(3L))
 
     # The length-prefixed key cannot confuse selector/prefix boundaries

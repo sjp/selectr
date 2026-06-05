@@ -7,44 +7,44 @@ test_that(":where() generates correct XPath", {
 
     # Simple :where() with single selector
     expect_that(xpath("div:where(p)"),
-                equals("div[((self::p))]"))
+                equals("div[self::p]"))
 
     # :where() with class selector
     expect_that(xpath("div:where(.foo)"),
-                equals("div[((@class and contains(concat(' ', normalize-space(@class), ' '), ' foo ')))]"))
+                equals("div[@class and contains(concat(' ', normalize-space(@class), ' '), ' foo ')]"))
 
     # :where() with ID selector
     expect_that(xpath("section:where(#main)"),
-                equals("section[((@id = 'main'))]"))
+                equals("section[@id = 'main']"))
 
     # :where() with attribute selector
     expect_that(xpath("input:where([required])"),
-                equals("input[((@required))]"))
+                equals("input[@required]"))
 
     # :where() with multiple selectors (OR logic, grouped as one condition)
     expect_that(xpath("div:where(p, span)"),
-                equals("div[((self::p) or (self::span))]"))
+                equals("div[(self::p or self::span)]"))
 
     # :where() with element and class (both conditions must match)
     expect_that(xpath("*:where(div.content)"),
-                equals("*[((@class and contains(concat(' ', normalize-space(@class), ' '), ' content ')) and (self::div))]"))
+                equals("*[@class and contains(concat(' ', normalize-space(@class), ' '), ' content ') and self::div]"))
 
     # Stacked :where() selectors - each adds its own condition, so
     # both must match (AND)
     expect_that(xpath("div:where(p):where(span)"),
-                equals("div[((self::p)) and ((self::span))]"))
+                equals("div[self::p and self::span]"))
 
     # :where() on universal selector
     expect_that(xpath("*:where(.highlight)"),
-                equals("*[((@class and contains(concat(' ', normalize-space(@class), ' '), ' highlight ')))]"))
+                equals("*[@class and contains(concat(' ', normalize-space(@class), ' '), ' highlight ')]"))
 
     # :where() with multiple classes
     expect_that(xpath("div:where(.foo, .bar)"),
-                equals("div[((@class and contains(concat(' ', normalize-space(@class), ' '), ' foo ')) or (@class and contains(concat(' ', normalize-space(@class), ' '), ' bar ')))]"))
+                equals("div[(@class and contains(concat(' ', normalize-space(@class), ' '), ' foo ') or @class and contains(concat(' ', normalize-space(@class), ' '), ' bar '))]"))
 
     # Complex: :where() with mix of selectors
     expect_that(xpath("p:where(.highlight, #special, [data-key])"),
-                equals("p[((@class and contains(concat(' ', normalize-space(@class), ' '), ' highlight ')) or (@id = 'special') or (@data-key))]"))
+                equals("p[(@class and contains(concat(' ', normalize-space(@class), ' '), ' highlight ') or @id = 'special' or @data-key)]"))
 })
 
 test_that(":where() works correctly with XML documents", {

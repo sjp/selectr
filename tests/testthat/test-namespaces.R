@@ -7,7 +7,7 @@ test_that("namespace selectors translate faithfully", {
     }
 
     # '*|e' matches 'e' in any namespace, including none
-    expect_that(xpath("*|e"), equals("*[(local-name() = 'e')]"))
+    expect_that(xpath("*|e"), equals("*[local-name() = 'e']"))
     # '|e' matches 'e' in no namespace, which is what an unprefixed
     # XPath name test already means
     expect_that(xpath("|e"), equals("e"))
@@ -15,34 +15,34 @@ test_that("namespace selectors translate faithfully", {
     # null namespace: a bare name() test is also unprefixed for an
     # element in a default namespace
     expect_that(xpath("|é"),
-                equals("*[(namespace-uri() = '' and local-name() = 'é')]"))
+                equals("*[namespace-uri() = '' and local-name() = 'é']"))
     # '*|*' is equivalent to '*'
     expect_that(xpath("*|*"), equals("*"))
     # '|*' matches any element in no namespace
-    expect_that(xpath("|*"), equals("*[(namespace-uri() = '')]"))
+    expect_that(xpath("|*"), equals("*[namespace-uri() = '']"))
     # 'ns|e' defers prefix-to-URI binding to evaluation time
     expect_that(xpath("ns|e"), equals("ns:e"))
 
     # Attribute selectors
-    expect_that(xpath("[*|a]"), equals("*[(@*[local-name() = 'a'])]"))
+    expect_that(xpath("[*|a]"), equals("*[@*[local-name() = 'a']]"))
     expect_that(xpath("[*|a='v']"),
-                equals("*[(@*[local-name() = 'a'] = 'v')]"))
+                equals("*[@*[local-name() = 'a'] = 'v']"))
     # Unprefixed attribute names have no namespace, so '[|a]' is
     # equivalent to '[a]'
-    expect_that(xpath("[|a]"), equals("*[(@a)]"))
-    expect_that(xpath("[|a='v']"), equals("*[(@a = 'v')]"))
-    expect_that(xpath("[ns|a]"), equals("*[(@ns:a)]"))
+    expect_that(xpath("[|a]"), equals("*[@a]"))
+    expect_that(xpath("[|a='v']"), equals("*[@a = 'v']"))
+    expect_that(xpath("[ns|a]"), equals("*[@ns:a]"))
 
     # Composability
-    expect_that(xpath(":not(*|e)"), equals("*[(not((local-name() = 'e')))]"))
-    expect_that(xpath("div > *|e"), equals("div/*[(local-name() = 'e')]"))
+    expect_that(xpath(":not(*|e)"), equals("*[not(local-name() = 'e')]"))
+    expect_that(xpath("div > *|e"), equals("div/*[local-name() = 'e']"))
 
     # Inside pseudo-class arguments, prefixed names keep resolving
     # through the namespace map (a self-axis name test), rather than
     # comparing against the document's literal prefix with name()
-    expect_that(xpath(":is(ns|e)"), equals("*[((self::ns:e))]"))
-    expect_that(xpath(":not(ns|e)"), equals("*[(not((self::ns:e)))]"))
-    expect_that(xpath(":has(ns|e)"), equals("*[(.//*[(self::ns:e)])]"))
+    expect_that(xpath(":is(ns|e)"), equals("*[self::ns:e]"))
+    expect_that(xpath(":not(ns|e)"), equals("*[not(self::ns:e)]"))
+    expect_that(xpath(":has(ns|e)"), equals("*[.//*[self::ns:e]]"))
 })
 
 test_that("namespace selector specificity is correct", {

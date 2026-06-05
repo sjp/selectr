@@ -51,6 +51,18 @@
   \subsection{MINOR CHANGES}{
     \itemize{
 
+      \item Generated XPath expressions no longer parenthesize every
+      condition. Conditions are joined with \code{and}, and \code{or}
+      is the only XPath operator binding more loosely than \code{and},
+      so parentheses are now added only around conditions containing
+      \code{or}. For example, \code{e[id][title]} now translates to
+      \code{e[@id and @title]} rather than \code{e[(@id) and (@title)]},
+      and \code{#main} to \code{*[@id = 'main']} rather than
+      \code{*[(@id = 'main')]}. The expressions are semantically
+      unchanged, just easier to read; code comparing
+      \code{css_to_xpath()} output against stored strings will need
+      updating.
+
       \item Tokens are now plain lists rather than R6 objects. Tokens
       are created in bulk during tokenization and used as simple
       records, so the per-token cost of an R6 environment and method

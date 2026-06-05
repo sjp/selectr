@@ -20,9 +20,8 @@ XPathExpr <- R6Class("XPathExpr",
             path = "", element = "*", condition = "", star_prefix = FALSE) {
             self$path <- path
             self$element <- element
-            self$condition <-
-                if (nzchar(condition)) paste0("(", condition, ")")
-                else condition
+            if (nzchar(condition))
+                self$add_condition(condition)
             self$star_prefix <- star_prefix
         },
         str = function() {
@@ -43,11 +42,20 @@ XPathExpr <- R6Class("XPathExpr",
             # "and" binds tighter than "or"), changing its meaning.
             # Callers wanting alternatives must OR-join them and add the
             # result as one condition.
+            #
+            # Parenthesize only when needed: "or" is the only XPath
+            # operator binding more loosely than the "and" used to join
+            # conditions, so a condition without " or " can never change
+            # meaning when joined. The substring test may over-wrap when
+            # " or " only occurs nested or inside a literal, which is
+            # harmless; it can never under-wrap.
+            if (grepl(" or ", condition, fixed = TRUE))
+                condition <- paste0("(", condition, ")")
             self$condition <-
                 if (nzchar(self$condition))
-                    paste0(self$condition, " and (", condition, ")")
+                    paste0(self$condition, " and ", condition)
                 else
-                    paste0("(", condition, ")")
+                    condition
         },
         add_predicate = function(predicate) {
             self$predicates <- c(self$predicates, predicate)
@@ -817,12 +825,10 @@ GenericTranslator <- R6Class("GenericTranslator",
                 }
             }, character(1), USE.NAMES = FALSE)
 
-            # Combine conditions with OR
-            if (length(conditions) == 1) {
-                xpath$add_condition(conditions[1])
-            } else if (length(conditions) > 1) {
-                combined <- paste0("(", paste(conditions, collapse = " or "), ")")
-                xpath$add_condition(combined)
+            # Combine conditions with OR; add_condition() supplies the
+            # grouping parentheses when more than one alternative is joined
+            if (length(conditions) > 0) {
+                xpath$add_condition(paste(conditions, collapse = " or "))
             }
 
             xpath
@@ -1060,12 +1066,10 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                 }
             }, character(1), USE.NAMES = FALSE)
 
-            # Combine conditions with OR
-            if (length(conditions) == 1) {
-                xpath$add_condition(conditions[1])
-            } else if (length(conditions) > 1) {
-                combined <- paste0("(", paste(conditions, collapse = " or "), ")")
-                xpath$add_condition(combined)
+            # Combine conditions with OR; add_condition() supplies the
+            # grouping parentheses when more than one alternative is joined
+            if (length(conditions) > 0) {
+                xpath$add_condition(paste(conditions, collapse = " or "))
             }
 
             xpath
