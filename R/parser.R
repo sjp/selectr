@@ -480,14 +480,26 @@ CombinedSelector <- R6Class("CombinedSelector",
 
 #### Parser
 
+# Fast paths for the most common simple selectors, skipping
+# tokenization. INVARIANT: each regex must accept only selectors that
+# the full tokenize()/parse_selector_group() pipeline would parse to
+# the same result; anything else falls through to the full parser.
+# The name patterns are therefore conservative ASCII subsets of the
+# tokenizer's identifier grammar (match_ident, sans escapes and
+# non-ASCII) and hash grammar (match_hash).
+fast_ident <- "[a-zA-Z][a-zA-Z0-9_-]*"
+fast_name <- "[a-zA-Z0-9_-]+"
+
 # foo
-el_re <- "^[ \t\r\n\f]*([a-zA-Z]+)[ \t\r\n\f]*$"
+el_re <- paste0("^[ \t\r\n\f]*(", fast_ident, ")[ \t\r\n\f]*$")
 
 # foo#bar or #bar
-id_re <- "^[ \t\r\n\f]*([a-zA-Z]*)#([a-zA-Z0-9_-]+)[ \t\r\n\f]*$"
+id_re <- paste0("^[ \t\r\n\f]*(", fast_ident, ")?",
+                "#(", fast_name, ")[ \t\r\n\f]*$")
 
 # foo.bar or .bar
-class_re <- "^[ \t\r\n\f]*([a-zA-Z]*)\\.([a-zA-Z][a-zA-Z0-9_-]*)[ \t\r\n\f]*$"
+class_re <- paste0("^[ \t\r\n\f]*(", fast_ident, ")?",
+                   "\\.(", fast_ident, ")[ \t\r\n\f]*$")
 
 parse <- function(css) {
     el_match <- str_match(css, el_re)[1, 2]
@@ -499,18 +511,18 @@ parse <- function(css) {
                         Hash$new(
                             Element$new(
                                 element =
-                                    if (nzchar(id_match[1]) == 0) NULL
+                                    if (is.na(id_match[1])) NULL
                                     else id_match[1]),
                             id_match[2]))))
     class_match <- str_match(css, class_re)[1, 2:3]
-    if (!is.na(class_match[3]))
+    if (!is.na(class_match[2]))
         return(list(Selector$new(
                         ClassSelector$new(
                             Element$new(
                                 element =
-                                    if (is.null(class_match[2]) || is.na(class_match[2])) NULL
-                                    else class_match[2]),
-                            class_match[3]))))
+                                    if (is.na(class_match[1])) NULL
+                                    else class_match[1]),
+                            class_match[2]))))
     stream <- TokenStream$new(tokenize(css))
     stream$source_text <- css
     parse_selector_group(stream)

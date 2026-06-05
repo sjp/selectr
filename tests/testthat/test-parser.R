@@ -200,6 +200,31 @@ test_that("compiled regex parsing functions behave as expected", {
     expect_that(m_ident(" test"), equals(match_ident(" test")))
 })
 
+test_that("fast-path parses agree with the full parser", {
+    full_parse <- function(css) {
+        stream <- TokenStream$new(tokenize(css))
+        stream$source_text <- css
+        parse_selector_group(stream)
+    }
+    reprs <- function(selectors) {
+        unlist(lapply(selectors, function(s) s$repr()))
+    }
+
+    selectors <- c(
+        # element fast path (h1 previously missed it: letters only)
+        "div", "h1", " div ", "x-tag", "a_b",
+        # id fast path, including the digit-led ids the tokenizer allows
+        "#bar", "foo#bar", "#123", "h1#a-1", " #x ",
+        # class fast path (dead before: indexed out of bounds)
+        ".foo", "foo.bar", "h2.a_b", " .foo ",
+        # near misses that must fall through to the full parser
+        "*", "a b", "a.b.c", "a:hover", "é", ".é", "-x", "#a.b")
+    for (css in selectors) {
+        expect_that(reprs(parse(css)), equals(reprs(full_parse(css))),
+                    info = css)
+    }
+})
+
 test_that("token_equality always returns a single logical", {
     ident <- Token$new("IDENT", "a", 1)
     eof <- EOFToken$new(2)
