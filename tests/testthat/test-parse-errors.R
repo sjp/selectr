@@ -129,3 +129,31 @@ test_that("constructs unclosed at EOF translate as their closed forms", {
     expect_error(css_to_xpath(':contains("foo'),
                  "The pseudo-class :contains\\(\\) is unknown")
 })
+
+test_that("unsupported column constructs are rejected by name", {
+    # The Selectors 4 column combinator and column pseudo-classes
+    # depend on table-layout arithmetic that XPath 1.0 cannot express;
+    # the combinator is named in its parse error rather than falling
+    # through to a stray-token message
+    expect_error(css_to_xpath("a || b"),
+                 "The column combinator '||' is not supported",
+                 fixed = TRUE)
+    expect_error(css_to_xpath("a||b"),
+                 "The column combinator '||' is not supported",
+                 fixed = TRUE)
+
+    # The unknown-pseudo-class error keeps the user's hyphenated
+    # spelling (not the method-ised ':nth_col()')
+    expect_error(css_to_xpath("e:nth-col(2)"),
+                 "The pseudo-class :nth-col() is unknown",
+                 fixed = TRUE)
+    expect_error(css_to_xpath("e:nth-last-col(2)"),
+                 "The pseudo-class :nth-last-col() is unknown",
+                 fixed = TRUE)
+
+    # Single-pipe namespace syntax is unaffected
+    expect_that(css_to_xpath("*|b", prefix = ""),
+                equals("*[local-name() = 'b']"))
+    expect_that(css_to_xpath("|b", prefix = ""),
+                equals("b"))
+})

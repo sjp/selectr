@@ -87,7 +87,9 @@ test_that("malformed namespace selectors are rejected", {
     css <- function(x) gt$css_to_xpath(x)
 
     expect_error(css("e|"), "Expected ident or '\\*'")
-    expect_error(css("a||b"), "Expected ident or '\\*'")
+    # 'a||b' is not a malformed namespace selector but the Selectors 4
+    # column combinator, so it is rejected by name
+    expect_error(css("a||b"), "The column combinator '\\|\\|' is not supported")
     expect_error(css("div .|x"), "Expected ident")
 })
 

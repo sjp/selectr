@@ -538,9 +538,7 @@ GenericTranslator <- R6Class("GenericTranslator",
 
             method <- self[[method_name]]
             if (is.null(method))
-                stop("The pseudo-class :",
-                     gsub("-", "_", fn$name),
-                     "() is unknown")
+                stop("The pseudo-class :", fn$name, "() is unknown")
             method(xp, fn)
         },
         xpath_pseudo = function(pseudo) {

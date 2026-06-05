@@ -611,6 +611,14 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
         }
         if (token_equality(stream$peek(), "DELIM", "|")) {
             stream$nxt()
+            # A second '|' makes this the Selectors 4 column
+            # combinator ('a || b' and namespaceless '||b' arrive
+            # here alike): column membership depends on table-layout
+            # arithmetic (colspan/rowspan carry-over) that XPath 1.0
+            # cannot express, so name the construct instead of
+            # falling through to a stray-token error
+            if (token_equality(stream$peek(), "DELIM", "|"))
+                stop("The column combinator '||' is not supported")
             element <- stream$next_ident_or_star()
         } else {
             element <- if (identical(namespace, "*")) NULL else namespace

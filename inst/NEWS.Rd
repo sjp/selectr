@@ -64,6 +64,12 @@
       \item The performance of selectr has been improved roughly 2x.
       There are several smaller changes that have contributed to this.
 
+      \item The unsupported Selectors 4 column combinator now raises
+      "The column combinator '||' is not supported" instead of a raw
+      tokenizer error, and an unknown functional pseudo-class is
+      reported with the user's hyphenated spelling
+      (\code{:nth-col()}, previously \code{:nth_col()}).
+
       \item Generated XPath expressions now include parentheses only
       when precedence requires them (an or-expression joined with
       another condition): \code{e[id][title]} translates to

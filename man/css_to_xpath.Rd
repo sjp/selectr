@@ -60,6 +60,12 @@ css_to_xpath(selector,
   error. The Python \sQuote{cssselect} library, from which selectr is
   ported, has the same limitation.
 
+  The Selectors 4 column combinator (\code{"a || b"}) and the column
+  pseudo-classes \code{:nth-col()} and \code{:nth-last-col()} are also
+  not supported: which column a cell belongs to depends on table-layout
+  arithmetic (\code{colspan}/\code{rowspan} carry-over) that XPath 1.0
+  cannot express. Both are rejected with an error.
+
   The translator used is usually unnecessary to specify as the default
   is sufficient for most cases. However, it is of use when creating
   expressions relating to (X)HTML pseudo elements and languages. In
