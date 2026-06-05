@@ -67,6 +67,18 @@
   \subsection{BUG FIXES}{
     \itemize{
 
+      \item The HTML translator's \code{:enabled} and \code{:disabled}
+      pseudo-classes now match \code{input} elements that have no
+      \code{type} attribute. Such an input defaults to \code{type=text}
+      per HTML and should participate in both pseudo-classes, but the
+      previous translation used the XPath comparison
+      \code{@type != 'hidden'}, which is false when the attribute is
+      absent, so an un-typed \code{<input disabled>} matched neither
+      \code{:disabled} nor (when enabled) \code{:enabled}. The
+      translation now uses \code{not(@type = 'hidden')}; inputs with
+      \code{type="hidden"} continue to match neither pseudo-class. This
+      bug was inherited from the Python 'cssselect' package.
+
       \item \code{:dir()} now enforces its argument grammar from CSS
       Selectors Level 4: exactly one identifier. It previously shared
       the \code{:lang()} grammar, accepting strings, the \code{*}

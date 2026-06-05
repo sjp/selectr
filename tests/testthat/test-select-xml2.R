@@ -206,3 +206,23 @@ test_that("of-type pseudo-classes work on unsafe element names", {
     expect_that(ids('é:only-of-type'), equals(NULL))
     expect_that(ids('x:only-of-type'), equals('only'))
 })
+
+test_that(":enabled and :disabled match inputs with no type attribute", {
+    library(xml2)
+    doc <- read_html(paste0('<form>',
+                            '<input id="plain-disabled" disabled="" />',
+                            '<input id="plain-enabled" />',
+                            '<input type="hidden" id="hidden-disabled" disabled="" />',
+                            '<input type="hidden" id="hidden-plain" />',
+                            '</form>'))
+    ids <- function(css) {
+        xpath <- css_to_xpath(css, translator = "html")
+        result <- unlist(lapply(xml_find_all(doc, xpath), xml_attr, "id"))
+        if (is.null(result)) NULL else result
+    }
+
+    # An <input> with no type attribute defaults to type=text, so it should
+    # participate in :enabled/:disabled; type=hidden inputs never do.
+    expect_that(ids('input:disabled'), equals('plain-disabled'))
+    expect_that(ids('input:enabled'), equals('plain-enabled'))
+})
