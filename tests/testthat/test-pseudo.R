@@ -174,3 +174,30 @@ test_that(":required and :optional match form elements correctly", {
     expect_that(get_ids("input:required"), equals("i1"))
     expect_that(get_ids("select:optional"), equals("s2"))
 })
+
+test_that(":empty keeps the Selectors 3 white space semantics", {
+    # Deliberate, browser-verified decision (see xpath_empty_pseudo):
+    # a white-space-only element does not match :empty, matching what
+    # every browser implements rather than the Selectors 4 loosening
+    doc_xml <- paste0(
+        '<root>',
+        '<p id="truly-empty"></p>',
+        '<p id="space"> </p>',
+        '<p id="newline">\n  </p>',
+        '<p id="text">x</p>',
+        '<p id="child"><span/></p>',
+        '<p id="comment"><!-- c --></p>',
+        '</root>'
+    )
+
+    library(XML)
+    doc <- xmlRoot(xmlParse(doc_xml))
+    ids <- sapply(querySelectorAll(doc, "p:empty"),
+                  function(x) xmlGetAttr(x, "id"))
+    expect_that(ids, equals(c("truly-empty", "comment")))
+
+    library(xml2)
+    doc2 <- read_xml(doc_xml)
+    expect_that(xml_attr(querySelectorAll(doc2, "p:empty"), "id"),
+                equals(c("truly-empty", "comment")))
+})

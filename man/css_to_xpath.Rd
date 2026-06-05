@@ -66,6 +66,12 @@ css_to_xpath(selector,
   arithmetic (\code{colspan}/\code{rowspan} carry-over) that XPath 1.0
   cannot express. Both are rejected with an error.
 
+  \code{:empty} deliberately keeps the Selectors 3 semantics that all
+  current browsers implement: an element containing only white space,
+  such as \code{<p> </p>}, does not match. (The Selectors 4
+  specification loosened \code{:empty} to also match
+  white-space-only elements, but no browser has shipped that change.)
+
   The translator used is usually unnecessary to specify as the default
   is sufficient for most cases. However, it is of use when creating
   expressions relating to (X)HTML pseudo elements and languages. In

@@ -1023,6 +1023,11 @@ GenericTranslator <- R6Class("GenericTranslator",
             xpath
         },
         xpath_empty_pseudo = function(xpath) {
+            # Selectors 3 semantics, deliberately: white-space-only
+            # elements do not match, which is what every browser
+            # implements (checked June 2026). The Selectors 4 TR
+            # loosening - not(normalize-space()) - has shipped nowhere;
+            # revisit if browsers move
             xpath$add_condition("not(*) and not(string-length())")
             xpath
         },
