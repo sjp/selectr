@@ -32,8 +32,8 @@ test_that("Generic translator validates language arguments", {
                  "Expected string, ident, or \\* arguments for :lang\\(\\), got <NUMBER '5' at 14>")
 
     # Multiple languages with OR logic
-    expect_that(translator$css_to_xpath("xml:lang(en, fr)"), equals("descendant-or-self::xml[(lang('en') or lang('fr'))]"))
-    expect_that(translator$css_to_xpath("xml:lang(en, de, fr)"), equals("descendant-or-self::xml[(lang('en') or lang('de') or lang('fr'))]"))
+    expect_that(translator$css_to_xpath("xml:lang(en, fr)"), equals("descendant-or-self::xml[lang('en') or lang('fr')]"))
+    expect_that(translator$css_to_xpath("xml:lang(en, de, fr)"), equals("descendant-or-self::xml[lang('en') or lang('de') or lang('fr')]"))
 })
 
 test_that("HTML translator validates language arguments", {
@@ -46,7 +46,7 @@ test_that("HTML translator validates language arguments", {
 
     # Multiple languages with OR logic
     expect_that(translator$css_to_xpath("html:lang(en, fr)"),
-                equals("descendant-or-self::html[(ancestor-or-self::*[@lang][1][starts-with(concat(translate(@lang, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '-'), 'en-')] or ancestor-or-self::*[@lang][1][starts-with(concat(translate(@lang, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '-'), 'fr-')])]"))
+                equals("descendant-or-self::html[ancestor-or-self::*[@lang][1][starts-with(concat(translate(@lang, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '-'), 'en-')] or ancestor-or-self::*[@lang][1][starts-with(concat(translate(@lang, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '-'), 'fr-')]]"))
 })
 
 test_that("HTML translator lowercases attribute names but not values", {
@@ -81,12 +81,12 @@ test_that("Generic translator handles :lang() wildcards and comma lists", {
     expect_that(translator$css_to_xpath('div:lang(fr-*)'), equals("descendant-or-self::div[lang('fr')]"))
 
     # Comma-separated lists with OR logic
-    expect_that(translator$css_to_xpath('div:lang(en, fr)'), equals("descendant-or-self::div[(lang('en') or lang('fr'))]"))
-    expect_that(translator$css_to_xpath('div:lang(en, de, fr)'), equals("descendant-or-self::div[(lang('en') or lang('de') or lang('fr'))]"))
+    expect_that(translator$css_to_xpath('div:lang(en, fr)'), equals("descendant-or-self::div[lang('en') or lang('fr')]"))
+    expect_that(translator$css_to_xpath('div:lang(en, de, fr)'), equals("descendant-or-self::div[lang('en') or lang('de') or lang('fr')]"))
 
     # Mixed wildcards and regular languages
-    expect_that(translator$css_to_xpath('div:lang(en-*, fr)'), equals("descendant-or-self::div[(lang('en') or lang('fr'))]"))
-    expect_that(translator$css_to_xpath('div:lang(*, de)'), equals("descendant-or-self::div[(true() or lang('de'))]"))
+    expect_that(translator$css_to_xpath('div:lang(en-*, fr)'), equals("descendant-or-self::div[lang('en') or lang('fr')]"))
+    expect_that(translator$css_to_xpath('div:lang(*, de)'), equals("descendant-or-self::div[true() or lang('de')]"))
 })
 
 test_that("HTML translator handles :lang() wildcards and comma lists", {
@@ -101,7 +101,7 @@ test_that("HTML translator handles :lang() wildcards and comma lists", {
 
     # Multiple values with OR logic
     expect_that(translator$css_to_xpath('div:lang(en, fr)'),
-                equals("descendant-or-self::div[(ancestor-or-self::*[@lang][1][starts-with(concat(translate(@lang, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '-'), 'en-')] or ancestor-or-self::*[@lang][1][starts-with(concat(translate(@lang, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '-'), 'fr-')])]"))
+                equals("descendant-or-self::div[ancestor-or-self::*[@lang][1][starts-with(concat(translate(@lang, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '-'), 'en-')] or ancestor-or-self::*[@lang][1][starts-with(concat(translate(@lang, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '-'), 'fr-')]]"))
 })
 
 test_that("Generic translator handles :dir() function", {

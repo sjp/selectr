@@ -54,14 +54,18 @@
       \item Generated XPath expressions no longer parenthesize every
       condition. Conditions are joined with \code{and}, and \code{or}
       is the only XPath operator binding more loosely than \code{and},
-      so parentheses are now added only around conditions containing
-      \code{or}. For example, \code{e[id][title]} now translates to
-      \code{e[@id and @title]} rather than \code{e[(@id) and (@title)]},
-      and \code{#main} to \code{*[@id = 'main']} rather than
-      \code{*[(@id = 'main')]}. The expressions are semantically
-      unchanged, just easier to read; code comparing
-      \code{css_to_xpath()} output against stored strings will need
-      updating.
+      so parentheses are now added only when an or-expression is
+      joined with another condition. For example, \code{e[id][title]}
+      now translates to \code{e[@id and @title]} rather than
+      \code{e[(@id) and (@title)]}, \code{#main} to
+      \code{*[@id = 'main']} rather than \code{*[(@id = 'main')]}, and
+      \code{e:lang(en, fr)} to \code{e[lang('en') or lang('fr')]}
+      rather than \code{e[(lang('en') or lang('fr'))]}, while
+      \code{:is(f, g):first-child} keeps its grouping parentheses:
+      \code{*[(self::f or self::g) and count(preceding-sibling::*) = 0]}.
+      The expressions are semantically unchanged, just easier to read;
+      code comparing \code{css_to_xpath()} output against stored
+      strings will need updating.
 
       \item Tokens are now plain lists rather than R6 objects. Tokens
       are created in bulk during tokenization and used as simple
@@ -90,8 +94,8 @@
       \item The adjacent sibling combinator no longer emits a
       tautological \code{[self::*]} predicate when the right-hand side
       does not name an element: \code{h1 + *[rel=up]} now translates to
-      \code{h1/following-sibling::*[1][(@rel = 'up')]} rather than
-      \code{h1/following-sibling::*[1][self::*][(@rel = 'up')]}. The
+      \code{h1/following-sibling::*[1][@rel = 'up']} rather than
+      \code{h1/following-sibling::*[1][self::*][@rel = 'up']}. The
       selected nodes are unchanged.
 
       \item The tokenizer no longer splits the entire remaining input

@@ -24,8 +24,8 @@ test_that("empty attribute values are quoted", {
     expect_that(css('*[aval=""]'),
                 equals("descendant-or-self::*[@aval = '']"))
     expect_that(css('*[aval|=""]'),
-                equals(paste0("descendant-or-self::*[(@aval and ",
-                              "(@aval = '' or starts-with(@aval, '-')))]")))
+                equals(paste0("descendant-or-self::*[@aval and ",
+                              "(@aval = '' or starts-with(@aval, '-'))]")))
     # These operators can never match an empty value
     expect_that(css('*[aval~=""]'),
                 equals("descendant-or-self::*[0]"))

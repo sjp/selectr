@@ -9,6 +9,10 @@ XPathExpr <- R6Class("XPathExpr",
         # filters the node set produced by the predicates before it
         predicates = character(0),
         condition = "",
+        # Whether 'condition' is a top-level or-expression stored
+        # alone (unparenthesized); it must be wrapped if another
+        # condition is ever AND-joined to it
+        condition_is_or = FALSE,
         star_prefix = FALSE,
         # When an explicit element name cannot be used as an XPath name
         # test (and so 'element' has been folded into a condition on
@@ -36,26 +40,32 @@ XPathExpr <- R6Class("XPathExpr",
         repr = function() {
             paste0(first_class_name(self), "[", self$str(), "]")
         },
-        add_condition = function(condition) {
+        add_condition = function(condition, is_or_group = FALSE) {
             # Always AND with the existing condition: an "or" appended here
             # would flatten into the accumulated condition chain (XPath
             # "and" binds tighter than "or"), changing its meaning.
             # Callers wanting alternatives must OR-join them and add the
-            # result as one condition.
+            # result as one condition, flagged with 'is_or_group'.
             #
             # Parenthesize only when needed: "or" is the only XPath
             # operator binding more loosely than the "and" used to join
-            # conditions, so a condition without " or " can never change
-            # meaning when joined. The substring test may over-wrap when
-            # " or " only occurs nested or inside a literal, which is
-            # harmless; it can never under-wrap.
-            if (grepl(" or ", condition, fixed = TRUE))
-                condition <- paste0("(", condition, ")")
-            self$condition <-
-                if (nzchar(self$condition))
-                    paste0(self$condition, " and ", condition)
-                else
-                    condition
+            # conditions, so an or-group alone in the bracketed
+            # predicate needs no parentheses. Defer them to the moment
+            # the or-group is joined with another condition, on
+            # whichever side it sits; the joined result is an
+            # and-chain, no longer an or-group.
+            if (nzchar(self$condition)) {
+                if (is_or_group)
+                    condition <- paste0("(", condition, ")")
+                if (self$condition_is_or) {
+                    self$condition <- paste0("(", self$condition, ")")
+                    self$condition_is_or <- FALSE
+                }
+                self$condition <- paste0(self$condition, " and ", condition)
+            } else {
+                self$condition <- condition
+                self$condition_is_or <- is_or_group
+            }
         },
         add_predicate = function(predicate) {
             self$predicates <- c(self$predicates, predicate)
@@ -91,6 +101,7 @@ XPathExpr <- R6Class("XPathExpr",
             self$element <- other$element
             self$predicates <- other$predicates
             self$condition <- other$condition
+            self$condition_is_or <- other$condition_is_or
             self$name_test <- other$name_test
             self
         },
@@ -266,7 +277,9 @@ GenericTranslator <- R6Class("GenericTranslator",
         },
         xpath_argument_condition = function(subselector) {
             # Translate one functional pseudo-class argument into a
-            # condition on the candidate element. A complex argument
+            # condition on the candidate element, returned as
+            # list(condition, is_or) where 'is_or' marks a top-level
+            # or-expression (see 'condition_is_or'). A complex argument
             # (CombinedSelector) applies its rightmost compound to the
             # candidate, with everything to its left becoming an
             # existence test through reversed axes (e.g. :is(a > b)
@@ -276,10 +289,18 @@ GenericTranslator <- R6Class("GenericTranslator",
                 sub_xpath$add_name_test()
                 rev_test <- self$reversed_combinator_test(
                     subselector$selector, subselector$combinator)
-                if (nzchar(sub_xpath$condition))
-                    paste0(sub_xpath$condition, " and ", rev_test)
-                else
-                    rev_test
+                condition <-
+                    if (nzchar(sub_xpath$condition)) {
+                        cond <- sub_xpath$condition
+                        # The condition becomes one operand of an
+                        # "and", so a stored or-group needs its
+                        # parentheses now
+                        if (sub_xpath$condition_is_or)
+                            cond <- paste0("(", cond, ")")
+                        paste0(cond, " and ", rev_test)
+                    } else
+                        rev_test
+                list(condition = condition, is_or = FALSE)
             } else {
                 sub_xpath <- self$xpath(subselector)
                 sub_xpath$add_name_test()
@@ -288,24 +309,30 @@ GenericTranslator <- R6Class("GenericTranslator",
                 # callers can tell "always true" apart from "no
                 # condition" instead of silently dropping the argument
                 # from the selector list
-                if (nzchar(sub_xpath$condition)) sub_xpath$condition
-                else "true()"
+                if (nzchar(sub_xpath$condition))
+                    list(condition = sub_xpath$condition,
+                         is_or = sub_xpath$condition_is_or)
+                else
+                    list(condition = "true()", is_or = FALSE)
             }
         },
         selector_list_condition = function(selector_list) {
             # OR-join the conditions imposed by a selector list's
-            # arguments into a single condition. NULL when the list
-            # imposes no condition: either it is absent, or one of its
-            # arguments (e.g. the universal selector '*') is always
-            # true, making the whole list match unconditionally
+            # arguments into a single list(condition, is_or). NULL when
+            # the list imposes no condition: either it is absent, or
+            # one of its arguments (e.g. the universal selector '*') is
+            # always true, making the whole list match unconditionally.
+            # A single-argument list is an or-group only if that
+            # argument's own condition is one (e.g. a nested :is())
             if (is.null(selector_list) || length(selector_list) == 0)
                 return(NULL)
-            conditions <- vapply(selector_list,
-                                 self$xpath_argument_condition,
-                                 character(1))
-            if (any(conditions == "true()"))
+            conditions <- lapply(selector_list,
+                                 self$xpath_argument_condition)
+            exprs <- vapply(conditions, `[[`, character(1), "condition")
+            if (any(exprs == "true()"))
                 return(NULL)
-            paste0(conditions, collapse = " or ")
+            list(condition = paste0(exprs, collapse = " or "),
+                 is_or = length(exprs) > 1 || conditions[[1]]$is_or)
         },
         reversed_combinator_test = function(selector, combinator) {
             # Existence test, relative to the candidate element, for the
@@ -313,7 +340,7 @@ GenericTranslator <- R6Class("GenericTranslator",
             # argument: ' ' -> an ancestor, '>' -> the parent, '~' -> any
             # preceding sibling, '+' -> the immediately preceding sibling.
             # The left-hand side may itself be complex, so recurse
-            inner <- self$xpath_argument_condition(selector)
+            inner <- self$xpath_argument_condition(selector)$condition
             axis <-
                 if (combinator == " ") "ancestor::*"
                 else if (combinator == ">") "parent::*"
@@ -332,7 +359,7 @@ GenericTranslator <- R6Class("GenericTranslator",
             if (is.null(condition)) {
                 xpath$add_condition("0")
             } else {
-                xpath$add_condition(paste0("not(", condition, ")"))
+                xpath$add_condition(paste0("not(", condition$condition, ")"))
             }
             xpath
         },
@@ -345,7 +372,7 @@ GenericTranslator <- R6Class("GenericTranslator",
             # matches everything (e.g. :is(a, *)) imposes no condition
             condition <- self$selector_list_condition(matching$selector_list)
             if (!is.null(condition)) {
-                xpath$add_condition(condition)
+                xpath$add_condition(condition$condition, condition$is_or)
             }
 
             xpath
@@ -669,7 +696,7 @@ GenericTranslator <- R6Class("GenericTranslator",
                 # CSS Level 4: When selector list is provided, ensure current element matches
                 condition <- self$selector_list_condition(fn$selector_list)
                 if (!is.null(condition)) {
-                    xpath$add_condition(condition)
+                    xpath$add_condition(condition$condition, condition$is_or)
                 }
                 return(xpath)
             }
@@ -683,7 +710,7 @@ GenericTranslator <- R6Class("GenericTranslator",
                 # Even though the condition is always false, we should still check the selector
                 condition <- self$selector_list_condition(fn$selector_list)
                 if (!is.null(condition)) {
-                    xpath$add_condition(condition)
+                    xpath$add_condition(condition$condition, condition$is_or)
                 }
 
                 return(xpath)
@@ -704,7 +731,7 @@ GenericTranslator <- R6Class("GenericTranslator",
             selector_list_cond <- self$selector_list_condition(fn$selector_list)
             selector_predicate <-
                 if (is.null(selector_list_cond)) ""
-                else paste0("[", selector_list_cond, "]")
+                else paste0("[", selector_list_cond$condition, "]")
 
             # count siblings before or after the element
             if (!last) {
@@ -724,7 +751,8 @@ GenericTranslator <- R6Class("GenericTranslator",
 
                 # CSS Level 4: When selector list is provided, ensure current element matches
                 if (!is.null(selector_list_cond)) {
-                    xpath$add_condition(selector_list_cond)
+                    xpath$add_condition(selector_list_cond$condition,
+                                        selector_list_cond$is_or)
                 }
 
                 return(xpath)
@@ -781,7 +809,8 @@ GenericTranslator <- R6Class("GenericTranslator",
 
             # CSS Level 4: When selector list is provided, ensure current element matches
             if (!is.null(selector_list_cond)) {
-                xpath$add_condition(selector_list_cond)
+                xpath$add_condition(selector_list_cond$condition,
+                                    selector_list_cond$is_or)
             }
 
             xpath
@@ -825,10 +854,12 @@ GenericTranslator <- R6Class("GenericTranslator",
                 }
             }, character(1), USE.NAMES = FALSE)
 
-            # Combine conditions with OR; add_condition() supplies the
-            # grouping parentheses when more than one alternative is joined
+            # Combine conditions with OR; more than one alternative
+            # forms an or-group, which add_condition() parenthesizes
+            # if it is ever joined with another condition
             if (length(conditions) > 0) {
-                xpath$add_condition(paste(conditions, collapse = " or "))
+                xpath$add_condition(paste(conditions, collapse = " or "),
+                                    is_or_group = length(conditions) > 1)
             }
 
             xpath
@@ -1027,7 +1058,8 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                 paste0("(@selected and name(.) = 'option') or ",
                        "(@checked ",
                        "and (name(.) = 'input' or name(.) = 'command')",
-                       "and (@type = 'checkbox' or @type = 'radio'))"))
+                       "and (@type = 'checkbox' or @type = 'radio'))"),
+                is_or_group = TRUE)
             xpath
         },
         xpath_lang_function = function(xpath, fn) {
@@ -1066,10 +1098,12 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                 }
             }, character(1), USE.NAMES = FALSE)
 
-            # Combine conditions with OR; add_condition() supplies the
-            # grouping parentheses when more than one alternative is joined
+            # Combine conditions with OR; more than one alternative
+            # forms an or-group, which add_condition() parenthesizes
+            # if it is ever joined with another condition
             if (length(conditions) > 0) {
-                xpath$add_condition(paste(conditions, collapse = " or "))
+                xpath$add_condition(paste(conditions, collapse = " or "),
+                                    is_or_group = length(conditions) > 1)
             }
 
             xpath
@@ -1100,7 +1134,8 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                       "name(.) = 'textarea'",
                       ")",
                       "and ancestor::fieldset[@disabled]",
-                      ")"))
+                      ")"),
+                is_or_group = TRUE)
             xpath
         },
         xpath_enabled_pseudo = function(xpath) {
@@ -1115,7 +1150,8 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                       "or name(.) = 'textarea'",
                       "or name(.) = 'keygen')",
                       "and not (@disabled or ancestor::fieldset[@disabled]))",
-                      "or (name(.) = 'option' and not(@disabled or ancestor::optgroup[@disabled]))"))
+                      "or (name(.) = 'option' and not(@disabled or ancestor::optgroup[@disabled]))"),
+                is_or_group = TRUE)
             xpath
         }
     )

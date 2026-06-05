@@ -23,7 +23,7 @@ test_that(":where() generates correct XPath", {
 
     # :where() with multiple selectors (OR logic, grouped as one condition)
     expect_that(xpath("div:where(p, span)"),
-                equals("div[(self::p or self::span)]"))
+                equals("div[self::p or self::span]"))
 
     # :where() with element and class (both conditions must match)
     expect_that(xpath("*:where(div.content)"),
@@ -40,11 +40,11 @@ test_that(":where() generates correct XPath", {
 
     # :where() with multiple classes
     expect_that(xpath("div:where(.foo, .bar)"),
-                equals("div[(@class and contains(concat(' ', normalize-space(@class), ' '), ' foo ') or @class and contains(concat(' ', normalize-space(@class), ' '), ' bar '))]"))
+                equals("div[@class and contains(concat(' ', normalize-space(@class), ' '), ' foo ') or @class and contains(concat(' ', normalize-space(@class), ' '), ' bar ')]"))
 
     # Complex: :where() with mix of selectors
     expect_that(xpath("p:where(.highlight, #special, [data-key])"),
-                equals("p[(@class and contains(concat(' ', normalize-space(@class), ' '), ' highlight ') or @id = 'special' or @data-key)]"))
+                equals("p[@class and contains(concat(' ', normalize-space(@class), ' '), ' highlight ') or @id = 'special' or @data-key]"))
 })
 
 test_that(":where() works correctly with XML documents", {

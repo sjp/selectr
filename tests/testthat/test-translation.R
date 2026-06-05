@@ -51,7 +51,7 @@ test_that("translation from parsed objects to XPath works", {
     expect_that(xpath('e[foo*="bar"]'),
                 equals("e[@foo and contains(@foo, 'bar')]"))
     expect_that(xpath('e[hreflang|="en"]'),
-                equals("e[(@hreflang and (@hreflang = 'en' or starts-with(@hreflang, 'en-')))]"))
+                equals("e[@hreflang and (@hreflang = 'en' or starts-with(@hreflang, 'en-'))]"))
     # CSS Selectors Level 4 case-sensitivity flags
     lower_foo <- paste0("translate(@foo, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',",
                         " 'abcdefghijklmnopqrstuvwxyz')")
@@ -72,9 +72,9 @@ test_that("translation from parsed objects to XPath works", {
                               " and contains(concat(' ', normalize-space(",
                               lower_foo, "), ' '), ' bar ')]")))
     expect_that(xpath('e[foo|="Bar" i]'),
-                equals(paste0("e[(", lower_foo, " and (",
+                equals(paste0("e[", lower_foo, " and (",
                               lower_foo, " = 'bar' or starts-with(",
-                              lower_foo, ", 'bar-')))]")))
+                              lower_foo, ", 'bar-'))]")))
     # The 'i' flag is ASCII case-insensitive: non-ASCII characters such
     # as 'É' are left alone
     expect_that(xpath("e[foo='\\C9 x' i]"),
