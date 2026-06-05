@@ -72,6 +72,12 @@ css_to_xpath(selector,
   specification loosened \code{:empty} to also match
   white-space-only elements, but no browser has shipped that change.)
 
+  \code{:dir()} translates to a never-matching expression with every
+  translator, including \code{html}: an element's resolved
+  directionality also depends on \code{dir="auto"}, \code{bdi}, and
+  form-control rules that a static document cannot answer, so unlike
+  \code{:lang()} it is not approximated from ancestor attributes.
+
   The translator used is usually unnecessary to specify as the default
   is sufficient for most cases. However, it is of use when creating
   expressions relating to (X)HTML pseudo elements and languages. In

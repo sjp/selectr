@@ -957,6 +957,15 @@ GenericTranslator <- R6Class("GenericTranslator",
             # :dir() requires runtime directionality detection based on
             # document language, inherited dir attributes, and text analysis.
             # Not possible in static XPath, so we make it never match.
+            #
+            # Deliberately not overridden on the HTML translator either:
+            # an ancestor-or-self::*[@dir][1] walk parallel to the HTML
+            # :lang() would approximate it, but resolved directionality
+            # (selectors-4 section 9.4) also turns on dir=auto, bdi, and
+            # form-control rules a static document cannot answer, so the
+            # honest translation is "no match" (cssselect does the
+            # same). If demand ever justifies the approximation,
+            # implement it in lockstep with selectrs
             xpath$add_condition("0")
             xpath
         },

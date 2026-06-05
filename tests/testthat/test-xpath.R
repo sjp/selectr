@@ -126,10 +126,19 @@ test_that("Generic translator handles :dir() function", {
 test_that("HTML translator handles :dir() function", {
     translator <- HTMLTranslator$new()
 
-    # :dir() uses "never matches" pattern (requires runtime directionality detection)
+    # :dir() never matches with the HTML translators too - a
+    # deliberate decision, not a missing override: resolved
+    # directionality (dir=auto, bdi, form controls) is not static,
+    # so no :lang()-style attribute-walk approximation is attempted
     expect_that(translator$css_to_xpath("div:dir(ltr)"), equals("descendant-or-self::div[0]"))
     expect_that(translator$css_to_xpath("div:dir(rtl)"), equals("descendant-or-self::div[0]"))
     expect_that(translator$css_to_xpath(":dir(ltr)"), equals("descendant-or-self::*[0]"))
+
+    xhtml_translator <- HTMLTranslator$new(xhtml = TRUE)
+    expect_that(xhtml_translator$css_to_xpath("div:dir(ltr)"),
+                equals("descendant-or-self::div[0]"))
+    expect_that(xhtml_translator$css_to_xpath("div:dir(rtl)"),
+                equals("descendant-or-self::div[0]"))
 
     expect_error(translator$css_to_xpath("div:dir()"), "Expected at least one argument.*")
     # :dir() takes exactly one identifier (CSS Selectors Level 4)
