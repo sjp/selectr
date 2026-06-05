@@ -1,3 +1,10 @@
+# Key identifying one (selector, prefix, translator) translation. The
+# selector is length-prefixed so that no combination of selector and
+# prefix values can collide.
+xpath_cache_key <- function(selector, prefix, translator) {
+    paste0(translator, "\r", nchar(selector), "\r", selector, "\r", prefix)
+}
+
 css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator = "generic") {
     if (missing(selector) || is.null(selector))
         stop("A valid selector (character vector) must be provided.")
@@ -41,21 +48,31 @@ css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator =
     prefix <- rep(prefix, length.out = maxArgLength)
     translator <- rep(translator, length.out = maxArgLength)
 
+    # Translate each distinct (selector, prefix, translator) triple
+    # only once per call, e.g. c("#a", "#b", "#a") parses twice. The
+    # cache is local to this call so it cannot grow across calls.
+    cache <- new.env(parent = emptyenv())
     results <- character(maxArgLength)
     for (i in seq_len(maxArgLength)) {
         sel <- selector[i]
         pref <- prefix[i]
         trans <- translator[i]
 
-        tran <- if (trans == "html") {
-            HTMLTranslator$new()
-        } else if (trans == "xhtml") {
-            HTMLTranslator$new(xhtml = TRUE)
-        } else {
-            GenericTranslator$new()
-        }
+        key <- xpath_cache_key(sel, pref, trans)
+        cached <- cache[[key]]
+        if (is.null(cached)) {
+            tran <- if (trans == "html") {
+                HTMLTranslator$new()
+            } else if (trans == "xhtml") {
+                HTMLTranslator$new(xhtml = TRUE)
+            } else {
+                GenericTranslator$new()
+            }
 
-        results[i] <- tran$css_to_xpath(sel, pref)
+            cached <- tran$css_to_xpath(sel, pref)
+            cache[[key]] <- cached
+        }
+        results[i] <- cached
     }
 
     as.character(results)

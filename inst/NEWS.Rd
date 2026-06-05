@@ -51,6 +51,13 @@
   \subsection{MINOR CHANGES}{
     \itemize{
 
+      \item \code{css_to_xpath()} now translates each distinct
+      combination of selector, prefix, and translator only once per
+      call, so duplicates in a vectorized call
+      (e.g. \code{css_to_xpath(c("#a", "#b", "#a"))}) are not
+      re-tokenized, re-parsed, and re-translated. The de-duplication is
+      local to the call; no state persists between calls.
+
       \item The adjacent sibling combinator no longer emits a
       tautological \code{[self::*]} predicate when the right-hand side
       does not name an element: \code{h1 + *[rel=up]} now translates to

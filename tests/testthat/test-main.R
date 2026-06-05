@@ -11,6 +11,32 @@ test_that("css_to_xpath vectorises arguments", {
     expect_that(css_to_xpath(c("a b", "b c"), prefix = ""), equals(c("a//b", "b//c")))
 })
 
+test_that("css_to_xpath translates duplicate selectors only once per call", {
+    ns <- environment(css_to_xpath)
+    parses <- 0L
+    suppressMessages(trace("parse", where = ns, print = FALSE,
+                           tracer = function() parses <<- parses + 1L))
+    on.exit(suppressMessages(untrace("parse", where = ns)))
+
+    expect_that(css_to_xpath(c("#a", "#b", "#a"), prefix = ""),
+                equals(c("*[(@id = 'a')]", "*[(@id = 'b')]", "*[(@id = 'a')]")))
+    expect_that(parses, equals(2L))
+
+    # A repeated selector still re-parses when the prefix or
+    # translator differs, and the de-duplication does not persist
+    # across calls
+    parses <- 0L
+    expect_that(css_to_xpath(c("#a", "#a"), prefix = c("", "p//")),
+                equals(c("*[(@id = 'a')]", "p//*[(@id = 'a')]")))
+    expect_that(css_to_xpath("#a", prefix = ""), equals("*[(@id = 'a')]"))
+    expect_that(parses, equals(3L))
+
+    # The length-prefixed key cannot confuse selector/prefix boundaries
+    expect_that(xpath_cache_key("a", "b//", "generic") ==
+                xpath_cache_key("a\r1\rb", "//", "generic"),
+                equals(FALSE))
+})
+
 test_that("css_to_xpath handles bad arguments", {
     # must have a selector arg provided
     expect_error(css_to_xpath(), "A valid selector (character vector) must be provided.", fixed = TRUE)
