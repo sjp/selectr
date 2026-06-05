@@ -610,13 +610,15 @@ GenericTranslator <- R6Class("GenericTranslator",
                     # An unsafe name must not fall through to the name()
                     # fallback below: name() is unprefixed for an element
                     # in a *default* namespace too, so the null namespace
-                    # has to be pinned explicitly alongside the local name.
-                    nodetest <- paste0("*[namespace-uri() = '' and local-name() = ",
-                                       xpath_literal(element), "]")
-                    xpath <- XPathExpr$new()
-                    xpath$add_condition(paste0("namespace-uri() = '' and local-name() = ",
-                                               xpath_literal(element)))
-                    xpath$name_test <- nodetest
+                    # has to be pinned explicitly alongside the name test.
+                    xpath <- XPathExpr$new(element = element)
+                    xpath$add_name_test()
+                    xpath$add_condition("namespace-uri() = ''")
+                    # The of-type nodetest must carry the namespace pin
+                    # set by the condition above
+                    xpath$name_test <- paste0("*[name() = ",
+                                              xpath_literal(element),
+                                              " and namespace-uri() = '']")
                     return(xpath)
                 }
                 namespace <- NULL

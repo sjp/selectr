@@ -15,7 +15,7 @@ test_that("namespace selectors translate faithfully", {
     # null namespace: a bare name() test is also unprefixed for an
     # element in a default namespace
     expect_that(xpath("|é"),
-                equals("*[namespace-uri() = '' and local-name() = 'é']"))
+                equals("*[name() = 'é' and namespace-uri() = '']"))
     # '*|*' is equivalent to '*'
     expect_that(xpath("*|*"), equals("*"))
     # '|*' matches any element in no namespace
