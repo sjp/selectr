@@ -159,6 +159,15 @@
   \subsection{BUG FIXES}{
     \itemize{
 
+      \item Escape sequences in identifiers, hashes, and strings are
+      now decoded in a single left-to-right pass, as css-syntax
+      requires, so the text consumed by one escape is never re-read as
+      the start of another. Previously an escaped backslash followed
+      by hex digits was decoded twice: in
+      \code{e[foo="x\\\\79 z"]} (the value \code{x\\79 z} with a
+      literal backslash) the \code{\\79} was re-processed as a unicode
+      escape, yielding \code{xyz} instead of \code{x\\79 z}.
+
       \item A prefixed wildcard inside a pseudo-class argument
       (e.g. \code{:is(svg|*)}, \code{:not(svg|*)}, \code{:has(svg|*)})
       now translates to the node test \code{self::svg:*} (or the path

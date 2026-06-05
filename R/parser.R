@@ -2,8 +2,7 @@ escape <- paste0("\\\\([0-9a-fA-F]{1,6})(\r\n|[ \n\r\t\f])?",
                  "|\\\\[^\n\r\f0-9a-fA-F]")
 nonascii <- "[^\1-\177]"
 
-TokenMacros <- list(unicode_escape = "\\\\([0-9a-f]{1,6})(?:\r\n|[ \n\r\t\f])?",
-                    escape = escape,
+TokenMacros <- list(escape = escape,
                     string_escape = paste0("\\\\(?:\n|\r\n|\r|\f)|", escape),
                     nonascii = nonascii,
                     nmchar = paste0("([_a-z0-9-]|", escape, "|", nonascii, ")"),
@@ -1027,24 +1026,35 @@ match_ident <- compile_(paste0("^([_a-zA-Z0-9-]|", nonascii, "|", escape, ")+"))
 match_string_by_quote <- list("'" = compile_(paste0("^([^\n\r\f\\\\']|", TokenMacros$string_escape, ")*")),
                               '"' = compile_(paste0('^([^\n\r\f\\\\"]|', TokenMacros$string_escape, ")*")))
 
-# Substitution for escaped chars
-sub_simple_escape <- function(x) gsub("\\\\(.)", "\\1", x)
-sub_unicode_escape <- function(x) {
-    # Decode unicode escapes to the characters they represent,
-    # e.g. '\31 ' is U+0031, i.e. '1'
-    m <- gregexpr(TokenMacros$unicode_escape, x, ignore.case = TRUE,
-                  perl = TRUE)
+# Decode a token's escape sequences in one left-to-right pass
+# (css-syntax-3 "consume an escaped code point"): each backslash
+# consumes either 1-6 hex digits plus one optional whitespace (a
+# unicode escape, e.g. '\31 ' is U+0031, i.e. '1'), an escaped newline
+# (a line continuation, strings only), or exactly one literal
+# character. The single non-overlapping global match claims each
+# sequence's characters, so the text consumed by one escape (e.g. the
+# tail of an escaped backslash '\\') is never re-read as the start of
+# another, as sequential substitution passes would do.
+decode_escapes <- function(x, newlines = FALSE) {
+    pattern <- paste0("\\\\[0-9a-fA-F]{1,6}(?:\r\n|[ \n\r\t\f])?",
+                      if (newlines) "|\\\\(?:\r\n|[\n\r\f])",
+                      "|\\\\.")
+    m <- gregexpr(pattern, x, perl = TRUE)
     regmatches(x, m) <- lapply(regmatches(x, m), function(esc) {
         if (length(esc) == 0) {
             return(esc)
         }
-        hex <- sub("^\\\\", "", esc)
-        hex <- sub("(?:\r\n|[ \n\r\t\f])$", "", hex, perl = TRUE)
-        intToUtf8(strtoi(hex, base = 16L), multiple = TRUE)
+        is_hex <- grepl("^\\\\[0-9a-fA-F]", esc)
+        out <- substring(esc, 2)              # simple escape: the character
+        out[grepl("^[\n\r\f]", out)] <- ""    # line continuation: nothing
+        if (any(is_hex)) {
+            hex <- sub("(?:\r\n|[ \n\r\t\f])$", "", out[is_hex], perl = TRUE)
+            out[is_hex] <- intToUtf8(strtoi(hex, base = 16L), multiple = TRUE)
+        }
+        out
     })
     x
 }
-sub_newline_escape <- function(x) gsub("\\\\(?:\n|\r\n|\r|\f)", "", x)
 
 tokenize <- function(s) {
     pos <- 1
@@ -1076,7 +1086,7 @@ tokenize <- function(s) {
             match_start <- match[1]
             match_end <- max(match[1], match[2])
             value <- substring(ss, match_start, match_end)
-            value <- sub_simple_escape(sub_unicode_escape(value))
+            value <- decode_escapes(value)
             results[[i]] <- Token("IDENT", value, pos)
             pos <- pos + match_end
             i <- i + 1
@@ -1087,7 +1097,7 @@ tokenize <- function(s) {
             match_start <- match[1]
             match_end <- max(match[1], match[2])
             value <- substring(ss, match_start, match_end)
-            value <- sub_simple_escape(sub_unicode_escape(value))
+            value <- decode_escapes(value)
             hash_id <- substring(value, 2)
             results[[i]] <- Token("HASH", hash_id, pos)
             pos <- pos + match_end
@@ -1122,9 +1132,7 @@ tokenize <- function(s) {
                 stop("Unclosed string at ", pos)
             }
             value <- substring(s, pos + 1, pos + content_end)
-            value <- sub_simple_escape(
-                         sub_unicode_escape(
-                             sub_newline_escape(value)))
+            value <- decode_escapes(value, newlines = TRUE)
             results[[i]] <- Token("STRING", value, pos)
             pos <- end_quote + 1
             i <- i + 1

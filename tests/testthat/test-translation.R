@@ -42,6 +42,12 @@ test_that("translation from parsed objects to XPath works", {
                 equals("*[attribute::*[name() = '123']]"))
     expect_that(xpath("e[foo='\\31 23']"), equals("e[@foo = '123']"))
     expect_that(xpath("e[foo='x\\79 z']"), equals("e[@foo = 'xyz']"))
+    expect_that(xpath("e[foo='\\4a']"), equals("e[@foo = 'J']"))
+    # An escaped backslash yields a literal backslash; what follows it
+    # must not be re-processed as another escape
+    expect_that(xpath("e[foo='x\\\\79 z']"), equals("e[@foo = 'x\\79 z']"))
+    expect_that(xpath("e[foo='\\\\31 23']"), equals("e[@foo = '\\31 23']"))
+    expect_that(xpath("#\\\\31 x"), equals("*[@id = '\\31']//x"))
     expect_that(xpath('e[foo~="bar"]'),
                 equals("e[@foo and contains(concat(' ', normalize-space(@foo), ' '), ' bar ')]"))
     expect_that(xpath('e[foo^="bar"]'),
