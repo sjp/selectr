@@ -769,7 +769,9 @@ parse_simple_selector_arguments <- function(stream, function_name = NULL, # noli
     check_no_pseudo_element <- function(pseudo_element) {
         if (!is.null(pseudo_element)) {
             if (!is.null(function_name)) {
-                stop("Got pseudo-element ::", pseudo_element, " inside :", function_name, "() at ", stream$peeked$pos)
+                stop("Got pseudo-element ::", pseudo_element,
+                     " inside :", function_name,
+                     "() at ", stream$peek()$pos)
             } else {
                 stop("Got pseudo-element ::", pseudo_element, " inside function")
             }
