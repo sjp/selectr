@@ -537,14 +537,12 @@ parse_selector_group <- function(stream) {
 
 token_equality <- function(token, t, val) {
     if (token$type != t)
-       return(FALSE)
-    # val can be NULL or (maybe) NA
-    if (is.null(val) && is.null(token$value))
-        return(TRUE)
-    if (is.na(val) && is.na(token$value))
-        return(TRUE)
-    # Should be OK with regular equality
-    token$value == val
+        return(FALSE)
+    # val or the token value can be NULL (e.g. for EOF tokens); they
+    # are only equal when both are
+    if (is.null(val) || is.null(token$value))
+        return(is.null(val) && is.null(token$value))
+    isTRUE(token$value == val)
 }
 
 parse_selector <- function(stream) {

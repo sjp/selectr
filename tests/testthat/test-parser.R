@@ -199,3 +199,17 @@ test_that("compiled regex parsing functions behave as expected", {
     expect_that(m_hash("a #test"), equals(match_hash("a #test")))
     expect_that(m_ident(" test"), equals(match_ident(" test")))
 })
+
+test_that("token_equality always returns a single logical", {
+    ident <- Token$new("IDENT", "a", 1)
+    eof <- EOFToken$new(2)
+
+    expect_true(token_equality(ident, "IDENT", "a"))
+    expect_false(token_equality(ident, "IDENT", "b"))
+    expect_false(token_equality(ident, "DELIM", "a"))
+    expect_true(token_equality(eof, "EOF", NULL))
+    # NULL on only one side is FALSE, not logical(0) (an error under
+    # && on R >= 4.3) or a zero-length value in a caller's if ()
+    expect_false(token_equality(ident, "IDENT", NULL))
+    expect_false(token_equality(eof, "EOF", "a"))
+})
