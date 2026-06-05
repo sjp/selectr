@@ -27,6 +27,9 @@ test_that("Generic translator validates language arguments", {
 
     expect_error(translator$css_to_xpath("xml:lang()"), "Expected at least one argument.*")
     expect_error(translator$css_to_xpath("xml:lang(1)"), "Expected string, ident, or \\* arguments.*")
+    # The reported argument is the offending one, not the first
+    expect_error(translator$css_to_xpath("xml:lang(en, 5)"),
+                 "Expected string, ident, or \\* arguments for :lang\\(\\), got <NUMBER '5' at 14>")
 
     # Multiple languages with OR logic
     expect_that(translator$css_to_xpath("xml:lang(en, fr)"), equals("descendant-or-self::xml[((lang('en') or lang('fr')))]"))

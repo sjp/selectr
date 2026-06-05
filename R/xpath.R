@@ -103,6 +103,44 @@ pseudo_never_matches <- function(xpath) {
     xpath
 }
 
+# Validate that all arguments of :lang() are STRING, IDENT, or * (DELIM).
+# A lone '-' lexes as an IDENT but is not a valid <ident> per
+# css-syntax, so reject it too.
+validate_lang_args <- function(fn) {
+    arg_types <- fn$argument_types()
+    arg_values <- sapply(fn$arguments, function(a) a$value)
+    valid_types <- (arg_types %in% c("STRING", "IDENT") |
+                  (arg_types == "DELIM" & arg_values == "*")) &
+                  !(arg_types == "IDENT" & arg_values == "-")
+    if (!all(valid_types)) {
+        stop("Expected string, ident, or * arguments for :lang(), got ",
+             fn$arguments[[which(!valid_types)[1]]]$repr())
+    }
+}
+
+# The language values named by the arguments of :lang(), combining an
+# ident or string ending in '-' with a following '*' DELIM into a
+# single wildcard range (e.g. "en-" + "*" = "en-*")
+extract_lang_values <- function(fn) {
+    lang_values <- character(0)
+    i <- 1
+    while (i <= length(fn$arguments)) {
+        arg <- fn$arguments[[i]]
+        if (arg$type %in% c("IDENT", "STRING") &&
+            grepl("-$", arg$value) &&
+            i < length(fn$arguments) &&
+            fn$arguments[[i + 1]]$type == "DELIM" &&
+            fn$arguments[[i + 1]]$value == "*") {
+            lang_values <- c(lang_values, paste0(arg$value, "*"))
+            i <- i + 2  # Skip the next token since we combined it
+        } else {
+            lang_values <- c(lang_values, arg$value)
+            i <- i + 1
+        }
+    }
+    lang_values
+}
+
 first_class_name <- function(obj) {
     result <- class(obj)[1]
 
@@ -750,38 +788,8 @@ GenericTranslator <- R6Class("GenericTranslator",
                                           add_name_test = FALSE)
         },
         xpath_lang_function = function(xpath, fn) {
-            # Validate all arguments are STRING, IDENT, or * (DELIM).
-            # A lone '-' lexes as an IDENT but is not a valid <ident>
-            # per css-syntax, so reject it too.
-            arg_types <- fn$argument_types()
-            arg_values <- sapply(fn$arguments, function(a) a$value)
-            valid_types <- (arg_types %in% c("STRING", "IDENT") |
-                          (arg_types == "DELIM" & arg_values == "*")) &
-                          !(arg_types == "IDENT" & arg_values == "-")
-            if (!all(valid_types)) {
-                stop("Expected string, ident, or * arguments for :lang(), got ",
-                     fn$arguments[[1]]$repr())
-            }
-
-            # Extract language values from arguments, combining IDENT-* patterns
-            lang_values <- character(0)
-            i <- 1
-            while (i <= length(fn$arguments)) {
-                arg <- fn$arguments[[i]]
-                # Check if this is an IDENT ending with '-' followed by a '*' DELIM
-                if (arg$type %in% c("IDENT", "STRING") &&
-                    grepl("-$", arg$value) &&
-                    i < length(fn$arguments) &&
-                    fn$arguments[[i + 1]]$type == "DELIM" &&
-                    fn$arguments[[i + 1]]$value == "*") {
-                    # Combine them: "en-" + "*" = "en-*"
-                    lang_values <- c(lang_values, paste0(arg$value, "*"))
-                    i <- i + 2  # Skip the next token since we combined it
-                } else {
-                    lang_values <- c(lang_values, arg$value)
-                    i <- i + 1
-                }
-            }
+            validate_lang_args(fn)
+            lang_values <- extract_lang_values(fn)
 
             # Build conditions for each language value
             conditions <- character(0)
@@ -1011,38 +1019,8 @@ HTMLTranslator <- R6Class("HTMLTranslator",
             xpath
         },
         xpath_lang_function = function(xpath, fn) {
-            # Validate all arguments are STRING, IDENT, or * (DELIM).
-            # A lone '-' lexes as an IDENT but is not a valid <ident>
-            # per css-syntax, so reject it too.
-            arg_types <- fn$argument_types()
-            arg_values <- sapply(fn$arguments, function(a) a$value)
-            valid_types <- (arg_types %in% c("STRING", "IDENT") |
-                          (arg_types == "DELIM" & arg_values == "*")) &
-                          !(arg_types == "IDENT" & arg_values == "-")
-            if (!all(valid_types)) {
-                stop("Expected string, ident, or * arguments for :lang(), got ",
-                     fn$arguments[[1]]$repr())
-            }
-
-            # Extract language values from arguments, combining IDENT-* patterns
-            lang_values <- character(0)
-            i <- 1
-            while (i <= length(fn$arguments)) {
-                arg <- fn$arguments[[i]]
-                # Check if this is an IDENT ending with '-' followed by a '*' DELIM
-                if (arg$type %in% c("IDENT", "STRING") &&
-                    grepl("-$", arg$value) &&
-                    i < length(fn$arguments) &&
-                    fn$arguments[[i + 1]]$type == "DELIM" &&
-                    fn$arguments[[i + 1]]$value == "*") {
-                    # Combine them: "en-" + "*" = "en-*"
-                    lang_values <- c(lang_values, paste0(arg$value, "*"))
-                    i <- i + 2  # Skip the next token since we combined it
-                } else {
-                    lang_values <- c(lang_values, arg$value)
-                    i <- i + 1
-                }
-            }
+            validate_lang_args(fn)
+            lang_values <- extract_lang_values(fn)
 
             # Build conditions for each language value
             conditions <- character(0)

@@ -88,6 +88,10 @@
   \subsection{BUG FIXES}{
     \itemize{
 
+      \item When \code{:lang()} is given an invalid argument after
+      valid ones (e.g. \code{:lang(en, 5)}), the error now reports the
+      offending argument rather than the first one.
+
       \item A string opened by the last character of a selector
       (e.g. \code{"a'"}) is now reported as "Unclosed string"; the
       out-of-range scan for a closing quote previously found the
