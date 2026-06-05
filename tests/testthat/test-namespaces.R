@@ -108,6 +108,26 @@ test_that("namespaced pseudo-class arguments match by URI, not prefix", {
                 equals("r"))
 })
 
+test_that("unprefixed pseudo-class argument names match default namespaces", {
+    skip_if_not_installed("xml2")
+
+    # An unprefixed name inside a pseudo-class argument compares
+    # against name(), so it also matches an unprefixed element in a
+    # default namespace — unlike a top-level bare name, whose XPath
+    # name test matches in no namespace only
+    doc <- xml2::read_xml(paste0(
+        '<r id="root"><p id="plain"/>',
+        '<x xmlns="http://d" id="wrapper"><p id="defaulted"/></x></r>'))
+    ids <- function(sel) {
+        nodes <- xml2::xml_find_all(doc, css_to_xpath(sel, prefix = "//"))
+        xml2::xml_attr(nodes, "id")
+    }
+
+    expect_that(ids("p"), equals("plain"))
+    expect_that(ids(":is(p)"), equals(c("plain", "defaulted")))
+    expect_that(ids(":has(p)"), equals(c("root", "wrapper")))
+})
+
 test_that("'|e' with an unsafe name does not match a default namespace", {
     skip_if_not_installed("xml2")
 

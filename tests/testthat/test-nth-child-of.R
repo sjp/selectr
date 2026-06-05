@@ -113,7 +113,7 @@ test_that(":nth-child with complex selector works", {
     xpath <- css_to_xpath("div:nth-child(2 of div.foo)")
 
     # Should check element name
-    expect_true(grepl("self::div", xpath))
+    expect_true(grepl("name() = 'div'", xpath, fixed = TRUE))
 
     # Should check class
     expect_true(grepl("foo", xpath))

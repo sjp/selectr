@@ -159,41 +159,41 @@ test_that("translation from parsed objects to XPath works", {
                 equals("e[0]")) # never matches
     # Selectors Level 4: :not() can nest inside functional pseudo-classes
     expect_that(xpath(':not(:not(a))'),
-                equals("*[not(not(self::a))]"))
+                equals("*[not(not(name() = 'a'))]"))
     expect_that(xpath('e:is(:not(f))'),
-                equals("e[not(self::f)]"))
+                equals("e[not(name() = 'f')]"))
     expect_that(xpath('e:has(:not(f))'),
-                equals("e[.//*[not(self::f)]]"))
+                equals("e[.//*[not(name() = 'f')]]"))
     # Selectors Level 4: complex selectors inside functional pseudo-classes
     # apply the rightmost compound to the candidate and walk the rest
     # through reversed axes
     expect_that(xpath(':is(a b)'),
-                equals("*[self::b and ancestor::*[self::a]]"))
+                equals("*[name() = 'b' and ancestor::*[name() = 'a']]"))
     expect_that(xpath(':is(a > b)'),
-                equals("*[self::b and parent::*[self::a]]"))
+                equals("*[name() = 'b' and parent::*[name() = 'a']]"))
     expect_that(xpath(':is(a + b)'),
-                equals("*[self::b and preceding-sibling::*[1][self::a]]"))
+                equals("*[name() = 'b' and preceding-sibling::*[1][name() = 'a']]"))
     expect_that(xpath(':is(a ~ b)'),
-                equals("*[self::b and preceding-sibling::*[self::a]]"))
+                equals("*[name() = 'b' and preceding-sibling::*[name() = 'a']]"))
     expect_that(xpath(':is(a > b ~ c)'),
-                equals("*[self::c and preceding-sibling::*[self::b and parent::*[self::a]]]"))
+                equals("*[name() = 'c' and preceding-sibling::*[name() = 'b' and parent::*[name() = 'a']]]"))
     expect_that(xpath('e:not(a b)'),
-                equals("e[not(self::b and ancestor::*[self::a])]"))
+                equals("e[not(name() = 'b' and ancestor::*[name() = 'a'])]"))
     expect_that(xpath(':where(a + b)'),
-                equals("*[self::b and preceding-sibling::*[1][self::a]]"))
+                equals("*[name() = 'b' and preceding-sibling::*[1][name() = 'a']]"))
     expect_that(xpath(':is(a.x > b#y)'),
-                equals("*[@id = 'y' and self::b and parent::*[@class and contains(concat(' ', normalize-space(@class), ' '), ' x ') and self::a]]"))
+                equals("*[@id = 'y' and name() = 'b' and parent::*[@class and contains(concat(' ', normalize-space(@class), ' '), ' x ') and name() = 'a']]"))
     # The :is()/:where() alternatives must stay grouped: conditions added
     # before or after the pseudo-class AND with the whole selector list,
     # rather than the ORs flattening into the compound's condition chain
     expect_that(xpath('e.warning:is(.a, .b)'),
                 equals("e[@class and contains(concat(' ', normalize-space(@class), ' '), ' warning ') and (@class and contains(concat(' ', normalize-space(@class), ' '), ' a ') or @class and contains(concat(' ', normalize-space(@class), ' '), ' b '))]"))
     expect_that(xpath(':is(f, g):first-child'),
-                equals("*[(self::f or self::g) and count(preceding-sibling::*) = 0]"))
+                equals("*[(name() = 'f' or name() = 'g') and count(preceding-sibling::*) = 0]"))
     expect_that(xpath('e:is(.a):is(.b)'),
                 equals("e[@class and contains(concat(' ', normalize-space(@class), ' '), ' a ') and @class and contains(concat(' ', normalize-space(@class), ' '), ' b ')]"))
     expect_that(xpath('e.warning:where(f, g)'),
-                equals("e[@class and contains(concat(' ', normalize-space(@class), ' '), ' warning ') and (self::f or self::g)]"))
+                equals("e[@class and contains(concat(' ', normalize-space(@class), ' '), ' warning ') and (name() = 'f' or name() = 'g')]"))
     # An always-true argument (a bare '*') must not be dropped from a
     # selector list: the whole list then matches everything, so :is()
     # imposes no condition, :not() never matches, and the "of S" form
@@ -213,7 +213,7 @@ test_that("translation from parsed objects to XPath works", {
     expect_that(xpath('e > f'),
                 equals("e/f"))
     expect_that(xpath('e + f'),
-                equals("e/following-sibling::*[1][self::f]"))
+                equals("e/following-sibling::*[1][name() = 'f']"))
     expect_that(xpath('e ~ f'),
                 equals("e/following-sibling::f"))
     expect_that(xpath('e ~ f:nth-child(3)'),

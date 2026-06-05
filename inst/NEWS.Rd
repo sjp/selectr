@@ -62,10 +62,25 @@
       \code{e:lang(en, fr)} to \code{e[lang('en') or lang('fr')]}
       rather than \code{e[(lang('en') or lang('fr'))]}, while
       \code{:is(f, g):first-child} keeps its grouping parentheses:
-      \code{*[(self::f or self::g) and count(preceding-sibling::*) = 0]}.
+      \code{*[(name() = 'f' or name() = 'g') and count(preceding-sibling::*) = 0]}.
       The expressions are semantically unchanged, just easier to read;
       code comparing \code{css_to_xpath()} output against stored
       strings will need updating.
+
+      \item Unprefixed element names inside pseudo-class arguments and
+      after the adjacent sibling combinator are now matched with a
+      \code{name()} comparison instead of a \code{self::} node test:
+      \code{div:is(p)} translates to \code{div[name() = 'p']} rather
+      than \code{div[self::p]}. The two forms differ for documents
+      with a default namespace: \code{self::p} only matches a \code{p}
+      in no namespace, while \code{name() = 'p'} also matches an
+      unprefixed \code{p} element in a default namespace — closer to
+      the CSS rule that a type selector without a namespace component
+      matches elements in any namespace, and the same policy already
+      applied to names that cannot be written as an XPath name test.
+      Explicitly prefixed names (e.g. \code{:is(svg|g)}) still
+      translate to a \code{self::svg:g} node test, resolving the
+      prefix through the namespace map.
 
       \item Tokens are now plain lists rather than R6 objects. Tokens
       are created in bulk during tokenization and used as simple

@@ -7,7 +7,7 @@ test_that(":where() generates correct XPath", {
 
     # Simple :where() with single selector
     expect_that(xpath("div:where(p)"),
-                equals("div[self::p]"))
+                equals("div[name() = 'p']"))
 
     # :where() with class selector
     expect_that(xpath("div:where(.foo)"),
@@ -23,16 +23,16 @@ test_that(":where() generates correct XPath", {
 
     # :where() with multiple selectors (OR logic, grouped as one condition)
     expect_that(xpath("div:where(p, span)"),
-                equals("div[self::p or self::span]"))
+                equals("div[name() = 'p' or name() = 'span']"))
 
     # :where() with element and class (both conditions must match)
     expect_that(xpath("*:where(div.content)"),
-                equals("*[@class and contains(concat(' ', normalize-space(@class), ' '), ' content ') and self::div]"))
+                equals("*[@class and contains(concat(' ', normalize-space(@class), ' '), ' content ') and name() = 'div']"))
 
     # Stacked :where() selectors - each adds its own condition, so
     # both must match (AND)
     expect_that(xpath("div:where(p):where(span)"),
-                equals("div[self::p and self::span]"))
+                equals("div[name() = 'p' and name() = 'span']"))
 
     # :where() on universal selector
     expect_that(xpath("*:where(.highlight)"),

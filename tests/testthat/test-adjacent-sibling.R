@@ -7,38 +7,38 @@ test_that("adjacent sibling combinator generates simplified XPath", {
 
     # Simple element + element
     expect_that(xpath('a + b'),
-                equals("a/following-sibling::*[1][self::b]"))
+                equals("a/following-sibling::*[1][name() = 'b']"))
 
     # With attribute on right side
     expect_that(xpath('a + b[id]'),
-                equals("a/following-sibling::*[1][self::b][@id]"))
+                equals("a/following-sibling::*[1][name() = 'b'][@id]"))
 
     # With class on right side
     expect_that(xpath('a + b.test'),
-                equals("a/following-sibling::*[1][self::b][@class and contains(concat(' ', normalize-space(@class), ' '), ' test ')]"))
+                equals("a/following-sibling::*[1][name() = 'b'][@class and contains(concat(' ', normalize-space(@class), ' '), ' test ')]"))
 
     # With ID on right side
     expect_that(xpath('a + b#myid'),
-                equals("a/following-sibling::*[1][self::b][@id = 'myid']"))
+                equals("a/following-sibling::*[1][name() = 'b'][@id = 'myid']"))
 
     # With multiple attributes on right side
     expect_that(xpath('a + b[id][title]'),
-                equals("a/following-sibling::*[1][self::b][@id and @title]"))
+                equals("a/following-sibling::*[1][name() = 'b'][@id and @title]"))
 
     # With class and attribute on right side
     expect_that(xpath('a + b.test[title]'),
-                equals("a/following-sibling::*[1][self::b][@class and contains(concat(' ', normalize-space(@class), ' '), ' test ') and @title]"))
+                equals("a/following-sibling::*[1][name() = 'b'][@class and contains(concat(' ', normalize-space(@class), ' '), ' test ') and @title]"))
 
     # With conditions on both sides
     expect_that(xpath('a.link + b[id]'),
-                equals("a[@class and contains(concat(' ', normalize-space(@class), ' '), ' link ')]/following-sibling::*[1][self::b][@id]"))
+                equals("a[@class and contains(concat(' ', normalize-space(@class), ' '), ' link ')]/following-sibling::*[1][name() = 'b'][@id]"))
 
     expect_that(xpath('a[href] + b.test'),
-                equals("a[@href]/following-sibling::*[1][self::b][@class and contains(concat(' ', normalize-space(@class), ' '), ' test ')]"))
+                equals("a[@href]/following-sibling::*[1][name() = 'b'][@class and contains(concat(' ', normalize-space(@class), ' '), ' test ')]"))
 
     # With ID on left, class and attribute on right
     expect_that(xpath('div#main + p.intro[title]'),
-                equals("div[@id = 'main']/following-sibling::*[1][self::p][@class and contains(concat(' ', normalize-space(@class), ' '), ' intro ') and @title]"))
+                equals("div[@id = 'main']/following-sibling::*[1][name() = 'p'][@class and contains(concat(' ', normalize-space(@class), ' '), ' intro ') and @title]"))
 
     # Universal selector on right needs no (tautological) name test
     expect_that(xpath('h1 + *[rel=up]'),
@@ -46,18 +46,18 @@ test_that("adjacent sibling combinator generates simplified XPath", {
 
     # Combined with child combinator
     expect_that(xpath('div > h1 + p'),
-                equals("div/h1/following-sibling::*[1][self::p]"))
+                equals("div/h1/following-sibling::*[1][name() = 'p']"))
 
     expect_that(xpath('div#main > h1 + p[class]'),
-                equals("div[@id = 'main']/h1/following-sibling::*[1][self::p][@class]"))
+                equals("div[@id = 'main']/h1/following-sibling::*[1][name() = 'p'][@class]"))
 
     # With descendant combinator
     expect_that(xpath('section a + b'),
-                equals("section//a/following-sibling::*[1][self::b]"))
+                equals("section//a/following-sibling::*[1][name() = 'b']"))
 
     # Complex: multiple combinators and conditions
     expect_that(xpath('article.post > h2.title + p.intro[data-info]'),
-                equals("article[@class and contains(concat(' ', normalize-space(@class), ' '), ' post ')]/h2[@class and contains(concat(' ', normalize-space(@class), ' '), ' title ')]/following-sibling::*[1][self::p][@class and contains(concat(' ', normalize-space(@class), ' '), ' intro ') and @data-info]"))
+                equals("article[@class and contains(concat(' ', normalize-space(@class), ' '), ' post ')]/h2[@class and contains(concat(' ', normalize-space(@class), ' '), ' title ')]/following-sibling::*[1][name() = 'p'][@class and contains(concat(' ', normalize-space(@class), ' '), ' intro ') and @data-info]"))
 })
 
 test_that("adjacent sibling combinator works correctly with querySelector", {
@@ -152,9 +152,9 @@ test_that("adjacent sibling with pseudo-classes", {
 
     # Adjacent sibling with pseudo-class on right
     expect_that(xpath('h1 + p:first-child'),
-                equals("h1/following-sibling::*[1][self::p][count(preceding-sibling::*) = 0]"))
+                equals("h1/following-sibling::*[1][name() = 'p'][count(preceding-sibling::*) = 0]"))
 
     # Adjacent sibling with nth-child
     expect_that(xpath('h1 + p:nth-child(2)'),
-                equals("h1/following-sibling::*[1][self::p][count(preceding-sibling::*) = 1]"))
+                equals("h1/following-sibling::*[1][name() = 'p'][count(preceding-sibling::*) = 1]"))
 })
