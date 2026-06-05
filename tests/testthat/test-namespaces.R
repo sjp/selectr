@@ -50,6 +50,13 @@ test_that("namespace selectors translate faithfully", {
     # on the path step
     expect_that(xpath(":has(+ ns|e)"),
                 equals("*[following-sibling::*[1][self::ns:e]]"))
+
+    # 'ns|*' is a node test too ('*' is a valid local part), not an
+    # unsafe name: stringifying it as name() = 'ns:*' could never
+    # match, as name() never returns a literal '*'
+    expect_that(xpath(":is(ns|*)"), equals("*[self::ns:*]"))
+    expect_that(xpath(":not(ns|*)"), equals("*[not(self::ns:*)]"))
+    expect_that(xpath(":has(ns|*)"), equals("*[.//ns:*]"))
 })
 
 test_that("namespace selector specificity is correct", {
@@ -110,6 +117,8 @@ test_that("namespaced pseudo-class arguments match by URI, not prefix", {
     expect_that(ids("svg|g"), equals("g1"))
     expect_that(ids(":is(svg|g)"), equals("g1"))
     expect_that(ids(":not(svg|g)"), equals(c(NA, "b1"))) # r and b
+    expect_that(ids(":is(svg|*)"), equals("g1"))
+    expect_that(ids(":not(svg|*)"), equals(c(NA, "b1"))) # r and b
     expect_that(xml2::xml_name(xml2::xml_find_all(
                     doc, css_to_xpath(":has(svg|g)", prefix = "//"), ns)),
                 equals("r"))

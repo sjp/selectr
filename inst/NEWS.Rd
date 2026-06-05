@@ -159,6 +159,15 @@
   \subsection{BUG FIXES}{
     \itemize{
 
+      \item A prefixed wildcard inside a pseudo-class argument
+      (e.g. \code{:is(svg|*)}, \code{:not(svg|*)}, \code{:has(svg|*)})
+      now translates to the node test \code{self::svg:*} (or the path
+      step \code{.//svg:*} for \code{:has()}). It was previously
+      stringified as \code{name() = 'svg:*'}, which can never match:
+      \code{name()} returns an actual qualified name, never a literal
+      \code{*}. The named form (e.g. \code{:is(svg|g)}) was already
+      translated correctly.
+
       \item When \code{:lang()} is given an invalid argument after
       valid ones (e.g. \code{:lang(en, 5)}), the error now reports the
       offending argument rather than the first one.

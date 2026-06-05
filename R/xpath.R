@@ -120,10 +120,15 @@ is_safe_name <- function(name) {
 }
 
 # A name (optionally prefixed, e.g. 'svg:g') that can be used directly
-# as an XPath name test
+# as an XPath node test. The local part may be the wildcard '*'
+# ('svg:*' matches any element in the namespace bound to 'svg'), but a
+# prefix must be a name
 is_safe_nodetest <- function(name) {
     parts <- strsplit(name, ":", fixed = TRUE)[[1]]
-    length(parts) <= 2 && all(is_safe_name(parts))
+    n <- length(parts)
+    (n == 1 || n == 2) &&
+        (parts[n] == "*" || is_safe_name(parts[n])) &&
+        (n == 1 || is_safe_name(parts[1]))
 }
 
 # A safe node test with a namespace prefix (e.g. 'svg:g'): the only
