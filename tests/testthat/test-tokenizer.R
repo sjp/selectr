@@ -71,9 +71,18 @@ test_that("string tokens handle quotes, escapes, and unclosed strings", {
     expect_that(reprs("'a\\\\'"),
                 equals(c("<STRING 'a\\' at 1>", "<EOF at 6>")))
 
-    expect_error(tokenize("'abc"), "Unclosed string at 1")
-    expect_error(tokenize("a'"), "Unclosed string at 2")
-    expect_error(tokenize("'a\\'"), "Unclosed string at 1")
-    # A raw newline may not appear in a string
+    # A string still open at EOF is auto-closed with its consumed
+    # value (css-syntax), including when the consumed value ends with
+    # an escaped quote
+    expect_that(reprs("'abc"),
+                equals(c("<STRING 'abc' at 1>", "<EOF at 5>")))
+    expect_that(reprs("a'"),
+                equals(c("<IDENT 'a' at 1>", "<STRING '' at 2>",
+                         "<EOF at 3>")))
+    expect_that(reprs("'a\\'"),
+                equals(c("<STRING 'a'' at 1>", "<EOF at 5>")))
+    # A raw newline may not appear in a string, and stops it short of
+    # EOF, so it is not auto-closed
     expect_error(tokenize("'a\nb'"), "Unclosed string at 1")
+    expect_error(tokenize("'a\n"), "Unclosed string at 1")
 })

@@ -736,7 +736,10 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                         # For :lang(), commas separate multiple values
                         stream$skip_whitespace()
                         next
-                    } else if (token_equality(nt, "DELIM", ")")) {
+                    } else if (token_equality(nt, "DELIM", ")") ||
+                               nt$type == "EOF") {
+                        # EOF auto-closes the function (css-syntax):
+                        # ':lang(fr' means ':lang(fr)'
                         break
                     } else {
                         stop("Expected an argument, got ", token_repr(nt))
@@ -833,7 +836,9 @@ parse_simple_selector_arguments <- function(stream, function_name = NULL, # noli
         stream$skip_whitespace()
         nt <- stream$nxt()
 
-        if (token_equality(nt, "DELIM", ")")) {
+        if (token_equality(nt, "DELIM", ")") || nt$type == "EOF") {
+            # EOF auto-closes the function (css-syntax):
+            # ':is(a' means ':is(a)'
             break
         } else if (token_equality(nt, "DELIM", ",")) {
             stream$skip_whitespace()
@@ -881,7 +886,10 @@ parse_attrib <- function(selector, stream) {
     if (is.null(op)) {
         stream$skip_whitespace()
         nt <- stream$nxt()
-        if (token_equality(nt, "DELIM", "]")) {
+        # EOF auto-closes the block (css-syntax), here and below:
+        # '[rel' means '[rel]'. Anything else before the ']' is still
+        # an error
+        if (token_equality(nt, "DELIM", "]") || nt$type == "EOF") {
             return(Attrib$new(selector, namespace, attrib, "exists", NULL))
         } else if (token_equality(nt, "DELIM", "=")) {
             op <- "="
@@ -906,7 +914,7 @@ parse_attrib <- function(selector, stream) {
         stream$skip_whitespace()
         nt <- stream$nxt()
     }
-    if (!token_equality(nt, "DELIM", "]")) {
+    if (!token_equality(nt, "DELIM", "]") && nt$type != "EOF") {
         stop("Expected ']', got ", token_repr(nt))
     }
     Attrib$new(selector, namespace, attrib, op, value$value, flag)
@@ -1127,14 +1135,21 @@ tokenize <- function(s) {
             match <- match_string_by_quote[[ch]](substring(s, pos + 1, len_s))
             content_end <- if (anyNA(match)) 0 else match[2]
             end_quote <- pos + 1 + content_end
-            if (end_quote > len_s ||
+            # A string still open at EOF (content consumed to the end
+            # of the input) is auto-closed with the consumed value, as
+            # css-syntax requires; only a string stopped short of EOF
+            # (by a raw newline or a lone trailing backslash) is an
+            # error
+            if (end_quote <= len_s &&
                 substring(s, end_quote, end_quote) != ch) {
                 stop("Unclosed string at ", pos)
             }
             value <- substring(s, pos + 1, pos + content_end)
             value <- decode_escapes(value, newlines = TRUE)
             results[[i]] <- Token("STRING", value, pos)
-            pos <- end_quote + 1
+            # An auto-closed string has no closing quote to step over,
+            # so the EOF token keeps its position just past the input
+            pos <- min(end_quote, len_s) + 1
             i <- i + 1
             next
         }
@@ -1186,9 +1201,16 @@ TokenStream <- R6Class("TokenStream",
             }
         },
         next_token = function() {
-            nt <- self$tokens[[self$pos]]
-            self$pos <- self$pos + 1
-            nt
+            if (self$pos > self$ntokens) {
+                # The trailing EOF token is sticky: consuming it
+                # (e.g. when it auto-closes a construct) must not run
+                # past the token list, as the caller will peek again
+                self$tokens[[self$ntokens]]
+            } else {
+                nt <- self$tokens[[self$pos]]
+                self$pos <- self$pos + 1
+                nt
+            }
         },
         peek = function() {
             if (!self$peeking) {

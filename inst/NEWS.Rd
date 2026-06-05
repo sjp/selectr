@@ -91,6 +91,18 @@
       \code{following-sibling::*[1][self::svg:g]} shape. The selected
       nodes are unchanged.
 
+      \item Attribute blocks, functional pseudo-classes, and strings
+      left unclosed at the end of a selector are now auto-closed, as
+      css-syntax requires and as browsers implement:
+      \code{[rel=stylesheet}, \code{:lang(fr}, \code{:is(a}, and
+      \code{[foo="bar} parse and translate exactly as their closed
+      forms. Previously each was rejected ("Expected ']'", "Expected
+      an argument", "Unclosed string"). Only constructs truncated at
+      the end of input are affected: a selector whose closed form is
+      itself invalid (e.g. \code{[foo=}) or with an error before the
+      closing delimiter (e.g. \code{[rel=stylesheet k]}) is rejected
+      exactly as before, as is a string containing a raw newline.
+
       \item Tokens are now plain lists rather than R6 objects. Tokens
       are created in bulk during tokenization and used as simple
       records, so the per-token cost of an R6 environment and method
@@ -180,12 +192,6 @@
       \item When \code{:lang()} is given an invalid argument after
       valid ones (e.g. \code{:lang(en, 5)}), the error now reports the
       offending argument rather than the first one.
-
-      \item A string opened by the last character of a selector
-      (e.g. \code{"a'"}) is now reported as "Unclosed string"; the
-      out-of-range scan for a closing quote previously found the
-      opening quote itself, accidentally emitting an empty string token
-      and a misleading "Expected selector, got <STRING '' at 2>" error.
 
       \item Strings containing a raw newline (e.g. in an attribute
       value selector) are now rejected with "Unclosed string", as the
