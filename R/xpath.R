@@ -76,8 +76,7 @@ XPathExpr <- R6Class("XPathExpr",
             add <-
                 if (as_predicate) self$add_predicate
                 else self$add_condition
-            if (is_safe_nodetest(self$element) &&
-                grepl(":", self$element, fixed = TRUE)) {
+            if (is_prefixed_nodetest(self$element)) {
                 # A prefixed safe name stays an XPath name test on the
                 # self axis, so the prefix keeps resolving through the
                 # namespace map supplied at evaluation time (URI-based),
@@ -125,6 +124,13 @@ is_safe_name <- function(name) {
 is_safe_nodetest <- function(name) {
     parts <- strsplit(name, ":", fixed = TRUE)[[1]]
     length(parts) <= 2 && all(is_safe_name(parts))
+}
+
+# A safe node test with a namespace prefix (e.g. 'svg:g'): the only
+# names kept as XPath name tests when an element name is matched as a
+# condition, so the prefix resolves through the namespace map
+is_prefixed_nodetest <- function(name) {
+    is_safe_nodetest(name) && grepl(":", name, fixed = TRUE)
 }
 
 # The XPath node test matching the same elements as the subject of an
@@ -397,7 +403,14 @@ GenericTranslator <- R6Class("GenericTranslator",
             if (first_class_name(selector) == "CombinedSelector") {
                 left <- self$xpath_has_test(selector$selector, combinator)
                 sub_xpath <- self$xpath(selector$subselector)
-                sub_xpath$add_name_test()
+                # A prefixed safe name stays the node test of the path
+                # step itself (e.g. '//svg:g'); other names are folded
+                # into the predicate. Under '+' the position predicate
+                # [1] must come before the name test, so the name
+                # always moves into the predicate there.
+                if (selector$combinator == "+" ||
+                    !is_prefixed_nodetest(sub_xpath$element))
+                    sub_xpath$add_name_test()
                 joiner <-
                     if (selector$combinator == " ") "//"
                     else if (selector$combinator == ">") "/"
@@ -414,7 +427,12 @@ GenericTranslator <- R6Class("GenericTranslator",
                 rel_test
             } else {
                 sub_xpath <- self$xpath(selector)
-                sub_xpath$add_name_test()
+                # As above: keep a prefixed safe name as the node test
+                # of the axis step, except under '+' where [1] must
+                # precede the name test
+                if (combinator == "+" ||
+                    !is_prefixed_nodetest(sub_xpath$element))
+                    sub_xpath$add_name_test()
                 axis <-
                     if (combinator == ">") "child::"
                     else if (any(combinator == c("~", "+"))) "following-sibling::"

@@ -82,6 +82,15 @@
       translate to a \code{self::svg:g} node test, resolving the
       prefix through the namespace map.
 
+      \item A \code{:has()} argument naming a prefixed element now
+      emits the name as the node test of the path step itself:
+      \code{e:has(svg|g)} translates to \code{e[.//svg:g]} rather
+      than \code{e[.//*[self::svg:g]]}. The exception is the \code{+}
+      combinator, where the position predicate must precede the name
+      test, so \code{e:has(+ svg|g)} keeps the
+      \code{following-sibling::*[1][self::svg:g]} shape. The selected
+      nodes are unchanged.
+
       \item Tokens are now plain lists rather than R6 objects. Tokens
       are created in bulk during tokenization and used as simple
       records, so the per-token cost of an R6 environment and method

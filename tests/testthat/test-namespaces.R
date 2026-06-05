@@ -38,11 +38,18 @@ test_that("namespace selectors translate faithfully", {
     expect_that(xpath("div > *|e"), equals("div/*[local-name() = 'e']"))
 
     # Inside pseudo-class arguments, prefixed names keep resolving
-    # through the namespace map (a self-axis name test), rather than
-    # comparing against the document's literal prefix with name()
+    # through the namespace map (a name test on the self axis or the
+    # path step itself), rather than comparing against the document's
+    # literal prefix with name()
     expect_that(xpath(":is(ns|e)"), equals("*[self::ns:e]"))
     expect_that(xpath(":not(ns|e)"), equals("*[not(self::ns:e)]"))
-    expect_that(xpath(":has(ns|e)"), equals("*[.//*[self::ns:e]]"))
+    expect_that(xpath(":has(ns|e)"), equals("*[.//ns:e]"))
+    expect_that(xpath(":has(> ns|e)"), equals("*[child::ns:e]"))
+    # Under '+' the position predicate [1] must precede the name test
+    # ("the next sibling, if it is an ns:e"), so the name cannot stay
+    # on the path step
+    expect_that(xpath(":has(+ ns|e)"),
+                equals("*[following-sibling::*[1][self::ns:e]]"))
 })
 
 test_that("namespace selector specificity is correct", {
