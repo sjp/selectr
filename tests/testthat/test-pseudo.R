@@ -96,3 +96,81 @@ test_that("runtime-state pseudo-classes translate as never matching", {
     expect_error(css_to_xpath("a:focused"),
                  "The pseudo-class :focused is unknown", fixed = TRUE)
 })
+
+test_that(":required and :optional translate from the @required attribute", {
+    # HTML form state readable from a document attribute: a real
+    # translation on the HTML translator (like :checked), never-match
+    # on the generic translator
+    required_xpath <- paste(
+        "@required and",
+        "((name(.) = 'input' and not(@type = 'hidden')) or",
+        "name(.) = 'select' or",
+        "name(.) = 'textarea')")
+    optional_xpath <- paste(
+        "not(@required) and",
+        "((name(.) = 'input' and not(@type = 'hidden')) or",
+        "name(.) = 'select' or",
+        "name(.) = 'textarea')")
+    for (translator in c("html", "xhtml")) {
+        expect_that(css_to_xpath("input:required", translator = translator),
+                    equals(paste0("descendant-or-self::input[",
+                                  required_xpath, "]")))
+        expect_that(css_to_xpath("input:optional", translator = translator),
+                    equals(paste0("descendant-or-self::input[",
+                                  optional_xpath, "]")))
+    }
+    expect_that(css_to_xpath("input:required"),
+                equals("descendant-or-self::input[0]"))
+    expect_that(css_to_xpath("input:optional"),
+                equals("descendant-or-self::input[0]"))
+
+    # The other form-state pseudo-classes have no exact static
+    # translation and stay unknown
+    expect_error(css_to_xpath("input:read-only", translator = "html"),
+                 "The pseudo-class :read-only is unknown", fixed = TRUE)
+    expect_error(css_to_xpath("input:read-write", translator = "html"),
+                 "The pseudo-class :read-write is unknown", fixed = TRUE)
+    expect_error(css_to_xpath("input:placeholder-shown", translator = "html"),
+                 "The pseudo-class :placeholder-shown is unknown", fixed = TRUE)
+    expect_error(css_to_xpath("input:default", translator = "html"),
+                 "The pseudo-class :default is unknown", fixed = TRUE)
+    expect_error(css_to_xpath("input:indeterminate", translator = "html"),
+                 "The pseudo-class :indeterminate is unknown", fixed = TRUE)
+})
+
+test_that(":required and :optional match form elements correctly", {
+    library(xml2)
+
+    form <- read_xml(paste0(
+        '<form>',
+        '<input id="i1" type="text" required="required"/>',
+        '<input id="i2" type="text"/>',
+        '<input id="i3" type="hidden" required="required"/>',
+        '<input id="i4" type="hidden"/>',
+        '<select id="s1" required="required"/>',
+        '<select id="s2"/>',
+        '<textarea id="t1" required="required"/>',
+        '<textarea id="t2"/>',
+        '<button id="b1"/>',
+        '<div id="d1" required="required"/>',
+        '</form>'
+    ))
+
+    get_ids <- function(css) {
+        results <- querySelectorAll(form, css, translator = "html")
+        xml_attr(results, "id")
+    }
+
+    # Only form elements that can take @required and have it; a hidden
+    # input cannot be required, and a div's @required is meaningless
+    expect_that(get_ids("*:required"),
+                equals(c("i1", "s1", "t1")))
+
+    # The rest of the same element set; non-form elements (and hidden
+    # inputs) are neither :required nor :optional
+    expect_that(get_ids("*:optional"),
+                equals(c("i2", "s2", "t2")))
+
+    expect_that(get_ids("input:required"), equals("i1"))
+    expect_that(get_ids("select:optional"), equals("s2"))
+})

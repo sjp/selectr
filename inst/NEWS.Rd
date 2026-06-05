@@ -17,6 +17,14 @@
       ASCII case-insensitively, while \code{[attr="value" s]}
       explicitly requests the default case-sensitive matching.
 
+      \item The \code{:required} and \code{:optional} pseudo-classes
+      are now supported. With the \code{html} or \code{xhtml}
+      translator they match form elements (\code{input} other than
+      \code{type="hidden"}, \code{select}, \code{textarea}) by the
+      presence or absence of the \code{required} attribute; with the
+      \code{generic} translator they translate to a never-matching
+      expression, as \code{:checked} does.
+
       \item The \code{:focus-within} and \code{:focus-visible}
       pseudo-classes are now accepted and, like the rest of the
       user-action family (\code{:focus}, \code{:hover}, \code{:active},

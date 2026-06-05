@@ -1037,10 +1037,11 @@ GenericTranslator <- R6Class("GenericTranslator",
         # (every member listed here, so that e.g. ':focus' and
         # ':focus-within' behave alike) or not at all - anything not
         # listed stays a "pseudo-class is unknown" error, keeping typos
-        # detectable. Do not add a pseudo-class here if it has a real
-        # static translation (e.g. ':required' from the @required
-        # attribute): a never-match entry would replace a missing
-        # feature with silently wrong answers
+        # detectable. A pseudo-class whose state is readable from
+        # document attributes belongs here only together with a real
+        # translation on the HTML translator (as for ':checked' and
+        # ':required'): a bare never-match entry would replace a
+        # missing feature with silently wrong answers
         xpath_any_link_pseudo = pseudo_never_matches,
         xpath_link_pseudo     = pseudo_never_matches,
         xpath_visited_pseudo  = pseudo_never_matches,
@@ -1055,6 +1056,10 @@ GenericTranslator <- R6Class("GenericTranslator",
         xpath_enabled_pseudo  = pseudo_never_matches,
         xpath_disabled_pseudo = pseudo_never_matches,
         xpath_checked_pseudo  = pseudo_never_matches,
+        # The required/optional state is an HTML form notion; the
+        # HTML translator answers it from the @required attribute
+        xpath_required_pseudo = pseudo_never_matches,
+        xpath_optional_pseudo = pseudo_never_matches,
 
         xpath_attrib_exists = function(xpath, name, value) {
             xpath$add_condition(name)
@@ -1164,6 +1169,29 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                        "and (name(.) = 'input' or name(.) = 'command')",
                        "and (@type = 'checkbox' or @type = 'radio'))"),
                 is_or_group = TRUE)
+            xpath
+        },
+        # ':required' and ':optional' partition the form elements that
+        # can take the required attribute (input, select, textarea);
+        # an element outside that set (e.g. a button) is neither. As
+        # in xpath_disabled_pseudo, a hidden input is excluded - the
+        # required attribute does not apply to it - but the rarer
+        # non-required input types (range, color, the button types)
+        # are not carved out
+        xpath_required_pseudo = function(xpath) {
+            xpath$add_condition(
+                paste("@required and",
+                      "((name(.) = 'input' and not(@type = 'hidden')) or",
+                      "name(.) = 'select' or",
+                      "name(.) = 'textarea')"))
+            xpath
+        },
+        xpath_optional_pseudo = function(xpath) {
+            xpath$add_condition(
+                paste("not(@required) and",
+                      "((name(.) = 'input' and not(@type = 'hidden')) or",
+                      "name(.) = 'select' or",
+                      "name(.) = 'textarea')"))
             xpath
         },
         xpath_lang_function = function(xpath, fn) {
