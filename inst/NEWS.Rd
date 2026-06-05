@@ -3,152 +3,72 @@
 \encoding{UTF-8}
 
 \section{Changes in version 0.6-0}{
+
+  This release is a fairly major change. It comes about via a port to
+  a Rust implementation which uses a robust browser-quality selector
+  parsing engine. With behavioural comparison tests, several bug fixes,
+  features, and performance enhancements were identified and resolved.
+
   \subsection{NEW FEATURES}{
     \itemize{
 
-      \item Added support for the CSS Selectors Level 4 case-sensitivity
-      flags in attribute selectors. \code{[attr="value" i]} matches the
-      attribute value ASCII case-insensitively, while
-      \code{[attr="value" s]} explicitly requests the default
-      case-sensitive matching.
+      \item Added support for case-sensitivity flags in attribute
+      selectors: \code{[attr="value" i]} matches the attribute value
+      ASCII case-insensitively, while \code{[attr="value" s]}
+      explicitly requests the default case-sensitive matching.
 
-      \item \code{:not()} may now appear inside the argument list of
-      functional pseudo-classes, as permitted by CSS Selectors Level 4.
-      Selectors such as \code{:not(:not(a))}, \code{:is(:not(.x))},
-      \code{:has(:not(a))}, and \code{:nth-child(2 of :not(.foo))}
-      previously produced a "Got nested :not()" error and are now
-      translated. Note that nesting \code{:has()} inside \code{:has()}
-      remains an error, as required by the specification.
+      \item \code{:not()} may now appear inside the arguments of
+      functional pseudo-classes (e.g. \code{:not(:not(a))},
+      \code{:is(:not(.x))}, \code{:nth-child(2 of :not(.foo))}).
 
       \item \code{:has()} now supports leading combinators in its
-      arguments, as permitted by CSS Selectors Level 4 relative
-      selectors. \code{e:has(> img)} matches an \code{e} with a child
-      \code{img}, \code{e:has(~ p)} one with a subsequent sibling
-      \code{p}, and \code{e:has(+ p)} one whose next sibling is a
-      \code{p}; previously all three were parse errors. The omitted
-      combinator retains its implied-descendant meaning, and leading
-      combinators remain invalid in other functional pseudo-classes
-      such as \code{:is()}.
+      arguments (e.g. \code{e:has(> img)}, \code{e:has(~ p)},
+      \code{e:has(+ p)}).
 
       \item Functional pseudo-class arguments may now be complex
-      selectors (contain combinators), as permitted by CSS Selectors
-      Level 4: \code{:is()}, \code{:where()}, and \code{:not()} take a
-      \code{<complex-selector-list>}, \code{:has()} a
-      \code{<relative-selector-list>}, and the \code{of S} form of
-      \code{:nth-child()}/\code{:nth-last-child()} a
-      \code{<complex-selector-list>}. Selectors such as \code{:is(a b)},
-      \code{:not(a > b)}, \code{e:has(a + b)}, \code{e:has(> a b)}, and
+      selectors (contain combinators): \code{:is(a b)},
+      \code{:not(a > b)}, \code{e:has(> a b)}, and
       \code{li:nth-child(2 of ol li)} previously produced an
-      "Expected an argument" error and are now translated. For
-      \code{:has()} the argument extends the search path forwards from
-      the candidate element; for the other pseudo-classes the rightmost
-      compound applies to the candidate element itself and the rest of
-      the selector is matched through reversed axes (ancestors,
-      parent, and preceding siblings).
+      "Expected an argument" error and are now translated.
 
     }
   }
   \subsection{MINOR CHANGES}{
     \itemize{
 
-      \item Generated XPath expressions no longer parenthesize every
-      condition. Conditions are joined with \code{and}, and \code{or}
-      is the only XPath operator binding more loosely than \code{and},
-      so parentheses are now added only when an or-expression is
-      joined with another condition. For example, \code{e[id][title]}
-      now translates to \code{e[@id and @title]} rather than
-      \code{e[(@id) and (@title)]}, \code{#main} to
-      \code{*[@id = 'main']} rather than \code{*[(@id = 'main')]}, and
-      \code{e:lang(en, fr)} to \code{e[lang('en') or lang('fr')]}
-      rather than \code{e[(lang('en') or lang('fr'))]}, while
-      \code{:is(f, g):first-child} keeps its grouping parentheses:
-      \code{*[(name() = 'f' or name() = 'g') and count(preceding-sibling::*) = 0]}.
-      The expressions are semantically unchanged, just easier to read;
-      code comparing \code{css_to_xpath()} output against stored
-      strings will need updating.
+      \item The performance of selectr has been improved roughly 2x.
+      There are several smaller changes that have contributed to this.
 
-      \item Unprefixed element names inside pseudo-class arguments and
-      after the adjacent sibling combinator are now matched with a
-      \code{name()} comparison instead of a \code{self::} node test:
-      \code{div:is(p)} translates to \code{div[name() = 'p']} rather
-      than \code{div[self::p]}. The two forms differ for documents
-      with a default namespace: \code{self::p} only matches a \code{p}
-      in no namespace, while \code{name() = 'p'} also matches an
-      unprefixed \code{p} element in a default namespace — closer to
-      the CSS rule that a type selector without a namespace component
-      matches elements in any namespace, and the same policy already
-      applied to names that cannot be written as an XPath name test.
-      Explicitly prefixed names (e.g. \code{:is(svg|g)}) still
-      translate to a \code{self::svg:g} node test, resolving the
-      prefix through the namespace map.
-
-      \item A \code{:has()} argument naming a prefixed element now
-      emits the name as the node test of the path step itself:
-      \code{e:has(svg|g)} translates to \code{e[.//svg:g]} rather
-      than \code{e[.//*[self::svg:g]]}. The exception is the \code{+}
-      combinator, where the position predicate must precede the name
-      test, so \code{e:has(+ svg|g)} keeps the
-      \code{following-sibling::*[1][self::svg:g]} shape. The selected
-      nodes are unchanged.
+      \item Generated XPath expressions now include parentheses only
+      when precedence requires them (an or-expression joined with
+      another condition): \code{e[id][title]} translates to
+      \code{e[@id and @title]} rather than
+      \code{e[(@id) and (@title)]}. The expressions are semantically
+      unchanged, but code comparing \code{css_to_xpath()} output
+      against stored strings will need updating.
 
       \item Attribute blocks, functional pseudo-classes, and strings
       left unclosed at the end of a selector are now auto-closed, as
-      css-syntax requires and as browsers implement:
-      \code{[rel=stylesheet}, \code{:lang(fr}, \code{:is(a}, and
-      \code{[foo="bar} parse and translate exactly as their closed
-      forms. Previously each was rejected ("Expected ']'", "Expected
-      an argument", "Unclosed string"). Only constructs truncated at
-      the end of input are affected: a selector whose closed form is
-      itself invalid (e.g. \code{[foo=}) or with an error before the
-      closing delimiter (e.g. \code{[rel=stylesheet k]}) is rejected
-      exactly as before, as is a string containing a raw newline.
-
-      \item Tokens are now plain lists rather than R6 objects. Tokens
-      are created in bulk during tokenization and used as simple
-      records, so the per-token cost of an R6 environment and method
-      dispatch was significant; this change speeds up tokenization by
-      roughly a further 40--50\% on top of the changes noted below.
-      Tokens are internal, so this is not a user-visible change.
+      css-syntax requires: \code{[rel=stylesheet} and \code{:lang(fr}
+      parse and translate exactly as their closed forms, as does a
+      string missing its closing quote.
 
       \item The \pkg{stringr} and \pkg{methods} dependencies have been
-      dropped; \pkg{R6} is now the only package \pkg{selectr} imports.
-      Only four \pkg{stringr} functions were used, each with a direct
-      base R equivalent, and \pkg{methods} was a vestige of the
-      Reference Classes implementation replaced by \pkg{R6} in 0.4-0.
-      This removes the \pkg{stringi} subtree from the install
-      footprint and also speeds up tokenization by roughly a further
-      40\% on top of the rewrite noted below, as base R's regex
-      functions dispatch with less overhead.
+      dropped — \pkg{R6} is now the only package \pkg{selectr}
+      imports — shrinking the install footprint.
 
       \item \code{css_to_xpath()} now translates each distinct
       combination of selector, prefix, and translator only once per
-      call, so duplicates in a vectorized call
-      (e.g. \code{css_to_xpath(c("#a", "#b", "#a"))}) are not
-      re-tokenized, re-parsed, and re-translated. The de-duplication is
-      local to the call; no state persists between calls.
+      call, so duplicates in a vectorized call are not re-translated.
 
       \item The adjacent sibling combinator no longer emits a
       tautological \code{[self::*]} predicate when the right-hand side
       does not name an element: \code{h1 + *[rel=up]} now translates to
-      \code{h1/following-sibling::*[1][@rel = 'up']} rather than
-      \code{h1/following-sibling::*[1][self::*][@rel = 'up']}. The
-      selected nodes are unchanged.
-
-      \item The tokenizer no longer splits the entire remaining input
-      into one- and two-character pieces at each delimiter, nor into
-      single characters for each string token; delimiters are tested at
-      the current position directly and string contents are matched
-      with a single anchored regular expression. This removes the
-      dominant quadratic component of tokenization: an ~6 KB selector
-      group now tokenizes around three times faster, with the advantage
-      growing with input size.
+      \code{h1/following-sibling::*[1][@rel = 'up']}.
 
       \item The minimum required version of R has been increased from
-      \code{3.0} to \code{3.3}, matching what the code has in fact
-      required for some time: \code{anyNA()} needs R 3.1,
-      \code{lengths()} R 3.2, and \code{startsWith()} R 3.3. On older
-      versions the package installed but failed at runtime with
-      "could not find function".
+      \code{3.0} to \code{3.3}, matching what the code (which uses
+      \code{startsWith()}) has in fact required for some time.
 
     }
   }
@@ -156,15 +76,12 @@
     \itemize{
 
       \item The non-standard extensions inherited from the Python
-      'cssselect' package have been removed: the \code{:contains("text")}
-      pseudo-class and the \code{[attr!=value]} attribute operator. Both
-      now produce an error. Neither has ever been part of any CSS
-      Selectors specification, so removing them makes \pkg{selectr}
-      reject the same selectors a spec-conformant parser rejects.
-      Equivalent standard alternatives: \code{[attr!=value]} can be
-      written as \code{:not([attr=value])}, and \code{:contains()} as an
-      XPath \code{contains(., 'text')} predicate applied outside of
-      \pkg{selectr}.
+      'cssselect' package — the \code{:contains("text")} pseudo-class
+      and the \code{[attr!=value]} attribute operator — have been
+      removed and now produce an error. Standard alternatives:
+      \code{:not([attr=value])} for the former operator, and an XPath
+      \code{contains(., 'text')} predicate applied outside of
+      \pkg{selectr} for \code{:contains()}.
 
     }
   }
@@ -173,247 +90,142 @@
 
       \item Escape sequences in identifiers, hashes, and strings are
       now decoded in a single left-to-right pass, as css-syntax
-      requires, so the text consumed by one escape is never re-read as
-      the start of another. Previously an escaped backslash followed
-      by hex digits was decoded twice: in
-      \code{e[foo="x\\\\79 z"]} (the value \code{x\\79 z} with a
-      literal backslash) the \code{\\79} was re-processed as a unicode
-      escape, yielding \code{xyz} instead of \code{x\\79 z}.
+      requires, so an escaped backslash followed by hex digits is no
+      longer decoded twice: \code{e[foo="x\\\\79 z"]} now matches
+      \code{x\\79 z} rather than \code{xyz}.
 
       \item A prefixed wildcard inside a pseudo-class argument
-      (e.g. \code{:is(svg|*)}, \code{:not(svg|*)}, \code{:has(svg|*)})
-      now translates to the node test \code{self::svg:*} (or the path
-      step \code{.//svg:*} for \code{:has()}). It was previously
-      stringified as \code{name() = 'svg:*'}, which can never match:
-      \code{name()} returns an actual qualified name, never a literal
-      \code{*}. The named form (e.g. \code{:is(svg|g)}) was already
-      translated correctly.
+      (e.g. \code{:is(svg|*)}) now translates to the node test
+      \code{self::svg:*} rather than the never-matching comparison
+      \code{name() = 'svg:*'}.
 
       \item When \code{:lang()} is given an invalid argument after
       valid ones (e.g. \code{:lang(en, 5)}), the error now reports the
       offending argument rather than the first one.
 
-      \item Strings containing a raw newline (e.g. in an attribute
-      value selector) are now rejected with "Unclosed string", as the
-      CSS grammar requires; newlines in strings must be escaped.
-      Previously the tokenizer scanned past the newline to the closing
-      quote and accepted the selector.
+      \item Strings containing a raw newline are now rejected with
+      "Unclosed string", as the CSS grammar requires.
 
       \item The namespace argument of the \code{querySelector()} family
       of functions now signals an error when given a list containing an
-      element that is not a single string
-      (e.g. \code{list(a = c("u1", "u2"), b = "u3")}). A prefix cannot
-      map to more than one namespace URI, and the prefix-to-URI pairing
-      was silently corrupted: names were re-assigned after the list was
-      flattened, shifting every prefix after the multi-element value
-      (\code{"u2"} above became namespace \code{b}, and \code{"u3"} lost
-      its prefix entirely, producing an \code{//NA:*} filter in
-      \code{querySelectorNS()}).
+      element that is not a single string; previously the prefix-to-URI
+      pairing was silently corrupted.
 
       \item \code{:only-child} and \code{:only-of-type} now match the
       root element, consistent with \code{:first-child:last-child},
       which Selectors defines \code{:only-child} to be equivalent to.
-      The previous translation counted the children of the parent
-      element (\code{count(parent::*/child::*) = 1}), but the root
-      element's parent is the document node, not an element, so the
-      count was 0 and the root never matched. The translation now
-      requires the absence of preceding and following siblings instead.
 
       \item The HTML translator's \code{:enabled} and \code{:disabled}
       pseudo-classes now match \code{input} elements that have no
-      \code{type} attribute. Such an input defaults to \code{type=text}
-      per HTML and should participate in both pseudo-classes, but the
-      previous translation used the XPath comparison
-      \code{@type != 'hidden'}, which is false when the attribute is
-      absent, so an un-typed \code{<input disabled>} matched neither
-      \code{:disabled} nor (when enabled) \code{:enabled}. The
-      translation now uses \code{not(@type = 'hidden')}; inputs with
-      \code{type="hidden"} continue to match neither pseudo-class. This
-      bug was inherited from the Python 'cssselect' package.
+      \code{type} attribute (which default to \code{type=text}).
 
-      \item \code{:dir()} now enforces its argument grammar from CSS
-      Selectors Level 4: exactly one identifier. It previously shared
-      the \code{:lang()} grammar, accepting strings, the \code{*}
-      wildcard, and comma- or space-separated lists (e.g.
-      \code{:dir(ltr, rtl)} or \code{:dir("ltr")}); these are now
-      rejected as parse errors. As before, identifiers other than
-      \code{ltr}/\code{rtl} are valid but never match, and \code{:dir()}
-      always translates to a never-matching condition since static XPath
-      cannot determine directionality.
+      \item \code{:dir()} now enforces its CSS Selectors Level 4
+      argument grammar of exactly one identifier, rejecting the
+      strings, wildcards, and lists (e.g. \code{:dir(ltr, rtl)}) it
+      previously accepted via the shared \code{:lang()} grammar.
 
-      \item Element names inside pseudo-class arguments (e.g.
-      \code{:is(svg|g)}, \code{:not(svg|g)}, \code{:has(svg|g)},
-      \code{:nth-child(2 of svg|g)}) are now matched with a self-axis
-      name test (\code{self::svg:g}) instead of a \code{name()} string
-      comparison. Namespace prefixes therefore keep resolving through
+      \item Prefixed element names inside pseudo-class arguments
+      (e.g. \code{:is(svg|g)}, \code{:nth-child(2 of svg|g)}) are now
+      matched with an XPath name test (\code{self::svg:g}, or the path
+      step \code{.//svg:g} for \code{:has()}) instead of a
+      \code{name()} string comparison, so the prefix resolves through
       the namespace map supplied at evaluation time (URI-based), just
-      as they do at the top level of a selector; previously a document
-      binding the same URI to a different prefix matched \code{svg|g}
-      at the top level but not inside a pseudo-class argument. This
-      also means an unqualified argument such as \code{:is(e)} now
-      matches only elements in no namespace, consistent with a
-      top-level \code{e}; previously it also matched an \code{e} in a
-      default namespace. Names that cannot be written as an XPath name
-      test continue to use the \code{name()} comparison.
+      as at the top level of a selector.
 
       \item The no-namespace form \code{|e} now retains its namespace
       constraint when the element name cannot be written as an XPath
-      name test (e.g. a Unicode name such as \code{|é}). Previously
-      such names fell back to a bare \code{name()} comparison, which
-      also matched an element of that name in a \emph{default}
-      namespace, since its \code{name()} carries no prefix; the
-      translation now tests \code{namespace-uri() = ''} alongside
-      \code{local-name()}.
+      name test (e.g. a Unicode name such as \code{|é}); previously
+      such names also matched in a default namespace.
 
-      \item The of-type pseudo-classes (\code{:first-of-type},
-      \code{:last-of-type}, \code{:only-of-type}, \code{:nth-of-type()},
-      and \code{:nth-last-of-type()}) now work on element names that
-      cannot be written as an XPath name test, such as Unicode names
-      (e.g. \code{é:only-of-type}) and names in any namespace
-      (e.g. \code{*|e:first-of-type}). Previously these failed with the
-      misleading error "*:only-of-type is not implemented" even though
-      an explicit element was given; siblings of the same type are now
-      counted with a \code{name()} (or \code{local-name()}) node test.
-      The of-type pseudo-classes on the universal selector itself
-      (e.g. \code{*:only-of-type}) remain unimplemented.
+      \item The of-type pseudo-classes now work on element names that
+      cannot be written as an XPath name test
+      (e.g. \code{é:only-of-type}, \code{*|e:first-of-type});
+      previously these failed with the misleading error
+      "*:only-of-type is not implemented".
 
       \item The \code{querySelector()} and \code{querySelectorAll()}
       methods for \pkg{xml2} documents now accept a named list as the
       \code{ns} argument, consistent with the methods for \pkg{XML}
-      documents and with \code{querySelectorNS()} and
-      \code{querySelectorAllNS()}. Previously a named list was rejected
-      with "A namespace object must be comprised of characters".
+      documents.
 
-      \item The \code{querySelector()}, \code{querySelectorAll()},
-      \code{querySelectorNS()}, and \code{querySelectorAllNS()} functions
-      now signal an error when the \code{selector} argument is not a
-      single character string, as the documentation has always required.
-      Previously a multi-element selector vector was translated to
-      multiple XPath expressions, of which all but the first were
-      silently ignored when querying the document. To match against a
-      group of selectors in one query, use a comma-separated selector
-      group, e.g. \code{"a, b"}.
+      \item The \code{querySelector()} family of functions now signals
+      an error when the \code{selector} argument is not a single
+      character string; previously all but the first selector were
+      silently ignored when querying the document.
 
       \item \code{css_to_xpath()} now signals an error when any of its
-      arguments contain \code{NA} values. Previously \code{NA}s were
-      removed from each argument independently before recycling, which
-      silently shifted the pairing of the remaining values: in
-      \code{css_to_xpath(c("a", "b", "c"), prefix = c("p1//", NA, "p3//"))}
-      the selector \code{"b"} was paired with \code{"p3//"} and
-      \code{"c"} wrapped around to \code{"p1//"}.
+      arguments contain \code{NA} values; previously \code{NA}s were
+      removed before recycling, silently shifting the pairing of the
+      remaining values.
 
-      \item The \code{An+B} expressions used by the \code{:nth-child()}
-      family of pseudo-classes are now matched ASCII case-insensitively,
-      as required by the CSS Syntax specification. Previously
+      \item \code{An+B} expressions are now matched ASCII
+      case-insensitively, as required by CSS Syntax, so
       \code{:nth-child(2N)}, \code{:nth-child(ODD)}, and
-      \code{:nth-child(EVEN)} were rejected as invalid; they are now
-      equivalent to their lowercase forms.
+      \code{:nth-child(EVEN)} are no longer rejected.
 
-      \item \code{An+B} expressions now only permit whitespace around the
-      \code{+}/\code{-} sign that separates the \code{B} value, as
-      required by the CSS Syntax specification. Previously whitespace
-      between tokens was silently discarded, so an invalid selector such
-      as \code{:nth-child(3 7)} was treated as \code{:nth-child(37)} and
-      silently matched the wrong elements. Such selectors are now
-      rejected as invalid; spec-legal forms like \code{:nth-child(2n + 1)}
-      are unaffected.
+      \item \code{An+B} expressions now only permit whitespace around
+      the sign that separates the \code{B} value, so an invalid
+      selector such as \code{:nth-child(3 7)} is rejected rather than
+      silently treated as \code{:nth-child(37)}.
 
-      \item \code{An+B} expressions now reject non-integer \code{A} and
-      \code{B} values, as required by the CSS Syntax specification.
-      Previously these were coerced with \code{as.integer()} and silently
-      truncated, so \code{:nth-child(1.9)} matched the first child and
-      \code{:nth-child(2e1)} matched the twentieth. Such selectors are
-      now rejected as invalid; signed integers and leading zeros
-      (e.g. \code{:nth-child(+05)}) remain valid.
+      \item \code{An+B} expressions now reject non-integer values
+      (e.g. \code{:nth-child(1.9)}, \code{:nth-child(2e1)}) rather
+      than silently truncating them.
 
-      \item Computing the specificity of a \code{:has()} selector with a
-      single argument (e.g. \code{e:has(img)}) no longer fails with
-      "incorrect number of dimensions"; multi-argument forms were
-      unaffected.
+      \item Computing the specificity of a \code{:has()} selector with
+      a single argument (e.g. \code{e:has(img)}) no longer fails with
+      "incorrect number of dimensions".
 
-      \item Computing the specificity of an \code{:is()} (or
-      \code{:matches()}) selector with a single argument
-      (e.g. \code{:is(.foo)}) no longer fails with "incorrect number of
-      dimensions". In addition, the specificity of the compound the
-      pseudo-class is attached to is no longer dropped:
-      \code{div:is(.foo)} now reports (0, 1, 1) rather than (0, 1, 0).
+      \item Computing the specificity of a single-argument
+      \code{:is()} or \code{:matches()} selector no longer fails, and
+      the specificity of the compound the pseudo-class is attached to
+      is no longer dropped: \code{div:is(.foo)} now reports (0, 1, 1)
+      rather than (0, 1, 0).
 
-      \item Nesting \code{:has()} inside \code{:has()} (at any depth,
-      e.g. \code{section:has(article:has(div))}) is now rejected, as
-      required by CSS Selectors Level 4, whose \code{:has()} argument
-      grammar excludes \code{:has()}. This matches the behaviour of
-      browsers. Sibling uses such as \code{e:has(a):has(b)} and
-      \code{:has()} inside other functional pseudo-classes
-      (e.g. \code{e:is(:has(b))}) remain valid; the previously
-      accepted nested form can be expressed with a descendant
-      argument instead (e.g. \code{section:has(div)}).
+      \item Nesting \code{:has()} inside \code{:has()}
+      (e.g. \code{section:has(article:has(div))}) is now rejected, as
+      required by CSS Selectors Level 4 and matching browsers; sibling
+      uses such as \code{e:has(a):has(b)} remain valid.
 
       \item \code{:lang()} and \code{:dir()} no longer accept a lone
-      \code{-} as an argument. A lone \code{-} is not a valid CSS
-      identifier (an identifier may start with \code{-} only when
-      followed by an identifier-start character or a second \code{-}),
-      but the tokenizer lexed it as one and it passed argument
-      validation. Valid identifiers such as \code{:lang(--x)} and
-      \code{:lang(en--)}, and the wildcard form \code{:lang(en-*)},
-      are unaffected.
+      \code{-}, which is not a valid CSS identifier.
 
-      \item Attribute selectors with an empty value no longer throw an
-      error for the \code{=} and \code{|=} operators
-      (e.g. \code{[attr=""]}). These now translate to XPath matching an
-      attribute whose value is the empty string.
+      \item Attribute selectors with an empty value
+      (e.g. \code{[attr=""]}) no longer throw an error for the
+      \code{=} and \code{|=} operators.
 
       \item The HTML translator no longer lowercases attribute
-      \emph{values}, only attribute names. Previously a selector such as
-      \code{[data-state="Active"]} was translated to match the value
-      \code{'active'}, silently missing matches because HTML attribute
-      values are case-sensitive.
+      \emph{values}, only attribute names, so
+      \code{[data-state="Active"]} no longer silently misses matches.
 
-      \item Namespace selectors are now translated faithfully. Previously
-      both the \emph{any namespace} selector \code{*|e} and the
-      \emph{no namespace} selector \code{|e} collapsed to the bare name
-      \code{e}, which in XPath only matches elements with no namespace.
-      \code{*|e} now translates to \code{*[local-name() = 'e']} so that
-      it matches \code{e} in any namespace, and similarly \code{[*|attr]}
-      translates to a \code{local-name()} test on attributes.
+      \item The \emph{any namespace} selector \code{*|e} and the
+      \emph{no namespace} selector \code{|e} no longer both collapse
+      to the bare name \code{e}: \code{*|e} now translates to
+      \code{*[local-name() = 'e']} so it matches \code{e} in any
+      namespace, and similarly for \code{[*|attr]}.
 
       \item Unicode escapes are now supported in identifiers and ID
       selectors, not just strings, and are decoded to the characters
-      they represent. Previously \code{#\\31 23} (the only valid way to
-      write an ID starting with a digit, here \code{123}) was a
-      tokenization error, and escapes that did tokenize kept their hex
-      digits rather than the escaped character, so \code{"\\E9"} matched
-      the literal value \code{E9} instead of \code{é}.
+      they represent: \code{#\\31 23} (an ID starting with a digit) no
+      longer fails to tokenize, and \code{"\\E9"} matches \code{é}
+      rather than the literal value \code{E9}.
 
       \item The alternatives of \code{:is()}, \code{:matches()}, and
-      \code{:where()} are now grouped as a single condition. Previously
-      each alternative was OR-ed onto the compound selector's whole
-      condition chain, so \code{div.foo:is(.a, .b)} translated to
-      \code{foo or a or b} (matching any \code{div.foo}) instead of
-      \code{foo and (a or b)}, and conditions following the
-      pseudo-class, as in \code{:is(.a, .b):first-child}, bound only to
-      the last alternative. Stacked pseudo-classes such as
-      \code{e:is(.a):is(.b)} now correctly require both conditions
-      rather than either.
+      \code{:where()} are now grouped as a single condition:
+      \code{div.foo:is(.a, .b)} translates to \code{foo and (a or b)}
+      rather than \code{foo or a or b}, and stacked uses such as
+      \code{e:is(.a):is(.b)} now require both conditions rather than
+      either.
 
       \item The universal selector \code{*} is no longer silently
       dropped when it appears alongside other arguments in a selector
-      list. A list containing \code{*} matches everything, so
-      \code{:is(div, *)} now matches every element rather than only
-      \code{div}, \code{:not(div, *)} now matches nothing rather than
-      excluding only \code{div}, and \code{:nth-child(2 of div, *)} now
-      counts all siblings rather than only \code{div} siblings. Selector
-      lists whose only argument is \code{*} (e.g. \code{:not(*)}) were
-      already translated correctly and are unchanged.
+      list: \code{:is(div, *)} now matches every element,
+      \code{:not(div, *)} matches nothing, and
+      \code{:nth-child(2 of div, *)} counts all siblings.
 
       \item Wildcard language ranges such as \code{:lang(en-*)} now
-      match under the generic (XML) translator. Previously only the
-      \code{*} was stripped, producing \code{lang('en-')}, which can
-      never match: XPath's \code{lang()} function only extends its
-      argument at a \code{-} boundary, so \code{xml:lang="en-US"}
-      matches \code{lang('en')} but not \code{lang('en-')}. The
-      trailing \code{-*} is now stripped so \code{:lang(en-*)} matches
-      \code{en}, \code{en-US}, etc., per RFC 4647 extended filtering.
-      The HTML translator was unaffected.
+      match under the generic (XML) translator; previously they
+      translated to \code{lang('en-')}, which can never match.
 
     }
   }
