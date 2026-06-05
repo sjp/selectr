@@ -67,6 +67,15 @@
   \subsection{BUG FIXES}{
     \itemize{
 
+      \item \code{:only-child} and \code{:only-of-type} now match the
+      root element, consistent with \code{:first-child:last-child},
+      which Selectors defines \code{:only-child} to be equivalent to.
+      The previous translation counted the children of the parent
+      element (\code{count(parent::*/child::*) = 1}), but the root
+      element's parent is the document node, not an element, so the
+      count was 0 and the root never matched. The translation now
+      requires the absence of preceding and following siblings instead.
+
       \item The HTML translator's \code{:enabled} and \code{:disabled}
       pseudo-classes now match \code{input} elements that have no
       \code{type} attribute. Such an input defaults to \code{type=text}

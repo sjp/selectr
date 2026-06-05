@@ -952,7 +952,13 @@ GenericTranslator <- R6Class("GenericTranslator",
             xpath
         },
         xpath_only_child_pseudo = function(xpath) {
-            xpath$add_condition("count(parent::*/child::*) = 1")
+            # Not count(parent::*/child::*) = 1: for the root element
+            # parent::* is empty (its parent is the document node), which
+            # would make the count 0 and the root never match, while the
+            # equivalent :first-child:last-child does match it.
+            xpath$add_condition(paste(
+                "count(preceding-sibling::*) = 0 and",
+                "count(following-sibling::*) = 0"))
             xpath
         },
         xpath_only_of_type_pseudo = function(xpath) {
@@ -961,7 +967,8 @@ GenericTranslator <- R6Class("GenericTranslator",
                 stop("*:only-of-type is not implemented")
             }
             xpath$add_condition(paste0(
-                "count(parent::*/child::", nodetest, ") = 1"))
+                "count(preceding-sibling::", nodetest, ") = 0 and ",
+                "count(following-sibling::", nodetest, ") = 0"))
             xpath
         },
         xpath_empty_pseudo = function(xpath) {

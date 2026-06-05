@@ -207,6 +207,21 @@ test_that("of-type pseudo-classes work on unsafe element names", {
     expect_that(ids('x:only-of-type'), equals('only'))
 })
 
+test_that(":only-child and :only-of-type match the root element", {
+    library(xml2)
+    doc <- read_xml("<root><a/></root>")
+    count <- function(css)
+        length(xml_find_all(doc, css_to_xpath(css)))
+
+    # :only-child is defined as :first-child:last-child, which matches
+    # the root element, so :only-child must match it too
+    expect_that(count('root:first-child:last-child'), equals(1))
+    expect_that(count('root:only-child'), equals(1))
+    expect_that(count('root:only-of-type'), equals(1))
+    expect_that(count('a:only-child'), equals(1))
+    expect_that(count('a:only-of-type'), equals(1))
+})
+
 test_that(":enabled and :disabled match inputs with no type attribute", {
     library(xml2)
     doc <- read_html(paste0('<form>',
