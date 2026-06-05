@@ -17,6 +17,13 @@
       ASCII case-insensitively, while \code{[attr="value" s]}
       explicitly requests the default case-sensitive matching.
 
+      \item The \code{:focus-within} and \code{:focus-visible}
+      pseudo-classes are now accepted and, like the rest of the
+      user-action family (\code{:focus}, \code{:hover}, \code{:active},
+      ...), translate to a never-matching expression, since a static
+      document has no such dynamic state. They previously raised "The
+      pseudo-class ... is unknown".
+
       \item Added support for a leading \code{:scope} pseudo-class,
       anchoring the selector at the queried node:
       \code{querySelectorAll(node, ":scope > a")} returns only the

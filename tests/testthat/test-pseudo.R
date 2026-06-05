@@ -74,3 +74,25 @@ test_that("parser parses canonical pseudo element expressions", {
                             list("Element[bar]", NULL),
                             list("Element[baz]", "after"))))
 })
+
+test_that("runtime-state pseudo-classes translate as never matching", {
+    # Dynamic state that a static document does not have is accepted a
+    # whole family at a time (so e.g. ':focus' and ':focus-within'
+    # behave alike) and matches nothing; see the never-match table on
+    # GenericTranslator in R/xpath.R
+    for (translator in c("generic", "html", "xhtml")) {
+        expect_that(css_to_xpath("a:focus", translator = translator),
+                    equals("descendant-or-self::a[0]"))
+        expect_that(css_to_xpath("a:focus-within", translator = translator),
+                    equals("descendant-or-self::a[0]"))
+        expect_that(css_to_xpath("a:focus-visible", translator = translator),
+                    equals("descendant-or-self::a[0]"))
+        expect_that(css_to_xpath("a:target-within", translator = translator),
+                    equals("descendant-or-self::a[0]"))
+    }
+
+    # Pseudo-classes outside the accepted families still error, so
+    # typos stay detectable
+    expect_error(css_to_xpath("a:focused"),
+                 "The pseudo-class :focused is unknown", fixed = TRUE)
+})

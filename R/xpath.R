@@ -1031,13 +1031,24 @@ GenericTranslator <- R6Class("GenericTranslator",
 
         # Pseudo-classes that depend on dynamic state which a static
         # document does not have; the HTML translator overrides the
-        # ones it can answer from attributes
+        # ones it can answer from attributes.
+        #
+        # Policy: a runtime-state family is either accepted in full
+        # (every member listed here, so that e.g. ':focus' and
+        # ':focus-within' behave alike) or not at all - anything not
+        # listed stays a "pseudo-class is unknown" error, keeping typos
+        # detectable. Do not add a pseudo-class here if it has a real
+        # static translation (e.g. ':required' from the @required
+        # attribute): a never-match entry would replace a missing
+        # feature with silently wrong answers
         xpath_any_link_pseudo = pseudo_never_matches,
         xpath_link_pseudo     = pseudo_never_matches,
         xpath_visited_pseudo  = pseudo_never_matches,
         xpath_hover_pseudo    = pseudo_never_matches,
         xpath_active_pseudo   = pseudo_never_matches,
         xpath_focus_pseudo    = pseudo_never_matches,
+        xpath_focus_within_pseudo  = pseudo_never_matches,
+        xpath_focus_visible_pseudo = pseudo_never_matches,
         xpath_target_pseudo   = pseudo_never_matches,
         xpath_target_within_pseudo = pseudo_never_matches,
         xpath_local_link_pseudo    = pseudo_never_matches,
