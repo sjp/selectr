@@ -68,6 +68,12 @@ test_that("namespace handling works correctly", {
     names(tmp) <- letters[1:5]
     expect_error(formatNS(tmp), "The namespace object either missing some or all names.*")
     expect_error(formatNS(list(a = 1, b = 2)), "The values in the namespace object.*")
+    # multi-element values would misalign every subsequent prefix after
+    # unlist(), e.g. "u2" silently becoming namespace "b"
+    expect_error(formatNS(list(a = c("u1", "u2"), b = "u3")),
+                 "Each element in the namespace object must be a single character string.")
+    expect_error(formatNS(list(a = character(0), b = "u3")),
+                 "Each element in the namespace object must be a single character string.")
 
     # formatNSPrefix must return a pipe separated string of namespace prefixes
     expect_that(formatNSPrefix(c(svg = "svg"), ""), equals("(//svg:*)/"))

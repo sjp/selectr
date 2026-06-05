@@ -67,6 +67,17 @@
   \subsection{BUG FIXES}{
     \itemize{
 
+      \item The namespace argument of the \code{querySelector()} family
+      of functions now signals an error when given a list containing an
+      element that is not a single string
+      (e.g. \code{list(a = c("u1", "u2"), b = "u3")}). A prefix cannot
+      map to more than one namespace URI, and the prefix-to-URI pairing
+      was silently corrupted: names were re-assigned after the list was
+      flattened, shifting every prefix after the multi-element value
+      (\code{"u2"} above became namespace \code{b}, and \code{"u3"} lost
+      its prefix entirely, producing an \code{//NA:*} filter in
+      \code{querySelectorNS()}).
+
       \item \code{:only-child} and \code{:only-of-type} now match the
       root element, consistent with \code{:first-child:last-child},
       which Selectors defines \code{:only-child} to be equivalent to.
