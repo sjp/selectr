@@ -9,7 +9,7 @@ Authors@R: c(person("Simon", "Potter",
              person("Ian", "Bicking", role = "aut"))
 License: BSD_3_clause + file LICENCE
 Depends: R (>= 3.3)
-Imports: methods, stringr, R6
+Imports: R6
 Suggests: testthat, XML, xml2
 URL: https://sjp.co.nz/projects/selectr/
 BugReports: https://github.com/sjp/selectr/issues

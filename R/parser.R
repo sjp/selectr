@@ -502,27 +502,30 @@ class_re <- paste0("^[ \t\r\n\f]*(", fast_ident, ")?",
                    "\\.(", fast_ident, ")[ \t\r\n\f]*$")
 
 parse <- function(css) {
-    el_match <- str_match(css, el_re)[1, 2]
-    if (!is.na(el_match))
-        return(list(Selector$new(Element$new(element = el_match))))
-    id_match <- str_match(css, id_re)[1, 2:3]
-    if (!is.na(id_match[2]))
+    # regmatches() represents an unmatched optional group as "", which
+    # cannot be confused with a present element name since fast_ident
+    # never matches an empty string
+    el_match <- regmatches(css, regexec(el_re, css))[[1]]
+    if (length(el_match))
+        return(list(Selector$new(Element$new(element = el_match[2]))))
+    id_match <- regmatches(css, regexec(id_re, css))[[1]]
+    if (length(id_match))
         return(list(Selector$new(
                         Hash$new(
                             Element$new(
                                 element =
-                                    if (is.na(id_match[1])) NULL
-                                    else id_match[1]),
-                            id_match[2]))))
-    class_match <- str_match(css, class_re)[1, 2:3]
-    if (!is.na(class_match[2]))
+                                    if (nzchar(id_match[2])) id_match[2]
+                                    else NULL),
+                            id_match[3]))))
+    class_match <- regmatches(css, regexec(class_re, css))[[1]]
+    if (length(class_match))
         return(list(Selector$new(
                         ClassSelector$new(
                             Element$new(
                                 element =
-                                    if (is.na(class_match[1])) NULL
-                                    else class_match[1]),
-                            class_match[2]))))
+                                    if (nzchar(class_match[2])) class_match[2]
+                                    else NULL),
+                            class_match[3]))))
     stream <- TokenStream$new(tokenize(css))
     stream$source_text <- css
     parse_selector_group(stream)
@@ -945,7 +948,8 @@ parse_series <- function(tokens) {
         return(c(2, 0))
     else if (s == "n")
         return(1:0)
-    if (is.na(str_locate(s, "n")[1, 1])) {
+    n_pos <- regexpr("n", s, fixed = TRUE)
+    if (n_pos == -1L) {
         result <- str_int(s)
         if (is.na(result)) {
             return(NULL)
@@ -953,9 +957,9 @@ parse_series <- function(tokens) {
             return(c(0, result))
         }
     }
-    ab <- str_split_fixed(s, "n", 2)[1, ]
-    a <- str_trim(ab[1])
-    b <- str_trim(ab[2])
+    # Split at the first 'n' only
+    a <- trimws(substring(s, 1, n_pos - 1))
+    b <- trimws(substring(s, n_pos + 1))
 
     intb <- str_int(b)
     if (!nzchar(a) && is.na(intb))
@@ -1012,7 +1016,11 @@ EOFToken <- R6Class("EOFToken",
 
 compile_ <- function(pattern) {
     function(x) {
-        str_locate(x, pattern)[1, ]
+        m <- regexpr(pattern, x, perl = TRUE)
+        if (m == -1L)
+            c(NA_integer_, NA_integer_)
+        else
+            c(m, m + attr(m, "match.length") - 1L)
     }
 }
 
@@ -1136,9 +1144,9 @@ tokenize <- function(s) {
         }
         # Remove comments
         if (two_ch == "/*") {
-            rel_pos <- str_locate(ss, "\\*/")[1]
+            rel_pos <- regexpr("*/", ss, fixed = TRUE)
             pos <-
-                if (is.na(rel_pos)) {
+                if (rel_pos == -1L) {
                     len_s + 1
                 } else {
                     pos + rel_pos + 1

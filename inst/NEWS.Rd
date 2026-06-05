@@ -51,6 +51,16 @@
   \subsection{MINOR CHANGES}{
     \itemize{
 
+      \item The \pkg{stringr} and \pkg{methods} dependencies have been
+      dropped; \pkg{R6} is now the only package \pkg{selectr} imports.
+      Only four \pkg{stringr} functions were used, each with a direct
+      base R equivalent, and \pkg{methods} was a vestige of the
+      Reference Classes implementation replaced by \pkg{R6} in 0.4-0.
+      This removes the \pkg{stringi} subtree from the install
+      footprint and also speeds up tokenization by roughly a further
+      40\% on top of the rewrite noted below, as base R's regex
+      functions dispatch with less overhead.
+
       \item \code{css_to_xpath()} now translates each distinct
       combination of selector, prefix, and translator only once per
       call, so duplicates in a vectorized call
