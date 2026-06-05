@@ -399,17 +399,13 @@ GenericTranslator <- R6Class("GenericTranslator",
             xpath <- self$xpath(has$selector)
 
             # Build conditions that check for the existence of a match
-            conditions <- character(0)
-            for (subselector in has$selector_list) {
-                if (first_class_name(subselector) == "RelativeSelector") {
-                    conditions <- c(conditions,
-                                    self$xpath_has_test(subselector$selector,
-                                                        subselector$combinator))
-                } else {
-                    conditions <- c(conditions,
-                                    self$xpath_has_test(subselector, " "))
-                }
-            }
+            conditions <- vapply(has$selector_list, function(subselector) {
+                if (first_class_name(subselector) == "RelativeSelector")
+                    self$xpath_has_test(subselector$selector,
+                                        subselector$combinator)
+                else
+                    self$xpath_has_test(subselector, " ")
+            }, character(1))
 
             # Combine conditions with OR (any match means the element matches)
             if (length(conditions) > 0) {
@@ -803,11 +799,10 @@ GenericTranslator <- R6Class("GenericTranslator",
             lang_values <- extract_lang_values(fn)
 
             # Build conditions for each language value
-            conditions <- character(0)
-            for (value in lang_values) {
+            conditions <- vapply(lang_values, function(value) {
                 if (value == "*") {
                     # Wildcard * matches everything - use a condition that's always true
-                    conditions <- c(conditions, "true()")
+                    "true()"
                 } else if (grepl("\\*$", value)) {
                     # Wildcard suffix like "en-*" - match any language starting with prefix
                     # Use XPath's lang() function which does prefix matching.
@@ -815,12 +810,12 @@ GenericTranslator <- R6Class("GenericTranslator",
                     # "en-..." tag, whereas lang('en-') would match nothing
                     # because lang() only extends its argument at a '-' boundary.
                     prefix <- sub("-?\\*$", "", value)
-                    conditions <- c(conditions, paste0("lang(", xpath_literal(prefix), ")"))
+                    paste0("lang(", xpath_literal(prefix), ")")
                 } else {
                     # Regular language tag
-                    conditions <- c(conditions, paste0("lang(", xpath_literal(value), ")"))
+                    paste0("lang(", xpath_literal(value), ")")
                 }
-            }
+            }, character(1), USE.NAMES = FALSE)
 
             # Combine conditions with OR
             if (length(conditions) == 1) {
@@ -1034,38 +1029,36 @@ HTMLTranslator <- R6Class("HTMLTranslator",
             lang_values <- extract_lang_values(fn)
 
             # Build conditions for each language value
-            conditions <- character(0)
-            for (value in lang_values) {
+            conditions <- vapply(lang_values, function(value) {
                 if (value == "*") {
                     # Wildcard * matches any element with a lang attribute
                     # Check for any ancestor-or-self with @lang attribute
-                    conditions <- c(conditions,
-                        paste0("ancestor-or-self::*[@", self$lang_attribute, "]"))
+                    paste0("ancestor-or-self::*[@", self$lang_attribute, "]")
                 } else if (grepl("\\*$", value)) {
                     # Wildcard suffix like "en-*" - match any language starting with prefix
                     prefix <- sub("\\*$", "", value)  # Remove trailing *
                     # Don't add '-' if prefix already ends with it
                     search_prefix <- if (grepl("-$", prefix)) tolower(prefix) else paste0(tolower(prefix), "-")
-                    conditions <- c(conditions, paste0(
+                    paste0(
                         "ancestor-or-self::*[@", self$lang_attribute, "][1][starts-with(concat(",
                         "translate(@",
                         self$lang_attribute,
                         ", 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
                         "'abcdefghijklmnopqrstuvwxyz'), '-'), ",
                         xpath_literal(search_prefix),
-                        ")]"))
+                        ")]")
                 } else {
                     # Regular language tag
-                    conditions <- c(conditions, paste0(
+                    paste0(
                         "ancestor-or-self::*[@", self$lang_attribute, "][1][starts-with(concat(",
                         "translate(@",
                         self$lang_attribute,
                         ", 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
                         "'abcdefghijklmnopqrstuvwxyz'), '-'), ",
                         xpath_literal(paste0(tolower(value), "-")),
-                        ")]"))
+                        ")]")
                 }
-            }
+            }, character(1), USE.NAMES = FALSE)
 
             # Combine conditions with OR
             if (length(conditions) == 1) {
