@@ -150,7 +150,6 @@ GenericTranslator <- R6Class("GenericTranslator",
                                        "$=" = "suffixmatch",
                                        "*=" = "substringmatch"),
         id_attribute = "id",
-        lang_attribute = "xml:lang",
         lower_case_element_names = FALSE,
         lower_case_attribute_names = FALSE,
         lower_case_attribute_values = FALSE,
@@ -549,7 +548,8 @@ GenericTranslator <- R6Class("GenericTranslator",
         },
         xpath_hash = function(id_selector) {
             xpath <- self$xpath(id_selector$selector)
-            self$xpath_attrib_equals(xpath, "@id", id_selector$id)
+            self$xpath_attrib_equals(xpath, paste0("@", self$id_attribute),
+                                     id_selector$id)
             xpath
         },
         xpath_element = function(selector) {
@@ -1085,13 +1085,16 @@ HTMLTranslator <- R6Class("HTMLTranslator",
     inherit = GenericTranslator,
     public = list(
         xhtml = FALSE,
+        # The generic :lang() translation uses the XPath lang()
+        # function, which is defined in terms of xml:lang; only the
+        # HTML translation reads the language from an attribute
+        lang_attribute = "lang",
         initialize = function(xhtml = FALSE, ...) {
             self$xhtml <- xhtml
             if (!xhtml) {
                 self$lower_case_element_names <- TRUE
                 self$lower_case_attribute_names <- TRUE
             }
-            self$lang_attribute <- "lang"
         },
         xpath_checked_pseudo = function(xpath) {
             xpath$add_condition(

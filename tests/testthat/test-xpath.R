@@ -155,6 +155,18 @@ test_that(":lang() and :dir() reject a lone '-' argument", {
     }
 })
 
+test_that("a translator subclass can override id_attribute", {
+    XMLIdTranslator <- R6::R6Class("XMLIdTranslator",
+        inherit = GenericTranslator,
+        public = list(id_attribute = "xml:id"))
+
+    expect_that(XMLIdTranslator$new()$css_to_xpath("#foo"),
+                equals("descendant-or-self::*[(@xml:id = 'foo')]"))
+    # The default is unchanged
+    expect_that(GenericTranslator$new()$css_to_xpath("#foo"),
+                equals("descendant-or-self::*[(@id = 'foo')]"))
+})
+
 test_that("unimplemented methods throw errors", {
     translator <- GenericTranslator$new()
 
