@@ -20,6 +20,15 @@ XPathExpr <- R6Class("XPathExpr",
         # Lets the of-type pseudo-classes distinguish such elements from
         # the universal selector and count their siblings correctly.
         name_test = NULL,
+        # Whether the leftmost compound of the selector contained
+        # ':scope', anchoring the expression at the query's scoping
+        # root: selector_to_xpath() then emits the self axis instead of
+        # the usual prefix. join() keeps the flag of its left operand,
+        # so it survives to the full complex selector; a ':scope' that
+        # is not leftmost is rejected when the flagged expression turns
+        # up as the right side of a combinator (or inside a
+        # pseudo-class argument)
+        scoped = FALSE,
         initialize = function(
             path = "", element = "*", condition = "", star_prefix = FALSE) {
             self$path <- path
@@ -163,6 +172,15 @@ pseudo_never_matches <- function(xpath) {
     xpath
 }
 
+# ':scope' is only translatable as the leftmost compound of a
+# top-level selector, where it anchors the expression at the context
+# node (see xpath_scope_pseudo). Anywhere else - to the right of a
+# combinator, or inside a functional pseudo-class argument - XPath 1.0
+# has no way to refer back to the node the query started from
+stop_non_leading_scope <- function() {
+    stop("The pseudo-class :scope is only supported at the start of a selector")
+}
+
 # Validate that all arguments of :lang() are STRING, IDENT, or * (DELIM).
 # A lone '-' lexes as an IDENT but is not a valid <ident> per
 # css-syntax, so reject it too.
@@ -283,6 +301,14 @@ GenericTranslator <- R6Class("GenericTranslator",
             xpath <- self$xpath(tree)
             if (!inherits(xpath, "XPathExpr"))
                 stop("'xpath' is not an instance of 'XPathExpr'")
+            # A selector starting with ':scope' is anchored at the
+            # query's scoping root - the context node the expression is
+            # evaluated from - so the self axis replaces the supplied
+            # prefix (which would instead range over the descendants):
+            # ':scope > a' becomes 'self::*/a' and a bare ':scope'
+            # becomes 'self::*'
+            if (xpath$scoped)
+                prefix <- "self::"
             paste0(if (!is.null(prefix)) prefix else "", xpath$str())
         },
         xpath = function(parsed_selector) {
@@ -297,8 +323,11 @@ GenericTranslator <- R6Class("GenericTranslator",
             method <- self[[paste0("xpath_", combinator, "_combinator")]]
             if (is.null(method))
                 stop("Unknown combinator '", combinator, "'")
+            right <- self$xpath(combined$subselector)
+            if (right$scoped)
+                stop_non_leading_scope()
             method(left = self$xpath(combined$selector),
-                   right = self$xpath(combined$subselector))
+                   right = right)
         },
         xpath_argument_condition = function(subselector) {
             # Translate one functional pseudo-class argument into a
@@ -311,6 +340,8 @@ GenericTranslator <- R6Class("GenericTranslator",
             # matches a 'b' whose parent is an 'a')
             if (first_class_name(subselector) == "CombinedSelector") {
                 sub_xpath <- self$xpath(subselector$subselector)
+                if (sub_xpath$scoped)
+                    stop_non_leading_scope()
                 sub_xpath$add_name_test()
                 rev_test <- self$reversed_combinator_test(
                     subselector$selector, subselector$combinator)
@@ -328,6 +359,8 @@ GenericTranslator <- R6Class("GenericTranslator",
                 list(condition = condition, is_or = FALSE)
             } else {
                 sub_xpath <- self$xpath(subselector)
+                if (sub_xpath$scoped)
+                    stop_non_leading_scope()
                 sub_xpath$add_name_test()
                 # An argument that imposes no condition (a bare '*')
                 # matches everything; return an explicit "true()" so
@@ -416,6 +449,8 @@ GenericTranslator <- R6Class("GenericTranslator",
             if (first_class_name(selector) == "CombinedSelector") {
                 left <- self$xpath_has_test(selector$selector, combinator)
                 sub_xpath <- self$xpath(selector$subselector)
+                if (sub_xpath$scoped)
+                    stop_non_leading_scope()
                 # A prefixed safe name stays the node test of the path
                 # step itself (e.g. '//svg:g'); other names are folded
                 # into the predicate. Under '+' the position predicate
@@ -440,6 +475,8 @@ GenericTranslator <- R6Class("GenericTranslator",
                 rel_test
             } else {
                 sub_xpath <- self$xpath(selector)
+                if (sub_xpath$scoped)
+                    stop_non_leading_scope()
                 # As above: keep a prefixed safe name as the node test
                 # of the axis step, except under '+' where [1] must
                 # precede the name test
@@ -918,6 +955,18 @@ GenericTranslator <- R6Class("GenericTranslator",
             # document language, inherited dir attributes, and text analysis.
             # Not possible in static XPath, so we make it never match.
             xpath$add_condition("0")
+            xpath
+        },
+        xpath_scope_pseudo = function(xpath) {
+            # ':scope' matches only the query's scoping root, i.e. the
+            # context node the expression is evaluated from. There is
+            # no condition to add - any other simple selectors in the
+            # compound already constrain the node - so just flag the
+            # expression; selector_to_xpath() anchors a flagged
+            # selector with 'self::' in place of the prefix, and the
+            # call sites that cannot anchor it (the right side of a
+            # combinator, pseudo-class arguments) reject the flag
+            xpath$scoped <- TRUE
             xpath
         },
         xpath_root_pseudo = function(xpath) {

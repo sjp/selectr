@@ -39,6 +39,17 @@ css_to_xpath(selector,
   default or \code{""}, unless it is known what scope a particular XPath
   expression should have.
 
+  A selector starting with the \code{:scope} pseudo-class is anchored
+  at the node the expression is evaluated from: the \code{prefix}
+  argument is ignored and the expression begins with the XPath
+  \code{self} axis instead. For example, \code{":scope > a"} translates
+  to \code{"self::*/a"}, matching only the \code{a} children of the
+  queried node, and a bare \code{":scope"} translates to
+  \code{"self::*"}, matching the queried node itself. \code{:scope}
+  anywhere else in a selector (after a combinator, or within a
+  functional pseudo-class such as \code{:is()} or \code{:has()}) cannot
+  be expressed in XPath 1.0 and is an error.
+
   The translator used is usually unnecessary to specify as the default
   is sufficient for most cases. However, it is of use when creating
   expressions relating to (X)HTML pseudo elements and languages. In
@@ -65,5 +76,6 @@ css_to_xpath(selector,
   css_to_xpath(".testclass")
   css_to_xpath("#testid", prefix = "")
   css_to_xpath("#testid .testclass")
+  css_to_xpath(":scope > .testclass")
   css_to_xpath(":checked", translator = "html")
 }

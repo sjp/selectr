@@ -17,6 +17,16 @@
       ASCII case-insensitively, while \code{[attr="value" s]}
       explicitly requests the default case-sensitive matching.
 
+      \item Added support for a leading \code{:scope} pseudo-class,
+      anchoring the selector at the queried node:
+      \code{querySelectorAll(node, ":scope > a")} returns only the
+      \code{a} children of \code{node}. \code{css_to_xpath()}
+      translates such selectors with the XPath \code{self} axis in
+      place of the \code{prefix} argument (\code{":scope > a"} becomes
+      \code{"self::*/a"}). A \code{:scope} anywhere else in a selector
+      cannot be expressed in XPath 1.0 and is rejected with a clear
+      error.
+
       \item \code{:not()} may now appear inside the arguments of
       functional pseudo-classes (e.g. \code{:not(:not(a))},
       \code{:is(:not(.x))}, \code{:nth-child(2 of :not(.foo))}).

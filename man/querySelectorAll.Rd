@@ -58,6 +58,13 @@ querySelectorAllNS(doc, selector, ns,
   it is necessary to use a namespace present within the document. This
   can be ignored for content lacking a namespace, which is usually the
   case when using \code{querySelector} or \code{querySelectorAll}.
+
+  A selector starting with the \code{:scope} pseudo-class is anchored
+  at the queried node itself: \code{querySelectorAll(node, ":scope >
+  a")} returns only the \code{a} children of \code{node}, where
+  \code{querySelectorAll(node, "a")} would return all of its \code{a}
+  descendants. \code{:scope} after a combinator or within a functional
+  pseudo-class is an error (it cannot be expressed in XPath 1.0).
 }
 \value{
   For \code{querySelector}, the result is a single node that represents
