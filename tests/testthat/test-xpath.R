@@ -155,6 +155,33 @@ test_that(":lang() and :dir() reject a lone '-' argument", {
     }
 })
 
+test_that("a translator subclass can add new pseudo-class handlers", {
+    # Dispatch is dynamic, so a handler defined only on a subclass is
+    # found without editing the base class
+    BlinkTranslator <- R6::R6Class("BlinkTranslator",
+        inherit = GenericTranslator,
+        public = list(
+            xpath_blink_pseudo = function(xpath) {
+                xpath$add_condition("@blink")
+                xpath
+            },
+            xpath_nth_word_function = function(xpath, fn) {
+                xpath$add_condition("@nth-word")
+                xpath
+            }))
+
+    translator <- BlinkTranslator$new()
+    expect_that(translator$css_to_xpath("a:blink"),
+                equals("descendant-or-self::a[(@blink)]"))
+    expect_that(translator$css_to_xpath("a:nth-word(2)"),
+                equals("descendant-or-self::a[(@nth-word)]"))
+    # Unknown names still produce the usual errors
+    expect_error(translator$css_to_xpath("a:frobnicate"),
+                 "The pseudo-class :frobnicate is unknown")
+    expect_error(translator$css_to_xpath("a:frobnicate(2)"),
+                 "The pseudo-class :frobnicate\\(\\) is unknown")
+})
+
 test_that("a translator subclass can override id_attribute", {
     XMLIdTranslator <- R6::R6Class("XMLIdTranslator",
         inherit = GenericTranslator,

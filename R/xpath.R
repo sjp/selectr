@@ -96,6 +96,13 @@ of_type_nodetest <- function(xpath) {
         xpath$name_test
 }
 
+# Shared translation for pseudo-classes that can never match in a
+# static document
+pseudo_never_matches <- function(xpath) {
+    xpath$add_condition("0")
+    xpath
+}
+
 first_class_name <- function(obj) {
     result <- class(obj)[1]
 
@@ -182,56 +189,18 @@ GenericTranslator <- R6Class("GenericTranslator",
         },
         xpath = function(parsed_selector) {
             type_name <- first_class_name(parsed_selector)
-            method_name <- paste0("xpath_", tolower(type_name))
-
-            if (method_name == "xpath_attrib")
-                self$xpath_attrib(parsed_selector)
-            else if (method_name == "xpath_class")
-                self$xpath_class(parsed_selector)
-            else if (method_name == "xpath_combinedselector")
-                self$xpath_combinedselector(parsed_selector)
-            else if (method_name == "xpath_element")
-                self$xpath_element(parsed_selector)
-            else if (method_name == "xpath_matching")
-                self$xpath_matching(parsed_selector)
-            else if (method_name == "xpath_where")
-                self$xpath_where(parsed_selector)
-            else if (method_name == "xpath_has")
-                self$xpath_has(parsed_selector)
-            else if (method_name == "xpath_function")
-                self$xpath_function(parsed_selector)
-            else if (method_name == "xpath_hash")
-                self$xpath_hash(parsed_selector)
-            else if (method_name == "xpath_negation")
-                self$xpath_negation(parsed_selector)
-            else if (method_name == "xpath_pseudo")
-                self$xpath_pseudo(parsed_selector)
-            else
+            method <- self[[paste0("xpath_", tolower(type_name))]]
+            if (is.null(method))
                 stop("Unknown method name '", type_name, "'")
+            method(parsed_selector)
         },
         xpath_combinedselector = function(combined) {
-            combinator <- paste0(
-                "xpath_",
-                self$combinator_mapping[combined$combinator],
-                "_combinator")
-
-            left_xpath <- self$xpath(combined$selector)
-            right_xpath <- self$xpath(combined$subselector)
-            if (combinator == "xpath_descendant_combinator")
-                self$xpath_descendant_combinator(
-                    left = left_xpath, right = right_xpath)
-            else if (combinator == "xpath_child_combinator")
-                self$xpath_child_combinator(
-                    left = left_xpath, right = right_xpath)
-            else if (combinator == "xpath_direct_adjacent_combinator")
-                self$xpath_direct_adjacent_combinator(
-                    left = left_xpath, right = right_xpath)
-            else if (combinator == "xpath_indirect_adjacent_combinator")
-                self$xpath_indirect_adjacent_combinator(
-                    left = left_xpath, right = right_xpath)
-            else
-                stop("Unknown combinator '",
-                     self$combinator_mapping[combined$combinator], "'")
+            combinator <- self$combinator_mapping[combined$combinator]
+            method <- self[[paste0("xpath_", combinator, "_combinator")]]
+            if (is.null(method))
+                stop("Unknown combinator '", combinator, "'")
+            method(left = self$xpath(combined$selector),
+                   right = self$xpath(combined$subselector))
         },
         xpath_argument_condition = function(subselector) {
             # Translate one functional pseudo-class argument into a
@@ -403,22 +372,12 @@ GenericTranslator <- R6Class("GenericTranslator",
                 "_function")
             xp <- self$xpath(fn$selector)
 
-            if (method_name == "xpath_lang_function")
-                self$xpath_lang_function(xp, fn)
-            else if (method_name == "xpath_dir_function")
-                self$xpath_dir_function(xp, fn)
-            else if (method_name == "xpath_nth_child_function")
-                self$xpath_nth_child_function(xp, fn)
-            else if (method_name == "xpath_nth_last_child_function")
-                self$xpath_nth_last_child_function(xp, fn)
-            else if (method_name == "xpath_nth_of_type_function")
-                self$xpath_nth_of_type_function(xp, fn)
-            else if (method_name == "xpath_nth_last_of_type_function")
-                self$xpath_nth_last_of_type_function(xp, fn)
-            else
+            method <- self[[method_name]]
+            if (is.null(method))
                 stop("The pseudo-class :",
                      gsub("-", "_", fn$name),
                      "() is unknown")
+            method(xp, fn)
         },
         xpath_pseudo = function(pseudo) {
             method_name <- paste0(
@@ -427,48 +386,10 @@ GenericTranslator <- R6Class("GenericTranslator",
                 "_pseudo")
             xp <- self$xpath(pseudo$selector)
 
-            if (method_name == "xpath_root_pseudo")
-                self$xpath_root_pseudo(xp)
-            else if (method_name == "xpath_first_child_pseudo")
-                self$xpath_first_child_pseudo(xp)
-            else if (method_name == "xpath_last_child_pseudo")
-                self$xpath_last_child_pseudo(xp)
-            else if (method_name == "xpath_first_of_type_pseudo")
-                self$xpath_first_of_type_pseudo(xp)
-            else if (method_name == "xpath_last_of_type_pseudo")
-                self$xpath_last_of_type_pseudo(xp)
-            else if (method_name == "xpath_only_child_pseudo")
-                self$xpath_only_child_pseudo(xp)
-            else if (method_name == "xpath_only_of_type_pseudo")
-                self$xpath_only_of_type_pseudo(xp)
-            else if (method_name == "xpath_empty_pseudo")
-                self$xpath_empty_pseudo(xp)
-            else if (method_name == "xpath_any_link_pseudo")
-                self$xpath_any_link_pseudo(xp)
-            else if (method_name == "xpath_link_pseudo")
-                self$xpath_link_pseudo(xp)
-            else if (method_name == "xpath_visited_pseudo")
-                self$xpath_visited_pseudo(xp)
-            else if (method_name == "xpath_hover_pseudo")
-                self$xpath_hover_pseudo(xp)
-            else if (method_name == "xpath_active_pseudo")
-                self$xpath_active_pseudo(xp)
-            else if (method_name == "xpath_focus_pseudo")
-                self$xpath_focus_pseudo(xp)
-            else if (method_name == "xpath_target_pseudo")
-                self$xpath_target_pseudo(xp)
-            else if (method_name == "xpath_target_within_pseudo")
-                self$xpath_target_within_pseudo(xp)
-            else if (method_name == "xpath_local_link_pseudo")
-                self$xpath_local_link_pseudo(xp)
-            else if (method_name == "xpath_enabled_pseudo")
-                self$xpath_enabled_pseudo(xp)
-            else if (method_name == "xpath_disabled_pseudo")
-                self$xpath_disabled_pseudo(xp)
-            else if (method_name == "xpath_checked_pseudo")
-                self$xpath_checked_pseudo(xp)
-            else
+            method <- self[[method_name]]
+            if (is.null(method))
                 stop("The pseudo-class :", pseudo$ident, " is unknown")
+            method(xp)
         },
         xpath_attrib = function(selector) {
             operator <- self$attribute_operator_mapping[selector$operator]
@@ -522,22 +443,10 @@ GenericTranslator <- R6Class("GenericTranslator",
                     ", 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',",
                     " 'abcdefghijklmnopqrstuvwxyz')")
             }
-            if (method_name == "xpath_attrib_dashmatch")
-                self$xpath_attrib_dashmatch(xp, attrib, value)
-            else if (method_name == "xpath_attrib_equals")
-                self$xpath_attrib_equals(xp, attrib, value)
-            else if (method_name == "xpath_attrib_exists")
-                self$xpath_attrib_exists(xp, attrib, value)
-            else if (method_name == "xpath_attrib_includes")
-                self$xpath_attrib_includes(xp, attrib, value)
-            else if (method_name == "xpath_attrib_prefixmatch")
-                self$xpath_attrib_prefixmatch(xp, attrib, value)
-            else if (method_name == "xpath_attrib_substringmatch")
-                self$xpath_attrib_substringmatch(xp, attrib, value)
-            else if (method_name == "xpath_attrib_suffixmatch")
-                self$xpath_attrib_suffixmatch(xp, attrib, value)
-            else
+            method <- self[[method_name]]
+            if (is.null(method))
                 stop("Unknown attribute operator '", operator, "'")
+            method(xp, attrib, value)
         },
         # .foo is defined as [class~=foo] in the spec
         xpath_class = function(class_selector) {
@@ -976,24 +885,21 @@ GenericTranslator <- R6Class("GenericTranslator",
             xpath
         },
 
-        #pseudo_never_matches = function(xpath) {
-        #    xpath$add_condition("0")
-        #    xpath
-        #},
-
-        # All are pseudo_never_matches()
-        xpath_any_link_pseudo = function(xpath) { xpath$add_condition("0") ; xpath },
-        xpath_link_pseudo     = function(xpath) { xpath$add_condition("0") ; xpath },
-        xpath_visited_pseudo  = function(xpath) { xpath$add_condition("0") ; xpath },
-        xpath_hover_pseudo    = function(xpath) { xpath$add_condition("0") ; xpath },
-        xpath_active_pseudo   = function(xpath) { xpath$add_condition("0") ; xpath },
-        xpath_focus_pseudo    = function(xpath) { xpath$add_condition("0") ; xpath },
-        xpath_target_pseudo   = function(xpath) { xpath$add_condition("0") ; xpath },
-        xpath_target_within_pseudo = function(xpath) { xpath$add_condition("0") ; xpath },
-        xpath_local_link_pseudo    = function(xpath) { xpath$add_condition("0") ; xpath },
-        xpath_enabled_pseudo  = function(xpath) { xpath$add_condition("0") ; xpath },
-        xpath_disabled_pseudo = function(xpath) { xpath$add_condition("0") ; xpath },
-        xpath_checked_pseudo  = function(xpath) { xpath$add_condition("0") ; xpath },
+        # Pseudo-classes that depend on dynamic state which a static
+        # document does not have; the HTML translator overrides the
+        # ones it can answer from attributes
+        xpath_any_link_pseudo = pseudo_never_matches,
+        xpath_link_pseudo     = pseudo_never_matches,
+        xpath_visited_pseudo  = pseudo_never_matches,
+        xpath_hover_pseudo    = pseudo_never_matches,
+        xpath_active_pseudo   = pseudo_never_matches,
+        xpath_focus_pseudo    = pseudo_never_matches,
+        xpath_target_pseudo   = pseudo_never_matches,
+        xpath_target_within_pseudo = pseudo_never_matches,
+        xpath_local_link_pseudo    = pseudo_never_matches,
+        xpath_enabled_pseudo  = pseudo_never_matches,
+        xpath_disabled_pseudo = pseudo_never_matches,
+        xpath_checked_pseudo  = pseudo_never_matches,
 
         xpath_attrib_exists = function(xpath, name, value) {
             xpath$add_condition(name)
