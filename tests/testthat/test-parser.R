@@ -226,8 +226,8 @@ test_that("fast-path parses agree with the full parser", {
 })
 
 test_that("token_equality always returns a single logical", {
-    ident <- Token$new("IDENT", "a", 1)
-    eof <- EOFToken$new(2)
+    ident <- Token("IDENT", "a", 1)
+    eof <- EOFToken(2)
 
     expect_true(token_equality(ident, "IDENT", "a"))
     expect_false(token_equality(ident, "IDENT", "b"))

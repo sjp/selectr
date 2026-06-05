@@ -577,7 +577,7 @@ parse_selector <- function(stream) {
                pseudo_element,
                " not at the end of a selector")
         }
-        if (peek$is_delim(c("+", ">", "~"))) {
+        if (token_is_delim(peek, c("+", ">", "~"))) {
             # A combinator
             combinator <- stream$nxt()$value
             stream$skip_whitespace()
@@ -625,7 +625,7 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
     while (TRUE) {
         peek <- stream$peek()
         if (any(peek$type == c("S", "EOF")) ||
-            peek$is_delim(c(",", "+", ">", "~")) ||
+            token_is_delim(peek, c(",", "+", ">", "~")) ||
             (inside_arguments && token_equality(peek, "DELIM", ")"))) {
             break
         }
@@ -740,22 +740,22 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                     } else if (token_equality(nt, "DELIM", ")")) {
                         break
                     } else {
-                        stop("Expected an argument, got ", nt$repr())
+                        stop("Expected an argument, got ", token_repr(nt))
                     }
                 }
 
                 if (length(arguments) == 0) {
-                    stop("Expected at least one argument, got ", nt$repr())
+                    stop("Expected at least one argument, got ", token_repr(nt))
                 }
 
                 result <- Function$new(result, ident, arguments, selector_list)
             }
         } else {
-            stop("Expected selector, got ", stream$peek()$repr())
+            stop("Expected selector, got ", token_repr(stream$peek()))
         }
     }
     if (length(stream$used) == selector_start) {
-        stop("Expected selector, got ", stream$peek()$repr())
+        stop("Expected selector, got ", token_repr(stream$peek()))
     }
     list(result = result, pseudo_element = pseudo_element)
 }
@@ -784,7 +784,7 @@ parse_simple_selector_arguments <- function(stream, function_name = NULL, # noli
             # combinator; the omitted combinator means descendant
             stream$skip_whitespace()
             peek <- stream$peek()
-            if (peek$is_delim(c(">", "~", "+"))) {
+            if (token_is_delim(peek, c(">", "~", "+"))) {
                 combinator <- stream$nxt()$value
             }
         }
@@ -801,16 +801,16 @@ parse_simple_selector_arguments <- function(stream, function_name = NULL, # noli
             if (peek$type == "S") {
                 stream$skip_whitespace()
                 peek <- stream$peek()
-                if (peek$is_delim(c(")", ","))) {
+                if (token_is_delim(peek, c(")", ","))) {
                     break
                 }
-                if (peek$is_delim(c("+", ">", "~"))) {
+                if (token_is_delim(peek, c("+", ">", "~"))) {
                     chain_combinator <- stream$nxt()$value
                 } else {
                     # The whitespace was a descendant combinator
                     chain_combinator <- " "
                 }
-            } else if (peek$is_delim(c("+", ">", "~"))) {
+            } else if (token_is_delim(peek, c("+", ">", "~"))) {
                 chain_combinator <- stream$nxt()$value
             } else {
                 # ')', ',' or EOF: leave for the argument-list logic below
@@ -840,11 +840,11 @@ parse_simple_selector_arguments <- function(stream, function_name = NULL, # noli
             peek <- stream$peek()
             if (token_equality(peek, "DELIM", ")")) {
                 # Trailing comma before closing paren
-                stop("Expected ')', got ", nt$repr())
+                stop("Expected ')', got ", token_repr(nt))
             }
             # Continue to parse next selector
         } else {
-            stop("Expected an argument, got ", nt$repr())
+            stop("Expected an argument, got ", token_repr(nt))
         }
     }
 
@@ -862,7 +862,7 @@ parse_attrib <- function(selector, stream) {
     } else {
         attrib <- stream$next_ident_or_star()
         if (is.null(attrib) && !token_equality(stream$peek(), "DELIM", "|"))
-            stop("Expected '|', got ", stream$peek()$repr())
+            stop("Expected '|', got ", token_repr(stream$peek()))
         if (token_equality(stream$peek(), "DELIM", "|")) {
             stream$nxt()
             # next_ident_or_star() returns NULL for '*', i.e. '[*|attr]'
@@ -884,16 +884,16 @@ parse_attrib <- function(selector, stream) {
             return(Attrib$new(selector, namespace, attrib, "exists", NULL))
         } else if (token_equality(nt, "DELIM", "=")) {
             op <- "="
-        } else if (nt$is_delim(c("^=", "$=", "*=", "~=", "|="))) {
+        } else if (token_is_delim(nt, c("^=", "$=", "*=", "~=", "|="))) {
             op <- nt$value
         } else {
-            stop("Operator expected, got ", nt$repr())
+            stop("Operator expected, got ", token_repr(nt))
         }
     }
     stream$skip_whitespace()
     value <- stream$nxt()
     if (!value$type %in% c("IDENT", "STRING")) {
-        stop("Expected string or ident, got ", value$repr())
+        stop("Expected string or ident, got ", token_repr(value))
     }
     stream$skip_whitespace()
     nt <- stream$nxt()
@@ -906,7 +906,7 @@ parse_attrib <- function(selector, stream) {
         nt <- stream$nxt()
     }
     if (!token_equality(nt, "DELIM", "]")) {
-        stop("Expected ']', got ", nt$repr())
+        stop("Expected ']', got ", token_repr(nt))
     }
     Attrib$new(selector, namespace, attrib, op, value$value, flag)
 }
@@ -978,41 +978,27 @@ parse_series <- function(tokens) {
     c(a, b)
 }
 
-Token <- R6Class("Token",
-    public = list(
-        type = "",
-        value = NULL,
-        pos = 1,
-        initialize = function(type = "", value = NULL, pos = 1) {
-            self$type <- type
-            self$value <- value
-            self$pos <- pos
-        },
-        repr = function() {
-            paste0("<", self$type, " '", self$value, "' at ", self$pos, ">")
-        },
-        is_delim = function(values) {
-            self$type == "DELIM" && self$value %in% values
-        },
-        show = function() { # nocov start
-            cat(self$repr(), "\n")
-        } # nocov end
-    )
-)
+# Tokens are created in bulk by tokenize() and used as plain records,
+# so they are ordinary lists rather than R6 objects (an environment and
+# class attribute per token is significant overhead at that volume).
+Token <- function(type = "", value = NULL, pos = 1) {
+    list(type = type, value = value, pos = pos)
+}
 
-EOFToken <- R6Class("EOFToken",
-    inherit = Token,
-    public = list(
-        initialize = function(pos = 1, type = "EOF", value = NULL) {
-            super$initialize(type, value, pos)
-        },
-        repr = function() {
-            paste0("<", self$type, " at ", self$pos, ">")
-        },
-        show = function() { # nocov start
-            cat(self$repr(), "\n")
-        } # nocov end
-    ))
+EOFToken <- function(pos = 1) {
+    list(type = "EOF", value = NULL, pos = pos)
+}
+
+token_repr <- function(token) {
+    if (token$type == "EOF")
+        paste0("<EOF at ", token$pos, ">")
+    else
+        paste0("<", token$type, " '", token$value, "' at ", token$pos, ">")
+}
+
+token_is_delim <- function(token, values) {
+    token$type == "DELIM" && token$value %in% values
+}
 
 compile_ <- function(pattern) {
     function(x) {
@@ -1067,7 +1053,7 @@ tokenize <- function(s) {
         ss <- substring(s, pos, len_s)
         match <- match_whitespace(ss)
         if (!anyNA(match) && match[1] == 1) {
-            results[[i]] <- Token$new("S", " ", pos)
+            results[[i]] <- Token("S", " ", pos)
             match_end <- match[2]
             pos <- pos + match_end
             i <- i + 1
@@ -1078,7 +1064,7 @@ tokenize <- function(s) {
             match_start <- match[1]
             match_end <- max(match[1], match[2])
             value <- substring(ss, match_start, match_end)
-            results[[i]] <- Token$new("NUMBER", value, pos)
+            results[[i]] <- Token("NUMBER", value, pos)
             pos <- pos + match_end
             i <- i + 1
             next
@@ -1089,7 +1075,7 @@ tokenize <- function(s) {
             match_end <- max(match[1], match[2])
             value <- substring(ss, match_start, match_end)
             value <- sub_simple_escape(sub_unicode_escape(value))
-            results[[i]] <- Token$new("IDENT", value, pos)
+            results[[i]] <- Token("IDENT", value, pos)
             pos <- pos + match_end
             i <- i + 1
             next
@@ -1101,7 +1087,7 @@ tokenize <- function(s) {
             value <- substring(ss, match_start, match_end)
             value <- sub_simple_escape(sub_unicode_escape(value))
             hash_id <- substring(value, 2)
-            results[[i]] <- Token$new("HASH", hash_id, pos)
+            results[[i]] <- Token("HASH", hash_id, pos)
             pos <- pos + match_end
             i <- i + 1
             next
@@ -1109,7 +1095,7 @@ tokenize <- function(s) {
         # Testing presence of a two char delim at the current position
         two_ch <- substring(s, pos, pos + 1)
         if (two_ch %in% delims_2ch) {
-            results[[i]] <- Token$new("DELIM", two_ch, pos)
+            results[[i]] <- Token("DELIM", two_ch, pos)
             pos <- pos + 2
             i <- i + 1
             next
@@ -1118,7 +1104,7 @@ tokenize <- function(s) {
         # Testing presence of a single char delim at the current position
         ch <- substring(s, pos, pos)
         if (ch %in% delims_1ch) {
-            results[[i]] <- Token$new("DELIM", ch, pos)
+            results[[i]] <- Token("DELIM", ch, pos)
             pos <- pos + 1
             i <- i + 1
             next
@@ -1137,7 +1123,7 @@ tokenize <- function(s) {
             value <- sub_simple_escape(
                          sub_unicode_escape(
                              sub_newline_escape(value)))
-            results[[i]] <- Token$new("STRING", value, pos)
+            results[[i]] <- Token("STRING", value, pos)
             pos <- end_quote + 1
             i <- i + 1
             next
@@ -1160,7 +1146,7 @@ tokenize <- function(s) {
              "' found at position ",
              pos)
     }
-    results[[i]] <- EOFToken$new(pos)
+    results[[i]] <- EOFToken(pos)
     results
 }
 
@@ -1204,7 +1190,7 @@ TokenStream <- R6Class("TokenStream",
         next_ident = function() {
             nt <- self$nxt()
             if (nt$type != "IDENT")
-                stop("Expected ident, got ", nt$repr())
+                stop("Expected ident, got ", token_repr(nt))
             nt$value
         },
         next_ident_or_star = function() {
@@ -1214,7 +1200,7 @@ TokenStream <- R6Class("TokenStream",
             else if (token_equality(nt, "DELIM", "*"))
                 NULL
             else
-                stop("Expected ident or '*', got ", nt$repr())
+                stop("Expected ident or '*', got ", token_repr(nt))
         },
         skip_whitespace = function() {
             peek <- self$peek()

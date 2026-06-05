@@ -130,7 +130,7 @@ validate_lang_args <- function(fn) {
                   !(arg_types == "IDENT" & arg_values == "-")
     if (!all(valid_types)) {
         stop("Expected string, ident, or * arguments for :lang(), got ",
-             fn$arguments[[which(!valid_types)[1]]]$repr())
+             token_repr(fn$arguments[[which(!valid_types)[1]]]))
     }
 }
 
@@ -841,7 +841,7 @@ GenericTranslator <- R6Class("GenericTranslator",
             if (length(fn$arguments) != 1 || arg_types != "IDENT" ||
                 arg_values == "-") {
                 stop("Expected a single ident argument for :dir(), got ",
-                     fn$arguments[[1]]$repr())
+                     token_repr(fn$arguments[[1]]))
             }
             # :dir() requires runtime directionality detection based on
             # document language, inherited dir attributes, and text analysis.

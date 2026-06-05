@@ -2,7 +2,7 @@ context("tokenizer")
 
 test_that("tokenizer extracts correct representation", {
     tokens <- tokenize('E > f [a~="y\\"x"]:nth(/* fu /]* */-3.7)')
-    tokens <- unlist(lapply(tokens, function(x) x$repr()))
+    tokens <- unlist(lapply(tokens, token_repr))
     expected_tokens <- c("<IDENT 'E' at 1>",
                          "<S ' ' at 2>",
                          "<DELIM '>' at 3>",
@@ -25,7 +25,7 @@ test_that("tokenizer extracts correct representation", {
 
 test_that("unicode escapes are decoded in idents, hashes, and strings", {
     reprs <- function(css) {
-        unlist(lapply(tokenize(css), function(x) x$repr()))
+        unlist(lapply(tokenize(css), token_repr))
     }
 
     # '\31 ' is U+0031, i.e. '1' -- the only way to write an ID
@@ -53,7 +53,7 @@ test_that("unicode escapes are decoded in idents, hashes, and strings", {
 
 test_that("string tokens handle quotes, escapes, and unclosed strings", {
     reprs <- function(css) {
-        unlist(lapply(tokenize(css), function(x) x$repr()))
+        unlist(lapply(tokenize(css), token_repr))
     }
 
     expect_that(reprs("''"),

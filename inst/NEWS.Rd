@@ -51,6 +51,13 @@
   \subsection{MINOR CHANGES}{
     \itemize{
 
+      \item Tokens are now plain lists rather than R6 objects. Tokens
+      are created in bulk during tokenization and used as simple
+      records, so the per-token cost of an R6 environment and method
+      dispatch was significant; this change speeds up tokenization by
+      roughly a further 40--50\% on top of the changes noted below.
+      Tokens are internal, so this is not a user-visible change.
+
       \item The \pkg{stringr} and \pkg{methods} dependencies have been
       dropped; \pkg{R6} is now the only package \pkg{selectr} imports.
       Only four \pkg{stringr} functions were used, each with a direct
