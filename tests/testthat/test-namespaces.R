@@ -142,7 +142,7 @@ test_that("unprefixed pseudo-class argument names match default namespaces", {
 
     # An unprefixed name inside a pseudo-class argument compares
     # against name(), so it also matches an unprefixed element in a
-    # default namespace — unlike a top-level bare name, whose XPath
+    # default namespace - unlike a top-level bare name, whose XPath
     # name test matches in no namespace only
     doc <- xml2::read_xml(paste0(
         '<r id="root"><p id="plain"/>',

@@ -97,7 +97,7 @@ XPathExpr <- R6Class("XPathExpr",
                 # An unprefixed name is compared against name(): unlike
                 # the node test self::<name>, which only matches a name
                 # in no namespace, this also matches the name in a
-                # default namespace — the same policy already applied
+                # default namespace - the same policy already applied
                 # to names that cannot be written as a node test.
                 self$add_condition(paste0("name() = ",
                                           xpath_literal(self$element)))

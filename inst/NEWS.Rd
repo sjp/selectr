@@ -54,8 +54,8 @@
       string missing its closing quote.
 
       \item The \pkg{stringr} and \pkg{methods} dependencies have been
-      dropped — \pkg{R6} is now the only package \pkg{selectr}
-      imports — shrinking the install footprint.
+      dropped. \pkg{R6} is now the only package \pkg{selectr}
+      imports, shrinking the install footprint.
 
       \item \code{css_to_xpath()} now translates each distinct
       combination of selector, prefix, and translator only once per
@@ -76,8 +76,8 @@
     \itemize{
 
       \item The non-standard extensions inherited from the Python
-      'cssselect' package — the \code{:contains("text")} pseudo-class
-      and the \code{[attr!=value]} attribute operator — have been
+      'cssselect' package --- the \code{:contains("text")} pseudo-class
+      and the \code{[attr!=value]} attribute operator --- have been
       removed and now produce an error. Standard alternatives:
       \code{:not([attr=value])} for the former operator, and an XPath
       \code{contains(., 'text')} predicate applied outside of

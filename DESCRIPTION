@@ -8,6 +8,7 @@ Authors@R: c(person("Simon", "Potter",
              person("Simon", "Sapin", role = "aut"),
              person("Ian", "Bicking", role = "aut"))
 License: BSD_3_clause + file LICENCE
+Encoding: UTF-8
 Depends: R (>= 3.3)
 Imports: R6
 Suggests: testthat, XML, xml2
