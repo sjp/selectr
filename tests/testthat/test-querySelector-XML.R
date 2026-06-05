@@ -71,8 +71,13 @@ test_that("querySelector handles namespaces", {
     expect_that(p(querySelector(doc, "svg|circle", ns = c(svg = "http://www.w3.org/2000/svg"))),
                 equals(p(getNodeSet(doc, "//svg:circle", namespaces = c(svg = "http://www.w3.org/2000/svg"))[[1]])))
 
-    # now with querySelectorNS
-    expect_that(querySelectorNS(doc, "circle", c(svg = "http://www.w3.org/2000/svg")), equals(NULL))
+    # now with querySelectorNS; XML warns that the unprefixed query
+    # cannot match the document's default namespace, which is exactly
+    # the behaviour under test
+    expect_warning(
+        expect_that(querySelectorNS(doc, "circle", c(svg = "http://www.w3.org/2000/svg")),
+                    equals(NULL)),
+        "query has no namespace")
     expect_that(p(querySelectorNS(doc, "svg|circle", c(svg = "http://www.w3.org/2000/svg"))),
                 equals(p(getNodeSet(doc, "//svg:circle", namespaces = c(svg = "http://www.w3.org/2000/svg"))[[1]])))
 })
@@ -91,9 +96,13 @@ test_that("querySelectorAll handles namespaces", {
     expect_that(p(querySelectorAll(doc, "svg|circle", ns = c(svg = "http://www.w3.org/2000/svg"))),
                 equals(p(getNodeSet(doc, "//svg:circle", namespaces = c(svg = "http://www.w3.org/2000/svg")))))
 
-    # now with querySelectorAllNS
-    expect_that(p(querySelectorAllNS(doc, "circle", c(svg = "http://www.w3.org/2000/svg"))),
-                equals(p(getNodeSet(doc, "//circle", namespaces = c(svg = "http://www.w3.org/2000/svg")))))
+    # now with querySelectorAllNS; XML warns that the unprefixed query
+    # cannot match the document's default namespace, which is exactly
+    # the behaviour under test
+    expect_warning(
+        expect_that(p(querySelectorAllNS(doc, "circle", c(svg = "http://www.w3.org/2000/svg"))),
+                    equals(suppressWarnings(p(getNodeSet(doc, "//circle", namespaces = c(svg = "http://www.w3.org/2000/svg")))))),
+        "query has no namespace")
     expect_that(p(querySelectorAllNS(doc, "svg|circle", c(svg = "http://www.w3.org/2000/svg"))),
                 equals(p(getNodeSet(doc, "//svg:circle", namespaces = c(svg = "http://www.w3.org/2000/svg")))))
 })
