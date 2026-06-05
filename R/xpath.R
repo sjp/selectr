@@ -1014,7 +1014,7 @@ HTMLTranslator <- R6Class("HTMLTranslator",
         # function, which is defined in terms of xml:lang; only the
         # HTML translation reads the language from an attribute
         lang_attribute = "lang",
-        initialize = function(xhtml = FALSE, ...) {
+        initialize = function(xhtml = FALSE) {
             self$xhtml <- xhtml
             if (!xhtml) {
                 self$lower_case_element_names <- TRUE

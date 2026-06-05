@@ -158,6 +158,13 @@ test_that(":lang() and :dir() reject a lone '-' argument", {
     }
 })
 
+test_that("HTMLTranslator rejects unknown construction arguments", {
+    expect_error(HTMLTranslator$new(strict = TRUE), "unused argument")
+    # (xhtm = TRUE would still construct via R's standard partial
+    # argument matching of xhtml)
+    expect_that(HTMLTranslator$new(xhtm = TRUE)$xhtml, equals(TRUE))
+})
+
 test_that("a translator subclass can add new pseudo-class handlers", {
     # Dispatch is dynamic, so a handler defined only on a subclass is
     # found without editing the base class
