@@ -72,6 +72,19 @@ css_to_xpath(selector,
   specification loosened \code{:empty} to also match
   white-space-only elements, but no browser has shipped that change.)
 
+  \code{:lang()} ranges are matched as RFC 4647 language ranges, so a
+  wildcard may appear as a whole range (\code{:lang(*)}), as a trailing
+  subtag (\code{:lang(en-*)}), or in a non-trailing position
+  (\code{:lang(*-CH)}, \code{:lang(de-*-DE)}; quoted or not), the last of
+  these being RFC 4647 extended filtering. The \code{html} and
+  \code{xhtml} translators approximate a non-trailing wildcard from the
+  nearest \code{lang}-attributed ancestor (an element matches
+  \code{:lang(*-CH)} when its language tag carries a \code{CH} subtag in
+  any position). The generic translator has only XPath's \code{lang()}
+  function, which cannot express extended filtering, so there a
+  non-trailing wildcard is rejected with an error rather than silently
+  mis-matching.
+
   \code{:dir()} translates to a never-matching expression with every
   translator, including \code{html}: an element's resolved
   directionality also depends on \code{dir="auto"}, \code{bdi}, and

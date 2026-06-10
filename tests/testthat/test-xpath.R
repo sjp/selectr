@@ -167,6 +167,82 @@ test_that(":lang() and :dir() reject a lone '-' argument", {
     }
 })
 
+test_that("HTML translator handles :lang() extended-filtering wildcards", {
+    # Per Selectors 4 section 14.1, :lang() ranges are matched with RFC
+    # 4647 extended filtering, so a wildcard in non-trailing position
+    # (*-CH, de-*-DE) is valid. The HTML translators approximate it from
+    # the nearest lang-attributed ancestor.
+    translator <- HTMLTranslator$new()
+    lc <- "translate(@lang, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
+
+    # A leading wildcard "*-CH" matches any tag carrying a "ch" subtag.
+    # Both the unquoted (tokenized as '*' + "-CH") and quoted spellings
+    # reassemble to the same range and translation.
+    expected_star_ch <- sprintf(
+        "descendant-or-self::*[ancestor-or-self::*[@lang][1][contains(concat('-', %s, '-'), '-ch-')]]",
+        lc)
+    expect_that(translator$css_to_xpath(":lang(*-CH)"), equals(expected_star_ch))
+    expect_that(translator$css_to_xpath('div:lang("*-CH")'),
+                equals(sub("self::\\*", "self::div", expected_star_ch)))
+
+    # An interior wildcard "de-*-DE": the tag must start with "de" and
+    # carry a later "de" subtag, in that order (substring-after threads
+    # the tail so "de-CH" alone does not match).
+    expect_that(translator$css_to_xpath(":lang(de-*-DE)"),
+                equals(sprintf(paste0("descendant-or-self::*[ancestor-or-self::*[@lang][1]",
+                                      "[starts-with(concat('-', %1$s, '-'), '-de-') and ",
+                                      "contains(substring-after(concat('-', %1$s, '-'), '-de'), '-de-')]]"),
+                               lc)))
+
+    # A non-trailing wildcard in a comma list translates alongside its
+    # neighbours without error
+    expect_error(translator$css_to_xpath(":lang(en, *-CH)"), NA)
+})
+
+test_that("HTML :lang() extended wildcards match the right elements", {
+    library(xml2)
+    doc <- read_xml(paste0(
+        "<html>",
+        "<a lang='fr-CH'/>",       # ch subtag    -> :lang(*-CH)
+        "<b lang='de-CH-1996'/>",  # ch subtag    -> :lang(*-CH)
+        "<c lang='en-GB'/>",       # no ch        -> neither
+        "<d lang='ch'/>",          # ch is the whole tag -> :lang(*-CH)
+        "<e lang='de-DE'/>",       # de...de, no ch -> :lang(de-*-DE) only
+        "<f lang='de-CH-DE'/>",    # ch subtag and de...de -> both
+        "<g lang='de-CH'/>",       # ch subtag, but no later de -> :lang(*-CH) only
+        "</html>"))
+    ids <- function(css) {
+        nodes <- xml_find_all(doc, css_to_xpath(css, translator = "html"))
+        paste(xml_name(nodes), collapse = ",")
+    }
+    # every element carrying a "ch" subtag, in any position
+    expect_equal(ids(":lang(*-CH)"), "a,b,d,f,g")
+    # "de" first and a later "de" subtag, in order (de-CH alone excluded)
+    expect_equal(ids(":lang(de-*-DE)"), "e,f")
+    # case-insensitive: the wildcard subtag is matched in lower case
+    expect_equal(ids(":lang(*-ch)"), "a,b,d,f,g")
+})
+
+test_that("generic translator rejects :lang() non-trailing wildcards", {
+    # XPath 1.0's lang() cannot express extended filtering, and the
+    # generic translator has no lang attribute to walk, so an interior or
+    # leading wildcard is rejected (quoted or not) rather than mismatched.
+    translator <- GenericTranslator$new()
+    msg <- "non-trailing position"
+    expect_error(translator$css_to_xpath(":lang(*-CH)"), msg)
+    expect_error(translator$css_to_xpath(':lang("*-CH")'), msg)
+    expect_error(translator$css_to_xpath(":lang(de-*-DE)"), msg)
+    expect_error(translator$css_to_xpath('div:lang("de-*-DE")'), msg)
+    expect_error(translator$css_to_xpath(":lang(en, *-CH)"), msg)
+
+    # Bare and trailing wildcards remain valid in the generic translator
+    expect_error(translator$css_to_xpath(":lang(*)"), NA)
+    expect_error(translator$css_to_xpath(":lang(en-*)"), NA)
+    expect_error(translator$css_to_xpath('div:lang("en-*")'), NA)
+    expect_error(translator$css_to_xpath(":lang(en-*, fr)"), NA)
+    expect_error(translator$css_to_xpath(":lang(*, de)"), NA)
+})
+
 test_that("HTMLTranslator rejects unknown construction arguments", {
     expect_error(HTMLTranslator$new(strict = TRUE), "unused argument")
     # (xhtm = TRUE would still construct via R's standard partial

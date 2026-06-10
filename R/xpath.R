@@ -186,6 +186,37 @@ stop_non_leading_scope <- function() {
     stop("The pseudo-class :scope is only supported at the start of a selector")
 }
 
+# A wildcard in non-trailing position (e.g. :lang(*-CH) or :lang(de-*-DE),
+# quoted or not) is a valid RFC 4647 extended-filtering range. The HTML
+# translators approximate it from the nearest lang-attributed ancestor,
+# but the generic translator's only tool is XPath 1.0's lang() function,
+# which can express a prefix match but not an interior wildcard, so it
+# rejects such ranges rather than silently mismatching.
+stop_lang_non_trailing_wildcard <- function(range) {
+    stop("Only a bare '*' or a trailing '...-*' wildcard is supported by ",
+         "the generic translator's :lang(); the range ", range, " has a ",
+         "wildcard in a non-trailing position")
+}
+
+# Classify a single (already reassembled) :lang() range:
+#   "any"      - a bare "*" (match any language)
+#   "exact"    - no wildcard, e.g. "en" or "en-GB"
+#   "prefix"   - a single trailing wildcard, e.g. "en-*"
+#   "extended" - a wildcard in any other position, e.g. "*-CH", "de-*-DE"
+#                (RFC 4647 extended filtering)
+lang_range_kind <- function(value) {
+    n_star <- nchar(value) - nchar(gsub("*", "", value, fixed = TRUE))
+    if (value == "*") {
+        "any"
+    } else if (n_star == 0) {
+        "exact"
+    } else if (n_star == 1 && grepl("-\\*$", value)) {
+        "prefix"
+    } else {
+        "extended"
+    }
+}
+
 # Validate that all arguments of :lang() are STRING, IDENT, or * (DELIM).
 # A lone '-' lexes as an IDENT but is not a valid <ident> per
 # css-syntax, so reject it too.
@@ -205,23 +236,74 @@ validate_lang_args <- function(fn) {
 # ident or string ending in '-' with a following '*' DELIM into a
 # single wildcard range (e.g. "en-" + "*" = "en-*")
 extract_lang_values <- function(fn) {
-    lang_values <- character(0)
-    i <- 1
-    while (i <= length(fn$arguments)) {
-        arg <- fn$arguments[[i]]
-        if (arg$type %in% c("IDENT", "STRING") &&
-            grepl("-$", arg$value) &&
-            i < length(fn$arguments) &&
-            fn$arguments[[i + 1]]$type == "DELIM" &&
-            fn$arguments[[i + 1]]$value == "*") {
-            lang_values <- c(lang_values, paste0(arg$value, "*"))
-            i <- i + 2  # Skip the next token since we combined it
+    # The tokenizer splits a range at every '*', so a wildcard range
+    # arrives as several tokens: unquoted "*-CH" as ['*', "-CH"], "en-*"
+    # as ["en-", '*'], and "de-*-DE" as ["de-", '*', "-DE"]. A quoted
+    # range is a single STRING token carrying its wildcards verbatim.
+    # Reassemble each whole range: a '*' glues onto a value ending in '-'
+    # (the trailing-wildcard case), and a '-'-led continuation subtag
+    # glues onto a value still ending in '*' (the part after a '*' split).
+    # Commas between ranges are dropped during parsing, but a fresh range
+    # never begins with '-', so the leading '-' reliably marks a
+    # continuation rather than a new range.
+    ranges <- character(0)
+    for (arg in fn$arguments) {
+        n <- length(ranges)
+        if (arg$type == "DELIM" && arg$value == "*") {
+            if (n > 0 && grepl("-$", ranges[n])) {
+                ranges[n] <- paste0(ranges[n], "*")
+            } else {
+                ranges <- c(ranges, "*")
+            }
+        } else if (n > 0 && grepl("\\*$", ranges[n]) &&
+                   startsWith(arg$value, "-")) {
+            ranges[n] <- paste0(ranges[n], arg$value)
         } else {
-            lang_values <- c(lang_values, arg$value)
-            i <- i + 1
+            ranges <- c(ranges, arg$value)
         }
     }
-    lang_values
+    ranges
+}
+
+# The HTML :lang() translation of an RFC 4647 extended-filtering range
+# (one with a wildcard in non-trailing position, e.g. "*-CH" or
+# "de-*-DE"). It tests the nearest lang-attributed ancestor, dash-
+# bracketing the lowercased attribute as "-<lang>-" so that each subtag
+# is delimited, then walks the range's subtags left to right: a literal
+# first subtag must start the tag, a literal subtag after a '*' may
+# appear anywhere further along (contains), and substring-after threads
+# the remaining tail so later subtags must follow earlier ones in order.
+lang_extended_html_condition <- function(value, lang_attribute) {
+    lc <- paste0("translate(@", lang_attribute,
+                 ", 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
+                 "'abcdefghijklmnopqrstuvwxyz')")
+    cursor <- paste0("concat('-', ", lc, ", '-')")
+    subtags <- strsplit(tolower(value), "-", fixed = TRUE)[[1]]
+    conditions <- character(0)
+    anywhere <- FALSE  # may the next literal subtag be preceded by others?
+    anchored <- FALSE  # has a literal subtag been matched yet?
+    for (subtag in subtags) {
+        if (subtag == "*") {
+            anywhere <- TRUE
+            next
+        }
+        if (!nzchar(subtag))
+            next
+        needle <- xpath_literal(paste0("-", subtag, "-"))
+        if (!anchored && !anywhere) {
+            conditions <- c(conditions,
+                            paste0("starts-with(", cursor, ", ", needle, ")"))
+        } else {
+            conditions <- c(conditions,
+                            paste0("contains(", cursor, ", ", needle, ")"))
+        }
+        cursor <- paste0("substring-after(", cursor, ", ",
+                         xpath_literal(paste0("-", subtag)), ")")
+        anywhere <- FALSE
+        anchored <- TRUE
+    }
+    paste0("ancestor-or-self::*[@", lang_attribute, "][1][",
+           paste(conditions, collapse = " and "), "]")
 }
 
 first_class_name <- function(obj) {
@@ -914,12 +996,13 @@ GenericTranslator <- R6Class("GenericTranslator",
             validate_lang_args(fn)
             lang_values <- extract_lang_values(fn)
 
-            # Build conditions for each language value
+            # Build conditions for each language range
             conditions <- vapply(lang_values, function(value) {
-                if (value == "*") {
+                kind <- lang_range_kind(value)
+                if (kind == "any") {
                     # Wildcard * matches everything - use a condition that's always true
                     "true()"
-                } else if (grepl("\\*$", value)) {
+                } else if (kind == "prefix") {
                     # Wildcard suffix like "en-*" - match any language starting with prefix
                     # Use XPath's lang() function which does prefix matching.
                     # Strip the trailing "-*": lang('en') matches "en" and any
@@ -927,6 +1010,12 @@ GenericTranslator <- R6Class("GenericTranslator",
                     # because lang() only extends its argument at a '-' boundary.
                     prefix <- sub("-?\\*$", "", value)
                     paste0("lang(", xpath_literal(prefix), ")")
+                } else if (kind == "extended") {
+                    # A wildcard in non-trailing position (e.g. "*-CH"):
+                    # XPath 1.0's lang() cannot express RFC 4647 extended
+                    # filtering, and unlike the HTML translators there is
+                    # no lang-attribute to walk, so reject it
+                    stop_lang_non_trailing_wildcard(value)
                 } else {
                     # Regular language tag
                     paste0("lang(", xpath_literal(value), ")")
@@ -1210,13 +1299,14 @@ HTMLTranslator <- R6Class("HTMLTranslator",
             validate_lang_args(fn)
             lang_values <- extract_lang_values(fn)
 
-            # Build conditions for each language value
+            # Build conditions for each language range
             conditions <- vapply(lang_values, function(value) {
-                if (value == "*") {
+                kind <- lang_range_kind(value)
+                if (kind == "any") {
                     # Wildcard * matches any element with a lang attribute
                     # Check for any ancestor-or-self with @lang attribute
                     paste0("ancestor-or-self::*[@", self$lang_attribute, "]")
-                } else if (grepl("\\*$", value)) {
+                } else if (kind == "prefix") {
                     # Wildcard suffix like "en-*" - match any language starting with prefix
                     prefix <- sub("\\*$", "", value)  # Remove trailing *
                     # Don't add '-' if prefix already ends with it
@@ -1229,6 +1319,11 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                         "'abcdefghijklmnopqrstuvwxyz'), '-'), ",
                         xpath_literal(search_prefix),
                         ")]")
+                } else if (kind == "extended") {
+                    # A wildcard in non-trailing position (e.g. "*-CH" or
+                    # "de-*-DE"): RFC 4647 extended filtering, approximated
+                    # from the nearest lang-attributed ancestor
+                    lang_extended_html_condition(value, self$lang_attribute)
                 } else {
                     # Regular language tag
                     paste0(
