@@ -331,6 +331,17 @@ fold_type <- "translate(@type, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqr
 input_not_hidden <- paste0("name(.) = 'input' and not(", fold_type,
                            " = 'hidden')")
 
+# A disabled <fieldset> disables its descendant controls except those
+# inside its first <legend> child (HTML's "actually disabled" rule). A
+# control is disabled by a fieldset when it has more disabled-fieldset
+# ancestors than first-legend ancestors that protect it: each protecting
+# legend (first child of a disabled fieldset) cancels exactly the one
+# fieldset it belongs to, so nested disabled fieldsets still disable
+disabled_by_fieldset <- paste0(
+    "count(ancestor::fieldset[@disabled])",
+    " > count(ancestor::legend[not(preceding-sibling::legend)]",
+    "[parent::fieldset[@disabled]])")
+
 xpath_literal <- function(literal) {
     if (!is.character(literal) || length(literal) != 1) {
         stop("literal must be a single character string")
@@ -1396,7 +1407,7 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                       "name(.) = 'select' or",
                       "name(.) = 'textarea'",
                       ")",
-                      "and ancestor::fieldset[@disabled]",
+                      "and", disabled_by_fieldset,
                       ")"),
                 is_or_group = TRUE)
             xpath
@@ -1412,7 +1423,7 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                       "or name(.) = 'select'",
                       "or name(.) = 'textarea'",
                       "or name(.) = 'keygen')",
-                      "and not (@disabled or ancestor::fieldset[@disabled]))",
+                      paste0("and not (@disabled or ", disabled_by_fieldset, "))"),
                       "or (name(.) = 'option' and not(@disabled or ancestor::optgroup[@disabled]))"),
                 is_or_group = TRUE)
             xpath

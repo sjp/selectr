@@ -103,7 +103,11 @@ css_to_xpath(selector,
   and \code{<input type="HIDDEN">} is excluded from \code{:disabled}
   just as their lower-case spellings are. An \code{<input>} with no
   \code{type} defaults to text and so participates in
-  \code{:enabled}/\code{:disabled}.
+  \code{:enabled}/\code{:disabled}. A disabled \code{<fieldset>}
+  disables its descendant form controls for \code{:disabled} and
+  \code{:enabled}, except those inside its first \code{<legend>} child,
+  which stay \code{:enabled}; nested disabled fieldsets are handled
+  correctly.
 
   When the translator is set to \code{html}, all elements and
   attributes will be converted to lower case. This restriction is

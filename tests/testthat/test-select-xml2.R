@@ -268,3 +268,37 @@ test_that("form pseudo-classes fold @type case-insensitively", {
     # likewise type=Hidden cannot be :required
     expect_that(ids('input:required'), equals('text-req'))
 })
+
+test_that(":disabled/:enabled honour the disabled-fieldset legend carve-out", {
+    library(xml2)
+    # A disabled <fieldset> disables its descendant controls except those
+    # inside its first <legend> child. Nested disabled fieldsets still
+    # disable a control protected by only one legend
+    doc <- read_html(paste0(
+        '<form>',
+        '<fieldset disabled="disabled">',
+        '<legend><input id="in-legend" /></legend>',
+        '<input id="in-body" />',
+        '<legend><input id="second-legend" /></legend>',
+        '</fieldset>',
+        '<fieldset disabled="disabled">',
+        '<legend>',
+        '<fieldset disabled="disabled">',
+        '<input id="nested-in-body" />',
+        '</fieldset>',
+        '</legend>',
+        '</fieldset>',
+        '</form>'))
+    ids <- function(css) {
+        xpath <- css_to_xpath(css, translator = "html")
+        result <- unlist(lapply(xml_find_all(doc, xpath), xml_attr, "id"))
+        if (is.null(result)) NULL else result
+    }
+
+    # Inside the first legend: enabled. In the body or a second legend:
+    # disabled. The nested input has two disabled-fieldset ancestors but
+    # only one protecting legend, so it stays disabled
+    expect_that(ids('input:disabled'),
+                equals(c('in-body', 'second-legend', 'nested-in-body')))
+    expect_that(ids('input:enabled'), equals('in-legend'))
+})
