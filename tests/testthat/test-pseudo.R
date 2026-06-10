@@ -101,14 +101,18 @@ test_that(":required and :optional translate from the @required attribute", {
     # HTML form state readable from a document attribute: a real
     # translation on the HTML translator (like :checked), never-match
     # on the generic translator
+    not_hidden <- paste0(
+        "name(.) = 'input' and not(translate(@type, ",
+        "'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') ",
+        "= 'hidden')")
     required_xpath <- paste(
         "@required and",
-        "((name(.) = 'input' and not(@type = 'hidden')) or",
+        paste0("((", not_hidden, ") or"),
         "name(.) = 'select' or",
         "name(.) = 'textarea')")
     optional_xpath <- paste(
         "not(@required) and",
-        "((name(.) = 'input' and not(@type = 'hidden')) or",
+        paste0("((", not_hidden, ") or"),
         "name(.) = 'select' or",
         "name(.) = 'textarea')")
     for (translator in c("html", "xhtml")) {

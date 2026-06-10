@@ -6,8 +6,13 @@ test_that("css_to_xpath vectorises arguments", {
     expect_that(css_to_xpath("a b"), equals("descendant-or-self::a//b"))
     expect_that(css_to_xpath("a b", prefix = ""), equals("a//b"))
     expect_that(css_to_xpath("a b", prefix = c("descendant-or-self::", "")), equals(c("descendant-or-self::a//b", "a//b")))
+    fold <- "translate(@type, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
+    checked_html <- paste0(
+        "a[(@selected and name(.) = 'option') or (@checked and ",
+        "(name(.) = 'input' or name(.) = 'command')and (",
+        fold, " = 'checkbox' or ", fold, " = 'radio'))]")
     expect_that(css_to_xpath("a:checked", prefix = "", translator = c("generic", "html", "xhtml")),
-                             equals(c("a[0]", "a[(@selected and name(.) = 'option') or (@checked and (name(.) = 'input' or name(.) = 'command')and (@type = 'checkbox' or @type = 'radio'))]", "a[(@selected and name(.) = 'option') or (@checked and (name(.) = 'input' or name(.) = 'command')and (@type = 'checkbox' or @type = 'radio'))]")))
+                             equals(c("a[0]", checked_html, checked_html)))
     expect_that(css_to_xpath(c("a b", "b c"), prefix = ""), equals(c("a//b", "b//c")))
 })
 

@@ -317,6 +317,20 @@ first_class_name <- function(obj) {
     if (result == "ClassSelector") "Class" else result
 }
 
+# 'type' is an HTML enumerated attribute whose keywords match ASCII
+# case-insensitively, but an HTML parser preserves attribute *values*,
+# so a spelling such as type="RADIO" reaches XPath unchanged. Fold the
+# value to lower case before comparing so the form pseudo-classes accept
+# the uppercase keywords the way browsers do
+fold_type <- "translate(@type, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
+
+# An <input> whose type is not 'hidden' (compared case-insensitively),
+# the control that participates in the form-state pseudo-classes. Using
+# not(... = 'hidden') rather than @type != 'hidden' also matches an input
+# with no type attribute, which defaults to text
+input_not_hidden <- paste0("name(.) = 'input' and not(", fold_type,
+                           " = 'hidden')")
+
 xpath_literal <- function(literal) {
     if (!is.character(literal) || length(literal) != 1) {
         stop("literal must be a single character string")
@@ -1268,7 +1282,8 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                 paste0("(@selected and name(.) = 'option') or ",
                        "(@checked ",
                        "and (name(.) = 'input' or name(.) = 'command')",
-                       "and (@type = 'checkbox' or @type = 'radio'))"),
+                       "and (", fold_type, " = 'checkbox' or ",
+                       fold_type, " = 'radio'))"),
                 is_or_group = TRUE)
             xpath
         },
@@ -1282,7 +1297,7 @@ HTMLTranslator <- R6Class("HTMLTranslator",
         xpath_required_pseudo = function(xpath) {
             xpath$add_condition(
                 paste("@required and",
-                      "((name(.) = 'input' and not(@type = 'hidden')) or",
+                      paste0("((", input_not_hidden, ") or"),
                       "name(.) = 'select' or",
                       "name(.) = 'textarea')"))
             xpath
@@ -1290,7 +1305,7 @@ HTMLTranslator <- R6Class("HTMLTranslator",
         xpath_optional_pseudo = function(xpath) {
             xpath$add_condition(
                 paste("not(@required) and",
-                      "((name(.) = 'input' and not(@type = 'hidden')) or",
+                      paste0("((", input_not_hidden, ") or"),
                       "name(.) = 'select' or",
                       "name(.) = 'textarea')"))
             xpath
@@ -1365,7 +1380,7 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                 paste("(",
                       "@disabled and",
                       "(",
-                      "(name(.) = 'input' and not(@type = 'hidden')) or",
+                      paste0("(", input_not_hidden, ") or"),
                       "name(.) = 'button' or",
                       "name(.) = 'select' or",
                       "name(.) = 'textarea' or",
@@ -1376,7 +1391,7 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                       ")",
                       ") or (",
                       "(",
-                      "(name(.) = 'input' and not(@type = 'hidden')) or",
+                      paste0("(", input_not_hidden, ") or"),
                       "name(.) = 'button' or",
                       "name(.) = 'select' or",
                       "name(.) = 'textarea'",
@@ -1392,7 +1407,7 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                       "or",
                       "((name(.) = 'command' or name(.) = 'fieldset' or name(.) = 'optgroup') and not(@disabled))",
                       "or",
-                      "(((name(.) = 'input' and not(@type = 'hidden'))",
+                      paste0("(((", input_not_hidden, ")"),
                       "or name(.) = 'button'",
                       "or name(.) = 'select'",
                       "or name(.) = 'textarea'",

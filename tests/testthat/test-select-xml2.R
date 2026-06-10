@@ -241,3 +241,30 @@ test_that(":enabled and :disabled match inputs with no type attribute", {
     expect_that(ids('input:disabled'), equals('plain-disabled'))
     expect_that(ids('input:enabled'), equals('plain-enabled'))
 })
+
+test_that("form pseudo-classes fold @type case-insensitively", {
+    library(xml2)
+    # type is an enumerated attribute whose keywords match ASCII
+    # case-insensitively; an HTML parser preserves the attribute value,
+    # so uppercase spellings must still be recognised
+    doc <- read_html(paste0('<form>',
+                            '<input id="radio-up" type="RADIO" checked="checked" />',
+                            '<input id="check-up" type="CheckBox" checked="checked" />',
+                            '<input id="hidden-up" type="HIDDEN" disabled="disabled" />',
+                            '<input id="text-up" type="TEXT" disabled="disabled" />',
+                            '<input id="hidden-req" type="Hidden" required="required" />',
+                            '<input id="text-req" type="Text" required="required" />',
+                            '</form>'))
+    ids <- function(css) {
+        xpath <- css_to_xpath(css, translator = "html")
+        result <- unlist(lapply(xml_find_all(doc, xpath), xml_attr, "id"))
+        if (is.null(result)) NULL else result
+    }
+
+    # type=RADIO / type=CheckBox are checkable controls
+    expect_that(ids('input:checked'), equals(c('radio-up', 'check-up')))
+    # type=HIDDEN is excluded from :disabled, the uppercase text input is not
+    expect_that(ids('input:disabled'), equals('text-up'))
+    # likewise type=Hidden cannot be :required
+    expect_that(ids('input:required'), equals('text-req'))
+})

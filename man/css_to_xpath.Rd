@@ -97,6 +97,13 @@ css_to_xpath(selector,
   particular it qualifies the following pseudo selectors to apply only
   to relevant (X)HTML elements: \code{:checked}, \code{:disabled},
   \code{:enabled}, \code{:link}, \code{:optional} and \code{:required}.
+  Because \code{type} is an HTML enumerated attribute, the
+  form-state pseudo-classes match its keywords ASCII
+  case-insensitively, so \code{<input type="RADIO">} is \code{:checked}
+  and \code{<input type="HIDDEN">} is excluded from \code{:disabled}
+  just as their lower-case spellings are. An \code{<input>} with no
+  \code{type} defaults to text and so participates in
+  \code{:enabled}/\code{:disabled}.
 
   When the translator is set to \code{html}, all elements and
   attributes will be converted to lower case. This restriction is
