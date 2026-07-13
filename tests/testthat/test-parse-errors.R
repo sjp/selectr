@@ -157,3 +157,29 @@ test_that("unsupported column constructs are rejected by name", {
     expect_that(css_to_xpath("|b", prefix = ""),
                 equals("b"))
 })
+
+test_that("parse errors include a caret-pointer gutter", {
+    # Verify that the caret-pointer gutter block is appended to the message.
+    # The gutter lines are:  "  |"  /  "  | <css>"  /  "  | <spaces>^"
+    err <- function(css) {
+        tryCatch(parse(css), error = function(e) conditionMessage(e))
+    }
+
+    # caret under the EOF that follows "div > "
+    expect_match(err("div > "),
+                 "\n  \\|\n  \\| div > \n  \\|       \\^",
+                 perl = TRUE)
+
+    # caret under the '#' that cannot start an attribute value
+    expect_match(err("[foo=#]"),
+                 "\n  \\|\n  \\| \\[foo=#\\]\n  \\|      \\^",
+                 perl = TRUE)
+
+    # caret under the '/' that is not a valid CSS character
+    expect_match(err("html/body"),
+                 "\n  \\|\n  \\| html/body\n  \\|     \\^",
+                 perl = TRUE)
+
+    # message text is still the first line (existing assertions stay valid)
+    expect_match(err("div > "), "^Expected selector, got <EOF at 7>")
+})

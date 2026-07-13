@@ -2,6 +2,20 @@
 \title{NEWS file for the selectr package}
 \encoding{UTF-8}
 
+\section{Changes in version 0.6-1}{
+  \subsection{MINOR CHANGES}{
+    \itemize{
+
+      \item Parse errors now include a source-pointer block showing
+      the offending CSS selector with a caret (\code{^}) positioned
+      beneath the character that triggered the error. The message
+      text is unchanged, so code that matches error strings continues
+      to work. No new package dependencies are introduced.
+
+    }
+  }
+}
+
 \section{Changes in version 0.6-0}{
 
   This release is a fairly major change. It comes about via a port to

@@ -525,9 +525,17 @@ parse <- function(css) {
                                     if (nzchar(class_match[2])) class_match[2]
                                     else NULL),
                             class_match[3]))))
-    stream <- TokenStream$new(tokenize(css))
-    stream$source_text <- css
-    parse_selector_group(stream)
+    tryCatch(
+        {
+            stream <- TokenStream$new(tokenize(css))
+            stream$source_text <- css
+            parse_selector_group(stream)
+        },
+        selectr_parse_error = function(e) {
+            stop(format_parse_error(conditionMessage(e), css, e$pos),
+                 call. = FALSE)
+        }
+    )
 }
 
 parse_selector_group <- function(stream) {
@@ -572,9 +580,10 @@ parse_selector <- function(stream) {
             break
         }
         if (!is.null(pseudo_element) && nzchar(pseudo_element)) {
-          stop("Got pseudo-element ::",
-               pseudo_element,
-               " not at the end of a selector")
+          parse_stop("Got pseudo-element ::",
+                     pseudo_element,
+                     " not at the end of a selector",
+                     pos = peek$pos)
         }
         if (token_is_delim(peek, c("+", ">", "~"))) {
             # A combinator
@@ -618,7 +627,8 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
             # cannot express, so name the construct instead of
             # falling through to a stray-token error
             if (token_equality(stream$peek(), "DELIM", "|"))
-                stop("The column combinator '||' is not supported")
+                parse_stop("The column combinator '||' is not supported",
+                           pos = stream$peek()$pos)
             element <- stream$next_ident_or_star()
         } else {
             element <- if (identical(namespace, "*")) NULL else namespace
@@ -637,9 +647,10 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
             break
         }
         if (!is.null(pseudo_element)) {
-            stop("Got pseudo-element ::",
-                 pseudo_element,
-                 " not at the end of a selector")
+            parse_stop("Got pseudo-element ::",
+                       pseudo_element,
+                       " not at the end of a selector",
+                       pos = peek$pos)
         }
         if (peek$type == "HASH") {
             result <- Hash$new(result, stream$nxt()$value)
@@ -690,7 +701,7 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                 # The :has() argument grammar excludes :has() at any
                 # depth (selectors-4): "nesting :has() is not allowed"
                 if (inside_has) {
-                    stop("Got nested :has()")
+                    parse_stop("Got nested :has()", pos = stream$peek()$pos)
                 }
                 selectors <- parse_simple_selector_arguments(stream, "has",
                                                              inside_has = TRUE,
@@ -750,22 +761,26 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                         # ':lang(fr' means ':lang(fr)'
                         break
                     } else {
-                        stop("Expected an argument, got ", token_repr(nt))
+                        parse_stop("Expected an argument, got ",
+                                   token_repr(nt), pos = nt$pos)
                     }
                 }
 
                 if (length(arguments) == 0) {
-                    stop("Expected at least one argument, got ", token_repr(nt))
+                    parse_stop("Expected at least one argument, got ",
+                               token_repr(nt), pos = nt$pos)
                 }
 
                 result <- Function$new(result, ident, arguments, selector_list)
             }
         } else {
-            stop("Expected selector, got ", token_repr(stream$peek()))
+            parse_stop("Expected selector, got ", token_repr(stream$peek()),
+                       pos = stream$peek()$pos)
         }
     }
     if (length(stream$used) == selector_start) {
-        stop("Expected selector, got ", token_repr(stream$peek()))
+        parse_stop("Expected selector, got ", token_repr(stream$peek()),
+                   pos = stream$peek()$pos)
     }
     list(result = result, pseudo_element = pseudo_element)
 }
@@ -779,11 +794,14 @@ parse_simple_selector_arguments <- function(stream, function_name = NULL, # noli
     check_no_pseudo_element <- function(pseudo_element) {
         if (!is.null(pseudo_element)) {
             if (!is.null(function_name)) {
-                stop("Got pseudo-element ::", pseudo_element,
-                     " inside :", function_name,
-                     "() at ", stream$peek()$pos)
+                parse_stop("Got pseudo-element ::", pseudo_element,
+                           " inside :", function_name,
+                           "() at ", stream$peek()$pos,
+                           pos = stream$peek()$pos)
             } else {
-                stop("Got pseudo-element ::", pseudo_element, " inside function")
+                parse_stop("Got pseudo-element ::", pseudo_element,
+                           " inside function",
+                           pos = stream$peek()$pos)
             }
         }
     }
@@ -854,11 +872,11 @@ parse_simple_selector_arguments <- function(stream, function_name = NULL, # noli
             peek <- stream$peek()
             if (token_equality(peek, "DELIM", ")")) {
                 # Trailing comma before closing paren
-                stop("Expected ')', got ", token_repr(nt))
+                parse_stop("Expected ')', got ", token_repr(nt), pos = nt$pos)
             }
             # Continue to parse next selector
         } else {
-            stop("Expected an argument, got ", token_repr(nt))
+            parse_stop("Expected an argument, got ", token_repr(nt), pos = nt$pos)
         }
     }
 
@@ -876,7 +894,8 @@ parse_attrib <- function(selector, stream) {
     } else {
         attrib <- stream$next_ident_or_star()
         if (is.null(attrib) && !token_equality(stream$peek(), "DELIM", "|"))
-            stop("Expected '|', got ", token_repr(stream$peek()))
+            parse_stop("Expected '|', got ", token_repr(stream$peek()),
+                       pos = stream$peek()$pos)
         if (token_equality(stream$peek(), "DELIM", "|")) {
             stream$nxt()
             # next_ident_or_star() returns NULL for '*', i.e. '[*|attr]'
@@ -904,13 +923,14 @@ parse_attrib <- function(selector, stream) {
         } else if (token_is_delim(nt, c("^=", "$=", "*=", "~=", "|="))) {
             op <- nt$value
         } else {
-            stop("Operator expected, got ", token_repr(nt))
+            parse_stop("Operator expected, got ", token_repr(nt), pos = nt$pos)
         }
     }
     stream$skip_whitespace()
     value <- stream$nxt()
     if (!value$type %in% c("IDENT", "STRING")) {
-        stop("Expected string or ident, got ", token_repr(value))
+        parse_stop("Expected string or ident, got ", token_repr(value),
+                   pos = value$pos)
     }
     stream$skip_whitespace()
     nt <- stream$nxt()
@@ -923,7 +943,7 @@ parse_attrib <- function(selector, stream) {
         nt <- stream$nxt()
     }
     if (!token_equality(nt, "DELIM", "]") && nt$type != "EOF") {
-        stop("Expected ']', got ", token_repr(nt))
+        parse_stop("Expected ']', got ", token_repr(nt), pos = nt$pos)
     }
     Attrib$new(selector, namespace, attrib, op, value$value, flag)
 }
@@ -1011,6 +1031,28 @@ token_repr <- function(token) {
         paste0("<EOF at ", token$pos, ">")
     else
         paste0("<", token$type, " '", token$value, "' at ", token$pos, ">")
+}
+
+# A parse failure that carries a 1-based source position so the parse()
+# boundary can annotate the message with a caret. pos may be NULL when no
+# meaningful source position is available.
+parse_stop <- function(..., pos = NULL) {
+    cond <- structure(
+        class = c("selectr_parse_error", "error", "condition"),
+        list(message = paste0(...), call = sys.call(-1), pos = pos)
+    )
+    stop(cond)
+}
+
+# Append a source-pointer gutter block to `message`, pointing a caret at
+# character `pos` (1-based) within `css`. Returns `message` unchanged when
+# `pos` or `css` is NULL, or when `css` contains a newline (multi-line
+# selectors are vanishingly rare, but alignment would be wrong).
+format_parse_error <- function(message, css, pos) {
+    if (is.null(pos) || is.null(css) || grepl("[\r\n]", css))
+        return(message)
+    caret <- paste0(strrep(" ", max(pos - 1L, 0L)), "^")
+    paste0(message, "\n  |\n  | ", css, "\n  | ", caret)
 }
 
 token_is_delim <- function(token, values) {
@@ -1150,7 +1192,7 @@ tokenize <- function(s) {
             # error
             if (end_quote <= len_s &&
                 substring(s, end_quote, end_quote) != ch) {
-                stop("Unclosed string at ", pos)
+                parse_stop("Unclosed string at ", pos, pos = pos)
             }
             value <- substring(s, pos + 1, pos + content_end)
             value <- decode_escapes(value, newlines = TRUE)
@@ -1174,10 +1216,11 @@ tokenize <- function(s) {
         }
         # Every successful match ends in 'next', so reaching here means
         # the character cannot start any token
-        stop("Unexpected character '",
-             ch,
-             "' found at position ",
-             pos)
+        parse_stop("Unexpected character '",
+                   ch,
+                   "' found at position ",
+                   pos,
+                   pos = pos)
     }
     results[[i]] <- EOFToken(pos)
     results
@@ -1230,7 +1273,7 @@ TokenStream <- R6Class("TokenStream",
         next_ident = function() {
             nt <- self$nxt()
             if (nt$type != "IDENT")
-                stop("Expected ident, got ", token_repr(nt))
+                parse_stop("Expected ident, got ", token_repr(nt), pos = nt$pos)
             nt$value
         },
         next_ident_or_star = function() {
@@ -1240,7 +1283,7 @@ TokenStream <- R6Class("TokenStream",
             else if (token_equality(nt, "DELIM", "*"))
                 NULL
             else
-                stop("Expected ident or '*', got ", token_repr(nt))
+                parse_stop("Expected ident or '*', got ", token_repr(nt), pos = nt$pos)
         },
         skip_whitespace = function() {
             peek <- self$peek()
