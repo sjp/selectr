@@ -1,28 +1,28 @@
 {
-	"name": "R",
-	"image": "mcr.microsoft.com/devcontainers/universal:2",
-    "features": {
-        "ghcr.io/rocker-org/devcontainer-features/r-apt:latest": {}
-    },
-
-	// Configure tool-specific properties.
+	"name": "selectr development",
+	"image": "mcr.microsoft.com/devcontainers/base:trixie",
+	"features": {
+		"ghcr.io/rocker-org/devcontainer-features/r-apt:latest": {},
+		"ghcr.io/devcontainers/features/node:2": {
+			"version": "26"
+		},
+		"ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {},
+		"ghcr.io/devcontainers/features/rust:1": {}
+	},
 	"customizations": {
-		// Configure properties specific to VS Code.
 		"vscode": {
-			// Set *default* container specific settings.json values on container create.
-			"settings": { 
-				"r.bracketedPaste": true,
-				"r.plot.useHttpgd": true,
-				"[r]": {
-					"editor.wordSeparators": "`~!@#%$^&*()-=+[{]}\\|;:'\",<>/?"
-				}
-			},
-			
-			// Add the IDs of extensions you want installed when the container is created.
 			"extensions": [
-				"reditorsupport.r",
-				"rdebugger.r-debugger"
+				"REditorSupport.r-syntax",
+				"RDebugger.r-debugger"
 			]
 		}
-	}
+	},
+	"mounts": [
+		"source=claude-code-config,target=/home/vscode/.claude,type=volume"
+	],
+	"remoteUser": "vscode",
+	"containerEnv": {
+		"CLAUDE_CONFIG_DIR": "/home/vscode/.claude"
+	},
+	"postCreateCommand": "bash .devcontainer/post-create.sh"
 }
