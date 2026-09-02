@@ -9,6 +9,7 @@ test_that("xml lang function matches correct elements", {
                           '<g id="seventh" xml:lang="de"><h id="eighth" xml:lang="zh" /></g>',
                           '</test>')
 
+    skip_if_not_installed("XML")
     library(XML)
     xmldoc <- xmlRoot(xmlParse(xmlLangText))
     gt <- GenericTranslator$new()

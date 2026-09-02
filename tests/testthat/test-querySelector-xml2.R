@@ -1,4 +1,5 @@
 test_that("querySelector returns a single node or NULL", {
+    skip_if_not_installed("xml2")
     library(xml2)
     doc <- read_xml('<a><b id="#test"/><c class="ex"/><c class="xmp"/></a>')
     p <- function(x) {
@@ -13,6 +14,7 @@ test_that("querySelector returns a single node or NULL", {
 })
 
 test_that("querySelectorAll returns expected nodes", {
+    skip_if_not_installed("xml2")
     library(xml2)
     doc <- read_xml('<a><b id="#test"/><c class="ex"/><c class="xmp"/></a>')
     p <- function(x) {
@@ -27,6 +29,7 @@ test_that("querySelectorAll returns expected nodes", {
 })
 
 test_that("querySelectorAll returns empty list for no match", {
+    skip_if_not_installed("xml2")
     library(xml2)
     doc <- read_xml('<a><b id="#test"/><c class="ex"/><c class="xmp"/></a>')
     p <- function(x) {
@@ -37,6 +40,7 @@ test_that("querySelectorAll returns empty list for no match", {
 })
 
 test_that("querySelector handles namespaces", {
+    skip_if_not_installed("xml2")
     library(xml2)
     doc <- read_xml('<svg xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="10"/><circle cx="20" cy="20" r="20"/><circle cx="30" cy="30" r="30"/></svg>')
     p <- function(x) {
@@ -59,6 +63,7 @@ test_that("querySelector handles namespaces", {
 })
 
 test_that("querySelectorAll handles namespaces", {
+    skip_if_not_installed("xml2")
     library(xml2)
     doc <- read_xml('<svg xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="10"/><circle cx="20" cy="20" r="20"/><circle cx="30" cy="30" r="30"/></svg>')
     p <- function(x) {
@@ -83,6 +88,7 @@ test_that("querySelectorAll handles namespaces", {
 })
 
 test_that("querySelectorAll honours attribute case-sensitivity flags", {
+    skip_if_not_installed("xml2")
     library(xml2)
     doc <- read_xml('<r><a rel="NoFollow"/><a rel="nofollow"/><a rel="other"/></r>')
     rels <- function(css) {
@@ -101,6 +107,7 @@ test_that("querySelectorAll honours attribute case-sensitivity flags", {
 })
 
 test_that("the namespaced queries are scoped to the node given", {
+    skip_if_not_installed("xml2")
     library(xml2)
     doc <- read_xml(paste0('<root xmlns:s="urn:s"><s:a id="outer"/>',
                            '<wrap><s:a id="inner"/></wrap></root>'))
@@ -129,6 +136,7 @@ test_that("the namespaced queries are scoped to the node given", {
 })
 
 test_that("querySelector methods handle invalid arguments", {
+    skip_if_not_installed("xml2")
     library(xml2)
     doc <- read_xml('<a><b id="#test"/><c class="ex"/><c class="xmp"/></a>')
 

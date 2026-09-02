@@ -65,6 +65,7 @@ test_that(":has() generates correct XPath", {
 })
 
 test_that(":has() with complex arguments matches correctly", {
+    skip_if_not_installed("xml2")
     library(xml2)
 
     # d1 has ul > li; d2 has a li not inside a ul; d3 has nothing but is
@@ -121,6 +122,7 @@ test_that("nested :has() is rejected", {
 })
 
 test_that(":has() works correctly with XML documents", {
+    skip_if_not_installed("XML")
     library(XML)
 
     # Create test document
@@ -194,6 +196,7 @@ test_that(":has() works correctly with XML documents", {
 })
 
 test_that(":has() works correctly with xml2 documents", {
+    skip_if_not_installed("xml2")
     library(xml2)
 
     # Create test document
@@ -267,6 +270,7 @@ test_that(":has() works correctly with xml2 documents", {
 })
 
 test_that(":has() handles edge cases correctly", {
+    skip_if_not_installed("XML")
     library(XML)
 
     # Empty elements
@@ -321,6 +325,7 @@ test_that(":has() handles edge cases correctly", {
 })
 
 test_that(":has() with leading combinators matches correctly", {
+    skip_if_not_installed("xml2")
     library(xml2)
 
     # d1 has a child img; d2 has only a grandchild img; d3 has none but
@@ -383,6 +388,7 @@ test_that(":has() with leading combinators matches correctly", {
 })
 
 test_that(":has() works with querySelector (returns first match)", {
+    skip_if_not_installed("xml2")
     library(xml2)
 
     html <- paste0(

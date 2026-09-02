@@ -62,6 +62,7 @@ test_that("a non-leading :scope is rejected", {
 })
 
 test_that(":scope works correctly with XML documents", {
+    skip_if_not_installed("XML")
     library(XML)
 
     xml <- paste0(
@@ -121,6 +122,7 @@ test_that(":scope works correctly with XML documents", {
 })
 
 test_that(":scope works correctly with xml2 documents", {
+    skip_if_not_installed("xml2")
     library(xml2)
 
     xml <- paste0(

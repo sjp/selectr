@@ -67,6 +67,7 @@ test_that(":nth-last-child() generates correct XPath", {
 })
 
 test_that(":nth-child() works correctly with XML documents", {
+    skip_if_not_installed("XML")
     library(XML)
 
     html <- paste0(
@@ -139,6 +140,7 @@ test_that(":nth-child() works correctly with XML documents", {
 })
 
 test_that(":nth-last-child() works correctly with XML documents", {
+    skip_if_not_installed("XML")
     library(XML)
 
     html <- paste0(
@@ -195,6 +197,7 @@ test_that(":nth-last-child() works correctly with XML documents", {
 })
 
 test_that(":nth-child() works correctly with xml2 documents", {
+    skip_if_not_installed("xml2")
     library(xml2)
 
     html <- paste0(
@@ -243,6 +246,7 @@ test_that(":nth-child() works correctly with xml2 documents", {
 })
 
 test_that(":nth-last-child() works correctly with xml2 documents", {
+    skip_if_not_installed("xml2")
     library(xml2)
 
     html <- paste0(
@@ -278,6 +282,7 @@ test_that(":nth-last-child() works correctly with xml2 documents", {
 })
 
 test_that(":nth-child() and :nth-last-child() can be combined", {
+    skip_if_not_installed("XML")
     library(XML)
 
     html <- paste0(
@@ -314,6 +319,7 @@ test_that(":nth-child() and :nth-last-child() can be combined", {
 })
 
 test_that(":nth-child() edge cases", {
+    skip_if_not_installed("XML")
     library(XML)
 
     # Empty list
@@ -368,6 +374,7 @@ test_that(":nth-child() edge cases", {
 })
 
 test_that(":nth-child() with querySelector returns first match", {
+    skip_if_not_installed("xml2")
     library(xml2)
 
     html <- paste0(
@@ -395,6 +402,7 @@ test_that(":nth-child() with querySelector returns first match", {
 })
 
 test_that(":nth-child() with different element types", {
+    skip_if_not_installed("XML")
     library(XML)
 
     # Test that :nth-child counts all siblings, not just same type
@@ -434,6 +442,7 @@ test_that(":nth-child() with different element types", {
 })
 
 test_that(":nth-child() with complex selectors", {
+    skip_if_not_installed("xml2")
     library(xml2)
 
     html <- paste0(
@@ -471,6 +480,7 @@ test_that(":nth-child() with complex selectors", {
 })
 
 test_that(":nth-child() early-exit condition 1: a=1, b-1<=0 (matches all)", {
+    skip_if_not_installed("XML")
     library(XML)
 
     html <- paste0(
@@ -517,6 +527,7 @@ test_that(":nth-child() early-exit condition 1: a=1, b-1<=0 (matches all)", {
 })
 
 test_that(":nth-child() early-exit condition 1 with selector list", {
+    skip_if_not_installed("xml2")
     library(xml2)
 
     html <- paste0(
@@ -551,6 +562,7 @@ test_that(":nth-child() early-exit condition 1 with selector list", {
 })
 
 test_that(":nth-last-child() early-exit condition 1: a=1, b-1<=0", {
+    skip_if_not_installed("XML")
     library(XML)
 
     html <- paste0(
@@ -584,6 +596,7 @@ test_that(":nth-last-child() early-exit condition 1: a=1, b-1<=0", {
 })
 
 test_that(":nth-child() early-exit condition 2: a<0, b-1<0 (matches none)", {
+    skip_if_not_installed("XML")
     library(XML)
 
     html <- paste0(
@@ -620,6 +633,7 @@ test_that(":nth-child() early-exit condition 2: a<0, b-1<0 (matches none)", {
 })
 
 test_that(":nth-child() early-exit condition 2 with selector list", {
+    skip_if_not_installed("xml2")
     library(xml2)
 
     html <- paste0(
@@ -648,6 +662,7 @@ test_that(":nth-child() early-exit condition 2 with selector list", {
 })
 
 test_that(":nth-last-child() early-exit condition 2: a<0, b-1<0", {
+    skip_if_not_installed("XML")
     library(XML)
 
     html <- paste0(
@@ -676,6 +691,7 @@ test_that(":nth-last-child() early-exit condition 2: a<0, b-1<0", {
 })
 
 test_that(":nth-child() boundary between early-exit conditions", {
+    skip_if_not_installed("xml2")
     library(xml2)
 
     html <- paste0(

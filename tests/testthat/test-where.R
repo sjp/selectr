@@ -46,6 +46,7 @@ test_that(":where() generates correct XPath", {
 })
 
 test_that(":where() works correctly with XML documents", {
+    skip_if_not_installed("XML")
     library(XML)
 
     html <- paste0(
@@ -95,6 +96,7 @@ test_that(":where() works correctly with XML documents", {
 })
 
 test_that(":where() works correctly with xml2 documents", {
+    skip_if_not_installed("xml2")
     library(xml2)
 
     html <- paste0(
@@ -144,6 +146,7 @@ test_that(":where() works correctly with xml2 documents", {
 })
 
 test_that(":where() has zero specificity", {
+    skip_if_not_installed("XML")
     library(XML)
 
     html <- paste0(
@@ -166,6 +169,7 @@ test_that(":where() has zero specificity", {
 })
 
 test_that(":where() handles edge cases correctly", {
+    skip_if_not_installed("XML")
     library(XML)
 
     # Empty document case
@@ -198,6 +202,7 @@ test_that(":where() handles edge cases correctly", {
 })
 
 test_that(":where() works with querySelector (returns first match)", {
+    skip_if_not_installed("xml2")
     library(xml2)
 
     html <- paste0(
@@ -224,6 +229,7 @@ test_that(":where() works with querySelector (returns first match)", {
 })
 
 test_that(":where() and :is() behave similarly in matching", {
+    skip_if_not_installed("XML")
     library(XML)
 
     html <- paste0(
@@ -253,6 +259,7 @@ test_that(":where() and :is() behave similarly in matching", {
 })
 
 test_that(":where() can be combined with other selectors", {
+    skip_if_not_installed("xml2")
     library(xml2)
 
     html <- paste0(

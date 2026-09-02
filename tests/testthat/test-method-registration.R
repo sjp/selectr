@@ -1,4 +1,6 @@
 test_that("method registration occurs correctly", {
+    skip_if_not_installed("XML")
+    skip_if_not_installed("xml2")
     library(XML)
     xdoc <- xmlParse("<svg><circle /></svg>")
 

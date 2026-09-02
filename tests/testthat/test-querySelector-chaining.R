@@ -5,6 +5,7 @@ chainDoc <- '<html><body>
 </body></html>'
 
 test_that("xml2 nodesets can be queried", {
+    skip_if_not_installed("xml2")
     library(xml2)
     doc <- read_xml(chainDoc)
     p <- function(x) lapply(x, as.character)
@@ -26,6 +27,7 @@ test_that("xml2 nodesets can be queried", {
 })
 
 test_that(":scope on an xml2 nodeset is applied per node", {
+    skip_if_not_installed("xml2")
     library(xml2)
     doc <- read_xml('<a><x><b id="1"/><c><b id="2"/></c></x><y><b id="3"/></y></a>')
     ids <- function(x) xml_attr(x, "id")
@@ -36,6 +38,7 @@ test_that(":scope on an xml2 nodeset is applied per node", {
 })
 
 test_that("querying an empty xml2 nodeset gives an empty nodeset", {
+    skip_if_not_installed("xml2")
     library(xml2)
     doc <- read_xml(chainDoc)
     empty <- querySelectorAll(doc, "nosuchelement")
@@ -48,6 +51,7 @@ test_that("querying an empty xml2 nodeset gives an empty nodeset", {
 })
 
 test_that("querying an xml_missing gives an empty result", {
+    skip_if_not_installed("xml2")
     library(xml2)
     doc <- read_xml(chainDoc)
     missing <- xml_find_first(doc, "//nosuchelement")
@@ -66,6 +70,7 @@ test_that("querying an xml_missing gives an empty result", {
 })
 
 test_that("xml2 nodeset and missing methods validate their arguments", {
+    skip_if_not_installed("xml2")
     library(xml2)
     doc <- read_xml(chainDoc)
     tables <- querySelectorAll(doc, "table")
@@ -80,6 +85,7 @@ test_that("xml2 nodeset and missing methods validate their arguments", {
 })
 
 test_that("namespaced queries work on xml2 nodesets", {
+    skip_if_not_installed("xml2")
     library(xml2)
     svg <- c(svg = "http://www.w3.org/2000/svg")
     doc <- read_xml('<svg xmlns="http://www.w3.org/2000/svg"><g><circle id="1"/></g><g><circle id="2"/></g></svg>')
@@ -98,6 +104,7 @@ test_that("namespaced queries work on xml2 nodesets", {
 })
 
 test_that("XML nodesets can be queried", {
+    skip_if_not_installed("XML")
     library(XML)
     doc <- xmlParse(chainDoc)
     p <- function(x) sapply(x, function(node) xmlValue(node))
@@ -119,6 +126,7 @@ test_that("XML nodesets can be queried", {
 })
 
 test_that(":scope on an XML nodeset is applied per node", {
+    skip_if_not_installed("XML")
     library(XML)
     doc <- xmlParse('<a><x><b id="1"/><c><b id="2"/></c></x><y><b id="3"/></y></a>')
     ids <- function(x) as.character(sapply(x, function(node) xmlGetAttr(node, "id")))
@@ -129,6 +137,7 @@ test_that(":scope on an XML nodeset is applied per node", {
 })
 
 test_that("querying an empty XML nodeset gives an empty nodeset", {
+    skip_if_not_installed("XML")
     library(XML)
     doc <- xmlParse(chainDoc)
     empty <- querySelectorAll(doc, "nosuchelement")
@@ -141,6 +150,7 @@ test_that("querying an empty XML nodeset gives an empty nodeset", {
 })
 
 test_that("namespaced queries work on XML nodesets", {
+    skip_if_not_installed("XML")
     library(XML)
     svg <- c(svg = "http://www.w3.org/2000/svg")
     doc <- xmlParse('<svg xmlns="http://www.w3.org/2000/svg"><g><circle id="1"/></g><g><circle id="2"/></g></svg>')
@@ -160,6 +170,7 @@ test_that("namespaced queries work on XML nodesets", {
 })
 
 test_that("XML nodeset methods validate their arguments", {
+    skip_if_not_installed("XML")
     library(XML)
     doc <- xmlParse(chainDoc)
     tables <- querySelectorAll(doc, "table")

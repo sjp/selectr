@@ -205,6 +205,7 @@ test_that("HTML translator handles :lang() extended-filtering wildcards", {
 })
 
 test_that("HTML :lang() extended wildcards match the right elements", {
+    skip_if_not_installed("xml2")
     library(xml2)
     doc <- read_xml(paste0(
         "<html>",
@@ -249,6 +250,7 @@ test_that("generic translator rejects :lang() non-trailing wildcards", {
 })
 
 test_that(":lang(*) only matches elements with a known language", {
+    skip_if_not_installed("xml2")
     library(xml2)
     # The bare wildcard means "the language is known", not "always
     # true": an element with no language in its ancestry, or one whose

@@ -25,6 +25,7 @@ test_that("selection works correctly on a large barrage of tests", {
           "</div>", "<div id=\"foobar-div\" foobar=\"ab bc", "cde\"><span id=\"foobar-span\"></span></div>",
           "</body></html>"), collapse = "\n")
 
+    skip_if_not_installed("xml2")
     library(xml2)
     document <- read_xml(HTML_IDS)
     gt <- GenericTranslator$new()
@@ -192,6 +193,7 @@ test_that("selection works correctly on a large barrage of tests", {
 })
 
 test_that("of-type pseudo-classes work on unsafe element names", {
+    skip_if_not_installed("xml2")
     library(xml2)
     doc <- read_xml(paste0('<r><é id="first"/><b id="b"/>',
                            '<é id="second"/><x id="only"/></r>'))
@@ -209,6 +211,7 @@ test_that("of-type pseudo-classes work on unsafe element names", {
 })
 
 test_that(":only-child and :only-of-type match the root element", {
+    skip_if_not_installed("xml2")
     library(xml2)
     doc <- read_xml("<root><a/></root>")
     count <- function(css)
@@ -224,6 +227,7 @@ test_that(":only-child and :only-of-type match the root element", {
 })
 
 test_that(":enabled and :disabled match inputs with no type attribute", {
+    skip_if_not_installed("xml2")
     library(xml2)
     doc <- read_html(paste0('<form>',
                             '<input id="plain-disabled" disabled="" />',
@@ -244,6 +248,7 @@ test_that(":enabled and :disabled match inputs with no type attribute", {
 })
 
 test_that("form pseudo-classes fold @type case-insensitively", {
+    skip_if_not_installed("xml2")
     library(xml2)
     # type is an enumerated attribute whose keywords match ASCII
     # case-insensitively; an HTML parser preserves the attribute value,
@@ -271,6 +276,7 @@ test_that("form pseudo-classes fold @type case-insensitively", {
 })
 
 test_that(":disabled/:enabled honour the disabled-fieldset legend carve-out", {
+    skip_if_not_installed("xml2")
     library(xml2)
     # A disabled <fieldset> disables its descendant controls except those
     # inside its first <legend> child. Nested disabled fieldsets still
@@ -305,6 +311,7 @@ test_that(":disabled/:enabled honour the disabled-fieldset legend carve-out", {
 })
 
 test_that(":disabled/:enabled partition options under a disabled optgroup", {
+    skip_if_not_installed("xml2")
     library(xml2)
     # An <option> is "actually disabled" when its own @disabled is set or
     # when its <optgroup> parent is disabled, so the two pseudo-classes
@@ -333,6 +340,7 @@ test_that(":disabled/:enabled partition options under a disabled optgroup", {
 })
 
 test_that(":enabled/:disabled cover the form elements and nothing else", {
+    skip_if_not_installed("xml2")
     library(xml2)
     # ':enabled' and ':disabled' partition the elements HTML allows to
     # be "actually disabled" and match nothing outside that set: not
@@ -391,6 +399,7 @@ test_that(":enabled/:disabled cover the form elements and nothing else", {
 })
 
 test_that("HTML pseudo-classes see elements in the default XHTML namespace", {
+    skip_if_not_installed("xml2")
     library(xml2)
     # The xhtml translator tells its users to write '*|input' rather than
     # 'input' so a type selector matches an element in the default XHTML
@@ -419,6 +428,7 @@ test_that("HTML pseudo-classes see elements in the default XHTML namespace", {
 })
 
 test_that("HTML pseudo-classes see elements in a prefix-bound XHTML namespace", {
+    skip_if_not_installed("xml2")
     library(xml2)
     doc <- read_xml(paste0(
         '<h:html xmlns:h="http://www.w3.org/1999/xhtml"><h:body>',

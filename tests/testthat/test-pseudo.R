@@ -141,6 +141,7 @@ test_that(":required and :optional translate from the @required attribute", {
 })
 
 test_that(":required and :optional match form elements correctly", {
+    skip_if_not_installed("xml2")
     library(xml2)
 
     form <- read_xml(paste0(
@@ -178,6 +179,8 @@ test_that(":required and :optional match form elements correctly", {
 })
 
 test_that(":empty keeps the Selectors 3 white space semantics", {
+    skip_if_not_installed("XML")
+    skip_if_not_installed("xml2")
     # Deliberate, browser-verified decision (see xpath_empty_pseudo):
     # a white-space-only element does not match :empty, matching what
     # every browser implements rather than the Selectors 4 loosening

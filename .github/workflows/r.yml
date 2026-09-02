@@ -69,6 +69,63 @@ jobs:
           name: ${{ runner.os }}-r${{ matrix.config.r }}-results
           path: check
 
+  # XML and xml2 are both optional (Suggests). Check the package with
+  # neither installed, and with only xml2 (the common modern case), so
+  # examples and tests are proven to guard their use of suggested packages.
+  R-CMD-check-no-suggests:
+    runs-on: ubuntu-latest
+
+    name: ubuntu-latest (release, suggests = ${{ matrix.suggests }})
+
+    strategy:
+      fail-fast: false
+      matrix:
+        suggests: ['none', 'xml2']
+
+    env:
+      _R_CHECK_FORCE_SUGGESTS_: false
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: r-lib/actions/setup-pandoc@v2
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          dependencies: '"hard"'
+          extra-packages: >-
+            any::rcmdcheck
+            any::testthat
+            ${{ matrix.suggests == 'xml2' && 'any::xml2' || '' }}
+
+      - name: Confirm which suggested packages are present
+        run: |
+          for (pkg in c("XML", "xml2")) {
+            cat(pkg, ": ", requireNamespace(pkg, quietly = TRUE), "\n", sep = "")
+          }
+          stopifnot(!requireNamespace("XML", quietly = TRUE))
+          stopifnot(requireNamespace("xml2", quietly = TRUE) ==
+                    identical("${{ matrix.suggests }}", "xml2"))
+        shell: Rscript {0}
+
+      - uses: r-lib/actions/check-r-package@v2
+
+      - name: Show testthat output
+        if: always()
+        run: find check -name 'testthat.Rout*' -exec cat '{}' \; || true
+        shell: bash
+
+      - name: Upload check results
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ runner.os }}-suggests-${{ matrix.suggests }}-results
+          path: check
+
   test-coverage:
     runs-on: ubuntu-latest
 
@@ -81,7 +138,7 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::covr, any::xml2
+          extra-packages: any::covr
 
       - name: Test coverage
         run: |

@@ -25,6 +25,7 @@ test_that("selection works correctly on a large barrage of tests", {
           "</div>", "<div id=\"foobar-div\" foobar=\"ab bc", "cde\"><span id=\"foobar-span\"></span></div>",
           "</body></html>"), collapse = "\n")
 
+    skip_if_not_installed("XML")
     library(XML)
     document <- xmlRoot(xmlParse(HTML_IDS))
     gt <- GenericTranslator$new()

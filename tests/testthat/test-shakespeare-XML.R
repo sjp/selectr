@@ -200,6 +200,7 @@ test_that("selection works correctly on a shakespearean document", {
           "\t  <div class=\"direction\">Exeunt</div>", "\t  </div>", "\t</div>",
           "\t</div>", "</div>", "</body>", "</html>", sep = "\n")
 
+    skip_if_not_installed("XML")
     library(XML)
     document <- xmlRoot(htmlParse(HTML_SHAKESPEARE))
     body <- getNodeSet(document, "//body")[[1]]

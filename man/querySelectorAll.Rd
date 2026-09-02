@@ -157,77 +157,79 @@ querySelectorAllNS(doc, selector, ns,
   Simon Potter
 }
 \examples{
-  hasXML <- require(XML)
-  hasxml2 <- require(xml2)
+  # The XML and xml2 packages are both optional (Suggests), so each demo
+  # below is guarded with requireNamespace() and runs only when that
+  # package is installed.
 
-  if (!hasXML && !hasxml2)
-    return() # can't demo without XML or xml2 packages present
+  # Demo for working with the XML package
+  if (requireNamespace("XML", quietly = TRUE)) {
+    exdoc <- XML::xmlParse('<a><b class="aclass"/><c id="anid"/></a>')
+    querySelector(exdoc, "#anid")   # Returns the matching node
+    querySelector(exdoc, ".aclass") # Returns the matching node
+    querySelector(exdoc, "b, c")    # First match from grouped selection
+    querySelectorAll(exdoc, "b, c") # Grouped selection
+    querySelectorAll(exdoc, "b")    # A list of length one
+    querySelector(exdoc, "d")       # No match
+    querySelectorAll(exdoc, "d")    # No match
 
-  parseFn <- if (hasXML) xmlParse else read_xml
-  # Demo for working with the XML package (if present, otherwise xml2)
-  exdoc <- parseFn('<a><b class="aclass"/><c id="anid"/></a>')
-  querySelector(exdoc, "#anid")   # Returns the matching node
-  querySelector(exdoc, ".aclass") # Returns the matching node
-  querySelector(exdoc, "b, c")    # First match from grouped selection
-  querySelectorAll(exdoc, "b, c") # Grouped selection
-  querySelectorAll(exdoc, "b")    # A list of length one
-  querySelector(exdoc, "d")       # No match
-  querySelectorAll(exdoc, "d")    # No match
+    # Queries can be chained, the second search running from each node
+    # matched by the first
+    querySelectorAll(querySelectorAll(exdoc, "a"), "c")
 
-  # Queries can be chained, the second search running from each node
-  # matched by the first
-  querySelectorAll(querySelectorAll(exdoc, "a"), "c")
-
-  # Read in a document where two namespaces are being set:
-  # SVG and MathML
-  svgdoc <- parseFn(system.file("demos/svg-mathml.svg",
-                                package = "selectr"))
-  # Search for <script/> elements in the SVG namespace
-  querySelectorNS(svgdoc, "svg|script",
-                  c(svg = "http://www.w3.org/2000/svg"))
-  querySelectorAllNS(svgdoc, "svg|script",
-                     c(svg = "http://www.w3.org/2000/svg"))
-  # MathML content is *within* SVG content,
-  # search for <mtext> elements within the MathML namespace
-  querySelectorNS(svgdoc, "math|mtext",
-                  c(math = "http://www.w3.org/1998/Math/MathML"))
-  querySelectorAllNS(svgdoc, "math|mtext",
-                     c(math = "http://www.w3.org/1998/Math/MathML"))
-  # Search for *both* SVG and MathML content
-  querySelectorAllNS(svgdoc, "svg|script, math|mo",
-                     c(svg = "http://www.w3.org/2000/svg",
-                       math = "http://www.w3.org/1998/Math/MathML"))
-
-  if (!hasXML)
-    return() # already demo'd xml2
+    # Read in a document where two namespaces are being set:
+    # SVG and MathML
+    svgdoc <- XML::xmlParse(system.file("demos/svg-mathml.svg",
+                                        package = "selectr"))
+    # Search for <script/> elements in the SVG namespace
+    querySelectorNS(svgdoc, "svg|script",
+                    c(svg = "http://www.w3.org/2000/svg"))
+    querySelectorAllNS(svgdoc, "svg|script",
+                       c(svg = "http://www.w3.org/2000/svg"))
+    # MathML content is *within* SVG content,
+    # search for <mtext> elements within the MathML namespace
+    querySelectorNS(svgdoc, "math|mtext",
+                    c(math = "http://www.w3.org/1998/Math/MathML"))
+    querySelectorAllNS(svgdoc, "math|mtext",
+                       c(math = "http://www.w3.org/1998/Math/MathML"))
+    # Search for *both* SVG and MathML content
+    querySelectorAllNS(svgdoc, "svg|script, math|mo",
+                       c(svg = "http://www.w3.org/2000/svg",
+                         math = "http://www.w3.org/1998/Math/MathML"))
+  }
 
   # Demo for working with the xml2 package
-  exdoc <- read_xml('<a><b class="aclass"/><c id="anid"/></a>')
-  querySelector(exdoc, "#anid")   # Returns the matching node
-  querySelector(exdoc, ".aclass") # Returns the matching node
-  querySelector(exdoc, "b, c")    # First match from grouped selection
-  querySelectorAll(exdoc, "b, c") # Grouped selection
-  querySelectorAll(exdoc, "b")    # A list of length one
-  querySelector(exdoc, "d")       # No match
-  querySelectorAll(exdoc, "d")    # No match
+  if (requireNamespace("xml2", quietly = TRUE)) {
+    exdoc <- xml2::read_xml('<a><b class="aclass"/><c id="anid"/></a>')
+    querySelector(exdoc, "#anid")   # Returns the matching node
+    querySelector(exdoc, ".aclass") # Returns the matching node
+    querySelector(exdoc, "b, c")    # First match from grouped selection
+    querySelectorAll(exdoc, "b, c") # Grouped selection
+    querySelectorAll(exdoc, "b")    # A nodeset of length one
+    querySelector(exdoc, "d")       # No match
+    querySelectorAll(exdoc, "d")    # No match
 
-  # Read in a document where two namespaces are being set:
-  # SVG and MathML
-  svgdoc <- read_xml(system.file("demos/svg-mathml.svg",
-                                 package = "selectr"))
-  # Search for <script/> elements in the SVG namespace
-  querySelectorNS(svgdoc, "svg|script",
-                  c(svg = "http://www.w3.org/2000/svg"))
-  querySelectorAllNS(svgdoc, "svg|script",
-                     c(svg = "http://www.w3.org/2000/svg"))
-  # MathML content is *within* SVG content,
-  # search for <mtext> elements within the MathML namespace
-  querySelectorNS(svgdoc, "math|mtext",
-                  c(math = "http://www.w3.org/1998/Math/MathML"))
-  querySelectorAllNS(svgdoc, "math|mtext",
-                     c(math = "http://www.w3.org/1998/Math/MathML"))
-  # Search for *both* SVG and MathML content
-  querySelectorAllNS(svgdoc, "svg|script, math|mo",
-                     c(svg = "http://www.w3.org/2000/svg",
-                       math = "http://www.w3.org/1998/Math/MathML"))
+    # Queries can be chained, the second search running from each node
+    # matched by the first
+    querySelectorAll(querySelectorAll(exdoc, "a"), "c")
+
+    # Read in a document where two namespaces are being set:
+    # SVG and MathML
+    svgdoc <- xml2::read_xml(system.file("demos/svg-mathml.svg",
+                                         package = "selectr"))
+    # Search for <script/> elements in the SVG namespace
+    querySelectorNS(svgdoc, "svg|script",
+                    c(svg = "http://www.w3.org/2000/svg"))
+    querySelectorAllNS(svgdoc, "svg|script",
+                       c(svg = "http://www.w3.org/2000/svg"))
+    # MathML content is *within* SVG content,
+    # search for <mtext> elements within the MathML namespace
+    querySelectorNS(svgdoc, "math|mtext",
+                    c(math = "http://www.w3.org/1998/Math/MathML"))
+    querySelectorAllNS(svgdoc, "math|mtext",
+                       c(math = "http://www.w3.org/1998/Math/MathML"))
+    # Search for *both* SVG and MathML content
+    querySelectorAllNS(svgdoc, "svg|script, math|mo",
+                       c(svg = "http://www.w3.org/2000/svg",
+                         math = "http://www.w3.org/1998/Math/MathML"))
+  }
 }

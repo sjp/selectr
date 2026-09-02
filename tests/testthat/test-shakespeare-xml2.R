@@ -200,6 +200,7 @@ test_that("selection works correctly on a shakespearean document", {
           "\t  <div class=\"direction\">Exeunt</div>", "\t  </div>", "\t</div>",
           "\t</div>", "</div>", "</body>", "</html>", sep = "\n")
 
+    skip_if_not_installed("xml2")
     library(xml2)
     document <- read_xml(HTML_SHAKESPEARE)
     xml_ns_strip(document)
