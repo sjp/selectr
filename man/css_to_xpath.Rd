@@ -162,6 +162,44 @@ css_to_xpath(selector,
 \value{
   A character vector of XPath expressions.
 }
+\section{Errors}{
+  Every error \code{css_to_xpath} raises is a classed condition
+  inheriting \code{selectr_error} (itself an \code{error}), so a caller
+  can catch the whole family with one handler, or narrow to a specific
+  class when it needs to react differently:
+
+  \describe{
+    \item{\code{selectr_parse_error}}{
+      \code{selector} is malformed CSS, e.g. \code{"div >"} with
+      nothing following the combinator. Carries \code{selector} (the
+      offending input) and \code{pos}, the 1-based character position
+      within \code{selector} at which the parser gave up
+      (\code{NULL} if no position applies).
+    }
+    \item{\code{selectr_translation_error}}{
+      \code{selector} is valid CSS but cannot be expressed in XPath
+      1.0 by the requested \code{translator}, e.g. \code{:scope}
+      nested inside \code{:is()}, or an unknown pseudo-class such as
+      \code{":frobnicate"}. Carries \code{selector} and \code{feature},
+      a short description of the unsupported construct.
+    }
+    \item{\code{selectr_argument_error}}{
+      An R-level argument is invalid: the wrong type, length, or an
+      \code{NA} or unrecognised value where one is not allowed. Carries
+      no extra fields.
+    }
+  }
+
+  \preformatted{
+  tryCatch(
+    css_to_xpath("div >"),
+    selectr_parse_error = function(e) {
+      cat(conditionMessage(e), "\n")
+      cat("Position:", e$pos, "\n")
+    }
+  )
+  }
+}
 \references{
   CSS Selectors Level 4 \url{https://www.w3.org/TR/selectors-4/}, XPath
   \url{https://www.w3.org/TR/xpath/}.
@@ -169,10 +207,24 @@ css_to_xpath(selector,
 \author{
   Simon Potter
 }
+\seealso{
+  \code{\link{querySelectorAll}}, which propagates the same conditions.
+}
 \examples{
   css_to_xpath(".testclass")
   css_to_xpath("#testid", prefix = "")
   css_to_xpath("#testid .testclass")
   css_to_xpath(":scope > .testclass")
   css_to_xpath(":checked", translator = "html")
+
+  # The selectr_parse_error, selectr_translation_error and
+  # selectr_argument_error conditions (see 'Errors' below) all inherit
+  # 'selectr_error', so callers can catch the family or a specific class.
+  tryCatch(
+    css_to_xpath("div >"),
+    selectr_parse_error = function(e) {
+      cat(conditionMessage(e), "\n")
+      cat("Position:", e$pos, "\n")
+    }
+  )
 }

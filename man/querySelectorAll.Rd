@@ -147,6 +147,18 @@ querySelectorAllNS(doc, selector, ns,
   The \code{querySelectorNS} and \code{querySelectorAllNS} functions
   return the same type of content as their un-namespaced counterparts.
 }
+\section{Errors}{
+  These functions propagate the same \code{selectr_parse_error} and
+  \code{selectr_translation_error} conditions that
+  \code{\link{css_to_xpath}} raises for a malformed or unsupported
+  selector (see \code{?css_to_xpath} for their fields), plus
+  \code{selectr_argument_error} for a bad R-level argument: \code{doc}
+  that is not an \pkg{XML} or \pkg{xml2} document, node, or node set;
+  \code{selector} that is not a single character string; or \code{ns}
+  that is not a named list or named character vector of non-empty
+  strings (or, for \code{querySelectorNS} and \code{querySelectorAllNS},
+  a missing or zero-length \code{ns}).
+}
 \references{
   CSS Selectors Level 4 \url{https://www.w3.org/TR/selectors-4/}, XPath
   \url{https://www.w3.org/TR/xpath/}, querySelectorAll
@@ -156,7 +168,19 @@ querySelectorAllNS(doc, selector, ns,
 \author{
   Simon Potter
 }
+\seealso{
+  \code{\link{css_to_xpath}}, whose \sQuote{Errors} section documents
+  the condition classes' fields.
+}
 \examples{
+  # All three selectr_error classes (see 'Errors' below) propagate
+  # from these functions; selectr_argument_error also covers a 'doc'
+  # that is not an XML or xml2 document, node, or node set.
+  tryCatch(
+    querySelectorAll("not a document", "a"),
+    selectr_argument_error = function(e) cat(conditionMessage(e), "\n")
+  )
+
   # The XML and xml2 packages are both optional (Suggests), so each demo
   # below is guarded with requireNamespace() and runs only when that
   # package is installed.
