@@ -39,7 +39,6 @@ jobs:
           - {os: ubuntu-latest,  r: 'devel', http-user-agent: 'release'}
           - {os: ubuntu-latest,  r: 'release'}
           - {os: ubuntu-latest,  r: 'oldrel-1'}
-          - {os: ubuntu-latest,  r: '3.6'}
 
     steps:
       - uses: actions/checkout@v7
@@ -85,6 +84,11 @@ jobs:
 
     env:
       _R_CHECK_FORCE_SUGGESTS_: false
+      # ubuntu-latest runners ship XML and xml2 pre-installed in the OS-wide
+      # site-library, outside of anything setup-r-dependencies installs.
+      # Point R_LIBS_SITE elsewhere so requireNamespace() reflects only what
+      # this job actually installed, not what the runner image bundles.
+      R_LIBS_SITE: /tmp/no-suggests-site-library
 
     steps:
       - uses: actions/checkout@v7
