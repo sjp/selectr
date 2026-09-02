@@ -73,6 +73,26 @@ test_that("css_to_xpath handles bad arguments", {
     expect_error(css_to_xpath("a", prefix = character(0)), "Zero length character vector.*")
     expect_error(css_to_xpath("a", translator = character(0)), "Zero length character vector.*")
 
+    # arguments are only recycled from length 1, so a partially
+    # recycled (or over-long) argument is an error rather than a
+    # plausible-looking result
+    expect_error(css_to_xpath(c("a", "b"), prefix = c("", "", "//")),
+                 "Arguments must have length 1 or a common length \\(3\\).*selector \\(length 2\\)")
+    expect_error(css_to_xpath(c("a", "b", "c", "d"), prefix = c("", "//")),
+                 "Arguments must have length 1 or a common length \\(4\\).*prefix \\(length 2\\)")
+    expect_error(css_to_xpath(c("a", "b"), prefix = c("", "//", ""),
+                              translator = c("generic", "html")),
+                 "arguments do not: selector \\(length 2\\), translator \\(length 2\\)")
+
+    # length 1 arguments are still broadcast to the common length
+    expect_that(css_to_xpath(c("a", "b"), prefix = ""),
+                equals(c("a", "b")))
+    expect_that(css_to_xpath("a", prefix = c("", "//")),
+                equals(c("a", "//a")))
+    expect_that(css_to_xpath(c("a", "b"), prefix = c("", "//"),
+                             translator = "html"),
+                equals(c("a", "//b")))
+
     # performs partial matching
     expect_that(css_to_xpath("a", translator = "g"),
                 equals("descendant-or-self::a"))

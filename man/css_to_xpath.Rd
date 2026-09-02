@@ -32,7 +32,13 @@ css_to_xpath(selector,
 }
 \details{
   Each selector given to this function will be translated to an
-  equivalent XPath expression. The resulting XPath expression can be
+  equivalent XPath expression. Each of \code{selector}, \code{prefix}
+  and \code{translator} must either have length 1, in which case its
+  single value is used for every translation, or the common length of
+  the longer arguments. Unlike base R, a length that is merely a
+  multiple (or a fraction) of the common length is not recycled but is
+  an error, so that a mistyped argument length does not quietly produce
+  a plausible-looking result. The resulting XPath expression can be
   given a prefix which determines the scope of the expression. The
   default prefix determines the scope to be the node itself and all
   descendants of the node. Most commonly the prefix is either the

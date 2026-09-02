@@ -43,7 +43,26 @@ css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator =
         match.arg(tolower(tran), c("generic", "html", "xhtml"))
     })
 
-    maxArgLength <- max(length(selector), length(prefix), length(translator))
+    # Only length-1 arguments are broadcast: recycling a vector whose
+    # length is a fraction of another's would silently turn a mistyped
+    # call into a plausible-looking result.
+    argLengths <- c(selector = length(selector),
+                    prefix = length(prefix),
+                    translator = length(translator))
+    maxArgLength <- max(argLengths)
+    badArgs <- names(argLengths)[argLengths != 1L & argLengths != maxArgLength]
+
+    if (length(badArgs)) {
+        plural <- if (length(badArgs) > 1) "s" else ""
+        stop("Arguments must have length 1 or a common length (",
+             maxArgLength,
+             "), which the following argument",
+             plural,
+             " do not: ",
+             paste0(badArgs, " (length ", argLengths[badArgs], ")",
+                    collapse = ", "))
+    }
+
     selector <- rep(selector, length.out = maxArgLength)
     prefix <- rep(prefix, length.out = maxArgLength)
     translator <- rep(translator, length.out = maxArgLength)
