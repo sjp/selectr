@@ -113,6 +113,12 @@ test_that("namespace handling works correctly", {
                  "Each element in the namespace object must be a single character string.")
     expect_error(formatNS(list(a = character(0), b = "u3")),
                  "Each element in the namespace object must be a single character string.")
+    # values must be non-missing, non-empty strings, otherwise NA/"" get
+    # passed straight through to xml_find_all()/getNodeSet() as a URI
+    expect_error(formatNS(list(a = NA_character_)),
+                 "The values in the namespace object must be non-missing, non-empty strings.")
+    expect_error(formatNS(c(a = "")),
+                 "The values in the namespace object must be non-missing, non-empty strings.")
 
     # formatNSPrefix must return a pipe separated string of namespace
     # prefixes, relative to the node the query starts from

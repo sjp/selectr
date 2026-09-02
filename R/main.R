@@ -340,6 +340,8 @@ formatNS <- function(ns) {
     ns <- unlist(ns)
     if (!is.character(ns))
         stop("The values in the namespace object must be a character vector.")
+    if (anyNA(ns) || !all(nzchar(ns)))
+        stop("The values in the namespace object must be non-missing, non-empty strings.")
     names(ns) <- nsNames
     ns
 }
