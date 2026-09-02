@@ -88,6 +88,11 @@ test_that("parser creates correct specificity", {
     expect_that(spec("e:has(a b.foo)"), equals(c(0, 1, 3)))
     expect_that(spec(":where(a b)"), equals(c(0, 0, 0)))
 
+    # an empty forgiving list has no argument to take specificity from
+    expect_that(spec(":is()"), equals(c(0, 0, 0)))
+    expect_that(spec("div.foo:is()"), equals(c(0, 1, 1)))
+    expect_that(spec("div:where()"), equals(c(0, 0, 1)))
+
     # single-argument :is() and a non-universal base compound compose
     expect_that(spec(":is(.foo)"), equals(c(0, 1, 0)))
     expect_that(spec("div:is(.foo)"), equals(c(0, 1, 1)))

@@ -214,8 +214,11 @@ Matching <- R6Class("Matching",
         },
         specificity = function() {
             # :is() takes the specificity of its most specific argument,
-            # added to the base selector
+            # added to the base selector; an empty argument list
+            # contributes nothing
             base_specs <- self$selector$specificity()
+            if (length(self$selector_list) == 0)
+                return(base_specs)
             sub_specs <- sapply(self$selector_list, function(s) s$specificity())
             # sapply returns a matrix with each column being a selector's specificity
             sub_specs <- t(sub_specs)
@@ -723,12 +726,16 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                                                              inside_has = inside_has)
                 result <- Negation$new(result, selectors)
             } else if (any(tolower(ident) == c("matches", "is"))) {
+                # :is()/:matches() take a <forgiving-selector-list>, so
+                # an empty argument list is valid (it matches nothing)
                 selectors <- parse_simple_selector_arguments(stream, tolower(ident),
-                                                             inside_has = inside_has)
+                                                             inside_has = inside_has,
+                                                             forgiving = TRUE)
                 result <- Matching$new(result, selectors)
             } else if (tolower(ident) == "where") {
                 selectors <- parse_simple_selector_arguments(stream, "where",
-                                                             inside_has = inside_has)
+                                                             inside_has = inside_has,
+                                                             forgiving = TRUE)
                 result <- Where$new(result, selectors)
             } else if (tolower(ident) == "has") {
                 # The :has() argument grammar excludes :has() at any
@@ -848,9 +855,23 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
 
 parse_simple_selector_arguments <- function(stream, function_name = NULL, # nolint: object_length_linter.
                                             inside_has = FALSE,
-                                            relative = FALSE) {
+                                            relative = FALSE,
+                                            forgiving = FALSE) {
     index <- 1
     arguments <- list()
+
+    if (forgiving) {
+        # A <forgiving-selector-list> (:is(), :where()) may be empty:
+        # ':is()' is valid and matches nothing. EOF auto-closes the
+        # function as elsewhere, so ':is(' is the same as ':is()'
+        peek <- stream$peek()
+        if (token_equality(peek, "DELIM", ")")) {
+            stream$nxt()
+            return(arguments)
+        } else if (peek$type == "EOF") {
+            return(arguments)
+        }
+    }
 
     check_no_pseudo_element <- function(pseudo_element) {
         if (!is.null(pseudo_element)) {

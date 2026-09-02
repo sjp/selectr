@@ -570,6 +570,13 @@ GenericTranslator <- R6Class("GenericTranslator",
         xpath_matching = function(matching) {
             xpath <- self$xpath(matching$selector)
 
+            # An empty forgiving list (':is()') has no alternative to
+            # satisfy, so it matches nothing
+            if (length(matching$selector_list) == 0) {
+                xpath$add_condition("0")
+                return(xpath)
+            }
+
             # Add the OR of the argument conditions (any match suffices)
             # as a single condition so the alternatives stay grouped and
             # AND with the rest of the compound selector; a list that

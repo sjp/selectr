@@ -204,6 +204,17 @@ test_that("translation from parsed objects to XPath works", {
     # selector list: the whole list then matches everything, so :is()
     # imposes no condition, :not() never matches, and the "of S" form
     # counts all siblings
+    # A forgiving selector list may be empty (selectors-4); with no
+    # alternative to satisfy, ':is()' matches nothing
+    expect_that(xpath(':is()'), equals("*[0]"))
+    expect_that(xpath(':matches()'), equals("*[0]"))
+    expect_that(xpath('a:where()'), equals("a[0]"))
+    expect_that(xpath(':is( )'), equals("*[0]"))
+    expect_that(xpath('e.warning:is()'),
+                equals("e[@class and contains(concat(' ', normalize-space(@class), ' '), ' warning ') and 0]"))
+    # ... and so, as an argument, it excludes nothing from a :not()
+    expect_that(xpath(':not(:is())'), equals("*[not(0)]"))
+    expect_that(xpath(':is(:where())'), equals("*[0]"))
     expect_that(xpath(':is(f, *)'),
                 equals("*"))
     expect_that(xpath('e.warning:is(f, *)'),

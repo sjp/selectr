@@ -115,6 +115,18 @@ test_that("useful errors are returned", {
     # trailing combinators in arguments
     expect_that(get_error(":is(a >)"),
                 throws_error("Expected selector, got <DELIM '\\)' at 8>"))
+    # Only :is()/:where() take a forgiving selector list, so an empty
+    # argument list stays an error for the other functional pseudo-classes
+    expect_that(get_error(":not()"),
+                throws_error("Expected selector, got <DELIM '\\)' at 6>"))
+    expect_that(get_error(":has()"),
+                throws_error("Expected selector, got <DELIM '\\)' at 6>"))
+    expect_that(get_error("a:not( )"),
+                throws_error("Expected selector, got <DELIM '\\)' at 8>"))
+    # An empty forgiving list is empty, not a list holding one empty
+    # selector: a lone ',' is still an error
+    expect_that(get_error(":is(,)"),
+                throws_error("Expected selector, got <DELIM ',' at 5>"))
 })
 
 test_that("constructs unclosed at EOF translate as their closed forms", {
@@ -137,6 +149,10 @@ test_that("constructs unclosed at EOF translate as their closed forms", {
     eof(":nth-child(2n+1", ":nth-child(2n+1)")
     eof(":is(a", ":is(a)")
     eof("e:is(a, b", "e:is(a, b)")
+    # An empty forgiving selector list is valid, so an unclosed one
+    # auto-closes to it rather than erroring on the missing argument
+    eof(":is(", ":is()")
+    eof("a:where(", "a:where()")
     eof(":not(a", ":not(a)")
     eof(":has(> a", ":has(> a)")
     # An ident ending in an escaped backslash, then an unclosed

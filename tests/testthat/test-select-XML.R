@@ -154,6 +154,9 @@ test_that("selection works correctly on a large barrage of tests", {
     expect_that(pcss('li.c:where(#third-li, #fifth-li)'), equals('third-li'))
     expect_that(pcss(':is(li, ol):first-child'), equals('first-li'))
     expect_that(pcss('li:is(.c):is(#fourth-li)'), equals('fourth-li'))
+    # An empty forgiving selector list matches nothing
+    expect_that(pcss(':is()'), equals(NULL))
+    expect_that(pcss('li:where()'), equals(NULL))
     # An always-true '*' argument makes the whole selector list match
     # everything; it must not be silently dropped
     expect_that(pcss('li:is(#first-li, *)'), equals(c('first-li', 'second-li', 'third-li', 'fourth-li', 'fifth-li', 'sixth-li', 'seventh-li')))
