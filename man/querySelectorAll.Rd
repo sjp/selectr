@@ -109,6 +109,18 @@ querySelectorAllNS(doc, selector, ns,
   \code{querySelectorAll(node, "a")} would return all of its \code{a}
   descendants. \code{:scope} after a combinator or within a functional
   pseudo-class is an error (it cannot be expressed in XPath 1.0).
+
+  When \code{doc} is a whole document rather than a node, the queried
+  node is taken to be the document's root element, so a bare
+  \code{:scope} matches that root element and \code{":scope > x"}
+  matches its \code{x} children. This differs from a browser's
+  \code{document.querySelectorAll()}, where \code{:scope} on a
+  document refers to the document itself: a bare \code{:scope} matches
+  nothing there (the document is not an element), while \code{":scope
+  > html"} matches the root element. To query starting from the root
+  element itself rather than the document, pass the root node (e.g.
+  \code{\link[XML]{xmlRoot}} or \code{\link[xml2]{xml_root}}) as
+  \code{doc} instead of the document.
 }
 \value{
   For \code{querySelector}, the result is a single node that represents

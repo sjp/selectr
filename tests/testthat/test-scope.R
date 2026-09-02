@@ -109,9 +109,17 @@ test_that(":scope works correctly with XML documents", {
     expect_that(length(querySelectorAll(section, "div:scope > a")),
                 equals(0))
 
-    # For a document, the scoping root is the root element
+    # For a document, the scoping root is the root element itself,
+    # not the document node, so a bare ':scope' matches the root and
+    # ':scope > x' looks for a child of the root named 'x' -- unlike
+    # the DOM, where document.querySelectorAll(':scope > html') finds
+    # the root element and a bare ':scope' matches nothing (see #016)
     expect_that(get_ids(doc, ":scope > section"),
                 equals("s1"))
+    root <- querySelector(doc, ":scope")
+    expect_that(xmlName(root), equals("root"))
+    expect_that(length(querySelectorAll(doc, ":scope > root")),
+                equals(0))
 })
 
 test_that(":scope works correctly with xml2 documents", {
@@ -160,7 +168,12 @@ test_that(":scope works correctly with xml2 documents", {
     expect_that(length(querySelectorAll(section, "div:scope > a")),
                 equals(0))
 
-    # For a document, the scoping root is the root element
+    # For a document, the scoping root is the root element itself,
+    # not the document node -- see the identical XML case above (#016)
     expect_that(get_ids(doc, ":scope > section"),
                 equals("s1"))
+    root <- querySelector(doc, ":scope")
+    expect_that(xml_name(root), equals("root"))
+    expect_that(length(querySelectorAll(doc, ":scope > root")),
+                equals(0))
 })
