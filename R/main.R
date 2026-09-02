@@ -1,3 +1,9 @@
+# A bad R-level argument, e.g. the wrong type, length, or an NA where
+# one is not allowed. See selectr_abort() in errors.R.
+argument_stop <- function(...) {
+    selectr_abort(paste0(...), "selectr_argument_error")
+}
+
 # Key identifying one (selector, prefix, translator) translation. The
 # selector is length-prefixed so that no combination of selector and
 # prefix values can collide.
@@ -31,21 +37,21 @@ get_translator <- function(trans) {
 
 css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator = "generic") {
     if (missing(selector) || is.null(selector))
-        stop("A valid selector (character vector) must be provided.")
+        argument_stop("A valid selector (character vector) must be provided.")
 
     if (!is.character(selector))
-        stop("The 'selector' argument must be a character vector")
+        argument_stop("The 'selector' argument must be a character vector")
     if (!is.character(prefix))
-        stop("The 'prefix' argument must be a character vector")
+        argument_stop("The 'prefix' argument must be a character vector")
     if (!is.character(translator))
-        stop("The 'translator' argument must be a character vector")
+        argument_stop("The 'translator' argument must be a character vector")
 
     if (anyNA(selector))
-        stop("NA values are not allowed in the 'selector' argument")
+        argument_stop("NA values are not allowed in the 'selector' argument")
     if (anyNA(prefix))
-        stop("NA values are not allowed in the 'prefix' argument")
+        argument_stop("NA values are not allowed in the 'prefix' argument")
     if (anyNA(translator))
-        stop("NA values are not allowed in the 'translator' argument")
+        argument_stop("NA values are not allowed in the 'translator' argument")
 
     zeroLengthArgs <- character(0)
     if (!length(selector))
@@ -57,15 +63,18 @@ css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator =
 
     if (length(zeroLengthArgs)) {
         plural <- if (length(zeroLengthArgs) > 1) "s" else ""
-        stop("Zero length character vector found for the following argument",
+        argument_stop("Zero length character vector found for the following argument",
              plural,
              ": ",
              paste0(zeroLengthArgs, collapse = ", "))
     }
 
-    translator <- sapply(translator, function(tran) {
-        match.arg(tolower(tran), c("generic", "html", "xhtml"))
-    })
+    translator <- tryCatch(
+        sapply(translator, function(tran) {
+            match.arg(tolower(tran), c("generic", "html", "xhtml"))
+        }),
+        error = function(e) argument_stop(conditionMessage(e))
+    )
 
     # Only length-1 arguments are broadcast: recycling a vector whose
     # length is a fraction of another's would silently turn a mistyped
@@ -78,7 +87,7 @@ css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator =
 
     if (length(badArgs)) {
         plural <- if (length(badArgs) > 1) "s" else ""
-        stop("Arguments must have length 1 or a common length (",
+        argument_stop("Arguments must have length 1 or a common length (",
              maxArgLength,
              "), which the following argument",
              plural,
@@ -137,21 +146,21 @@ querySelectorAllNS <- function(doc, selector, ns,
 }
 
 querySelector.default <- function(doc, selector, ns = NULL, ...) {
-    stop("The object given to querySelector() is not an 'XML' or 'xml2' document or node.")
+    argument_stop("The object given to querySelector() is not an 'XML' or 'xml2' document or node.")
 }
 
 querySelectorAll.default <- function(doc, selector, ns = NULL, ...) {
-    stop("The object given to querySelectorAll() is not an 'XML' or 'xml2' document or node.")
+    argument_stop("The object given to querySelectorAll() is not an 'XML' or 'xml2' document or node.")
 }
 
 querySelectorNS.default <- function(doc, selector, ns,
                                     prefix = "descendant-or-self::", ...) {
-    stop("The object given to querySelectorNS() is not an 'XML' or 'xml2' document or node.")
+    argument_stop("The object given to querySelectorNS() is not an 'XML' or 'xml2' document or node.")
 }
 
 querySelectorAllNS.default <- function(doc, selector, ns,
                                     prefix = "descendant-or-self::", ...) {
-    stop("The object given to querySelectorAllNS() is not an 'XML' or 'xml2' document or node.")
+    argument_stop("The object given to querySelectorAllNS() is not an 'XML' or 'xml2' document or node.")
 }
 
 querySelector.XMLNodeSet          <-
@@ -344,7 +353,7 @@ emptyNodeSet <- function() {
 validateSelector <- function(selector) {
     if (missing(selector) || !is.character(selector) ||
         length(selector) != 1 || is.na(selector))
-        stop("A valid selector (single character string) must be provided.")
+        argument_stop("A valid selector (single character string) must be provided.")
 }
 
 # Takes a named vector or list and gives a named vector back
@@ -352,20 +361,20 @@ formatNS <- function(ns) {
     if (is.null(ns))
         return(NULL)
     if (!is.list(ns) && !is.character(ns))
-        stop("A namespace object must be either a named list or a named character vector.")
+        argument_stop("A namespace object must be either a named list or a named character vector.")
     # A zero-length namespace object means "no namespaces"
     if (!length(ns))
         return(character())
     nsNames <- names(ns)
     if (is.null(nsNames) || anyNA(nsNames) || !all(nzchar(nsNames)))
-        stop("The namespace object either missing some or all names for each element in its collection.")
+        argument_stop("The namespace object either missing some or all names for each element in its collection.")
     if (is.list(ns) && any(lengths(ns) != 1))
-        stop("Each element in the namespace object must be a single character string.")
+        argument_stop("Each element in the namespace object must be a single character string.")
     ns <- unlist(ns)
     if (!is.character(ns))
-        stop("The values in the namespace object must be a character vector.")
+        argument_stop("The values in the namespace object must be a character vector.")
     if (anyNA(ns) || !all(nzchar(ns)))
-        stop("The values in the namespace object must be non-missing, non-empty strings.")
+        argument_stop("The values in the namespace object must be non-missing, non-empty strings.")
     names(ns) <- nsNames
     ns
 }
@@ -378,7 +387,7 @@ ns_dispatch <- function(query_fun, doc, selector, ns,
                         prefix = "descendant-or-self::", ...) {
     validateSelector(selector)
     if (missing(ns) || !length(ns))
-        stop("A namespace must be provided.")
+        argument_stop("A namespace must be provided.")
     ns <- formatNS(ns)
     prefix <- formatNSPrefix(ns, prefix)
     query_fun(doc, selector, ns, prefix = prefix, ...)

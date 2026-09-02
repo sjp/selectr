@@ -173,8 +173,20 @@ of_type_nodetest <- function(xpath) {
 of_type_nodetest_or_stop <- function(xpath, name) {
     nodetest <- of_type_nodetest(xpath)
     if (is.null(nodetest))
-        stop("*:", name, " is not implemented")
+        translation_stop(paste0("*:", name, " is not implemented"),
+                         paste0("*:", name))
     nodetest
+}
+
+# A translation failure: valid CSS that names a feature the current
+# translator cannot express as XPath 1.0 (e.g. a non-leading ':scope',
+# or an of-type pseudo-class on the universal selector). Raised without
+# a 'selector' field so it can bubble up through the internal xpath()
+# recursion undecorated; GenericTranslator$css_to_xpath() catches it at
+# the boundary and adds the selector text, mirroring how parse()
+# annotates a selectr_parse_error with a caret gutter.
+translation_stop <- function(message, feature) {
+    selectr_abort(message, "selectr_translation_error", feature = feature)
 }
 
 # Shared translation for pseudo-classes that can never match in a
@@ -190,7 +202,9 @@ pseudo_never_matches <- function(xpath) {
 # combinator, or inside a functional pseudo-class argument - XPath 1.0
 # has no way to refer back to the node the query started from
 stop_non_leading_scope <- function() {
-    stop("The pseudo-class :scope is only supported at the start of a selector")
+    translation_stop(
+        "The pseudo-class :scope is only supported at the start of a selector",
+        ":scope")
 }
 
 # A wildcard in non-trailing position (e.g. :lang(*-CH) or :lang(de-*-DE),
@@ -200,9 +214,11 @@ stop_non_leading_scope <- function() {
 # lang() function, which can express a prefix match but not an interior
 # wildcard, so it rejects such ranges rather than silently mismatching.
 stop_lang_non_trailing_wildcard <- function(range) {
-    stop("Only a bare '*' or a trailing '...-*' wildcard is supported by ",
-         "the generic translator's :lang(); the range ", range, " has a ",
-         "wildcard in a non-trailing position")
+    translation_stop(
+        paste0("Only a bare '*' or a trailing '...-*' wildcard is ",
+               "supported by the generic translator's :lang(); the range ",
+               range, " has a wildcard in a non-trailing position"),
+        ":lang()")
 }
 
 # Classify a single (already reassembled) :lang() range:
@@ -234,8 +250,10 @@ validate_lang_args <- function(fn) {
                   (arg_types == "DELIM" & arg_values == "*")) &
                   !(arg_types == "IDENT" & arg_values == "-")
     if (!all(valid_types)) {
-        stop("Expected string, ident, or * arguments for :lang(), got ",
-             token_repr(fn$arguments[[which(!valid_types)[1]]]))
+        translation_stop(
+            paste0("Expected string, ident, or * arguments for :lang(), got ",
+                   token_repr(fn$arguments[[which(!valid_types)[1]]])),
+            ":lang()")
     }
 }
 
@@ -426,20 +444,30 @@ GenericTranslator <- R6Class("GenericTranslator",
         lower_case_attribute_names = FALSE,
         lower_case_attribute_values = FALSE,
         css_to_xpath = function(css, prefix = "descendant-or-self::") {
-            selectors <- parse(css)
+            tryCatch({
+                selectors <- parse(css)
 
-            for (selector in selectors) {
-                if (first_class_name(selector) == "Selector" &&
-                    !is.null(selector$pseudo_element))
-                    stop("Pseudo-elements are not supported.")
-            }
+                for (selector in selectors) {
+                    if (first_class_name(selector) == "Selector" &&
+                        !is.null(selector$pseudo_element))
+                        translation_stop("Pseudo-elements are not supported.",
+                                         paste0("::", selector$pseudo_element))
+                }
 
-            char_selectors <-
-                sapply(selectors,
-                       function(selector)
-                           self$selector_to_xpath(selector, prefix))
+                char_selectors <-
+                    sapply(selectors,
+                           function(selector)
+                               self$selector_to_xpath(selector, prefix))
 
-            paste0(char_selectors, collapse = " | ")
+                paste0(char_selectors, collapse = " | ")
+            },
+            selectr_translation_error = function(e) {
+                # Re-signal at the css_to_xpath() boundary so the
+                # condition gains the selector text, mirroring how
+                # parse() annotates a selectr_parse_error.
+                selectr_abort(conditionMessage(e), "selectr_translation_error",
+                             feature = e$feature, selector = css)
+            })
         },
         selector_to_xpath = function(selector, prefix = "descendant-or-self::") {
             tree <- selector$parsed_tree
@@ -688,7 +716,9 @@ GenericTranslator <- R6Class("GenericTranslator",
 
             method <- self[[method_name]]
             if (is.null(method))
-                stop("The pseudo-class :", fn$name, "() is unknown")
+                translation_stop(
+                    paste0("The pseudo-class :", fn$name, "() is unknown"),
+                    paste0(":", fn$name, "()"))
             method(xp, fn)
         },
         xpath_pseudo = function(pseudo) {
@@ -700,7 +730,9 @@ GenericTranslator <- R6Class("GenericTranslator",
 
             method <- self[[method_name]]
             if (is.null(method))
-                stop("The pseudo-class :", pseudo$ident, " is unknown")
+                translation_stop(
+                    paste0("The pseudo-class :", pseudo$ident, " is unknown"),
+                    paste0(":", pseudo$ident))
             method(xp)
         },
         xpath_attrib = function(selector) {
@@ -1106,8 +1138,10 @@ GenericTranslator <- R6Class("GenericTranslator",
             if (length(fn$arguments) != 1 ||
                 fn$arguments[[1]]$type != "IDENT" ||
                 fn$arguments[[1]]$value == "-") {
-                stop("Expected a single ident argument for :dir(), got ",
-                     token_repr(fn$arguments[[1]]))
+                translation_stop(
+                    paste0("Expected a single ident argument for :dir(), got ",
+                           token_repr(fn$arguments[[1]])),
+                    ":dir()")
             }
             # :dir() requires runtime directionality detection based on
             # document language, inherited dir attributes, and text analysis.
