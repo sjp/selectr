@@ -1264,10 +1264,18 @@ tokenize <- function(s) {
     while (pos <= len_s) {
         match <- match_window(match_whitespace, s, pos, len_s)
         if (!anyNA(match) && match[1] == 1) {
-            results[[i]] <- Token("S", " ", pos)
             match_end <- match[2]
+            # A comment between two whitespace runs (or two adjacent
+            # comments) leaves no token behind, so this run may be the
+            # second one seen in a row. Extend the existing S token
+            # instead of emitting a second one, keeping the invariant
+            # that no two S tokens are ever adjacent; the token's pos
+            # stays at the start of the first run for error carets.
+            if (i == 1 || results[[i - 1]]$type != "S") {
+                results[[i]] <- Token("S", " ", pos)
+                i <- i + 1
+            }
             pos <- pos + match_end
-            i <- i + 1
             next
         }
         match <- match_window(match_number, s, pos, len_s)

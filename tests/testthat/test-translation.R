@@ -265,6 +265,19 @@ test_that("translation from parsed objects to XPath works", {
                  "*[attribute::*[name() = 'h]ref']]")
 })
 
+test_that("comments adjacent to whitespace translate like their comment-free equivalents", {
+    gt <- GenericTranslator$new()
+    xpath <- function(css) {
+        gt$css_to_xpath(css, prefix = "")
+    }
+
+    expect_equal(xpath("a /* c */ /* d */ b"), xpath("a b"))
+    expect_equal(xpath(":is(a /*x*/ /*y*/ b)"), xpath(":is(a b)"))
+    expect_equal(xpath("[a /*x*/ = /*y*/ 'b']"), xpath("[a = 'b']"))
+    expect_equal(xpath("a /*x*/ , b"), xpath("a, b"))
+    expect_equal(xpath("a /*x*/ /*y*/, b"), xpath("a, b"))
+})
+
 test_that("invalid unicode escapes translate to U+FFFD", {
     gt <- GenericTranslator$new()
     xpath <- function(css) {

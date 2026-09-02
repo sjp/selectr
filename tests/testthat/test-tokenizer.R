@@ -199,6 +199,37 @@ test_that("tokens are unaffected by where the match window falls", {
     }
 })
 
+test_that("consecutive whitespace runs collapse into a single S token", {
+    reprs <- function(css) {
+        unlist(lapply(tokenize(css), token_repr))
+    }
+
+    # A comment leaves no token behind, so whitespace on either side of
+    # it -- or of a run of comments -- must not produce two adjacent S
+    # tokens; every downstream consumer assumes at most one.
+    expect_equal(reprs(" /*x*/ /*y*/ a"),
+                 c("<S ' ' at 1>", "<IDENT 'a' at 14>", "<EOF at 15>"))
+    expect_equal(tokenize(" /*x*/ /*y*/ a")[[1]]$type, "S")
+    expect_equal(sum(vapply(tokenize(" /*x*/ /*y*/ a"), function(t) t$type,
+                             character(1)) == "S"),
+                 1)
+
+    # The merged token keeps the position of the first whitespace run,
+    # so an error caret still points at its start
+    expect_equal(reprs("a /*x*/ /*y*/ ,b"),
+                 c("<IDENT 'a' at 1>", "<S ' ' at 2>", "<DELIM ',' at 15>",
+                   "<IDENT 'b' at 16>", "<EOF at 17>"))
+
+    # A comment longer than the tokenizer's match window (64 chars)
+    # still collapses whitespace on either side of it correctly
+    long_comment <- paste0("/*", strrep("x", 100), "*/")
+    expect_equal(reprs(paste0("a ", long_comment, " b")),
+                 c("<IDENT 'a' at 1>",
+                   paste0("<S ' ' at 2>"),
+                   paste0("<IDENT 'b' at ", 4 + nchar(long_comment), ">"),
+                   paste0("<EOF at ", 5 + nchar(long_comment), ">")))
+})
+
 test_that("a very long selector tokenizes in linear time", {
     # tokenize() used to slice off the whole remaining input at every
     # position, which made it quadratic in the selector's length. This

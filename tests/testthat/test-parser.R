@@ -164,6 +164,20 @@ test_that("parser parses canonical test expressions", {
                  "CombinedSelector[Element[a] <followed> Element[b]]")
     expect_equal(parse_many("a /* test "),
                  "Element[a]")
+
+    # comments surrounded by whitespace, or separated only by
+    # whitespace, used to leave two adjacent S tokens behind and break
+    # parsing wherever a following S was read as a combinator
+    expect_equal(parse_many("a /* c */ /* d */ b"),
+                 "CombinedSelector[Element[a] <followed> Element[b]]")
+    expect_equal(parse_many(":is(a /*x*/ /*y*/ b)"),
+                 "Matching[Element[*]:is(CombinedSelector[Element[a] <followed> Element[b]])]")
+    expect_equal(parse_many("[a /*x*/ = /*y*/ 'b']"),
+                 "Attrib[Element[*][a = 'b']]")
+    expect_equal(parse_many("a /*x*/ , b"),
+                 c("Element[a]", "Element[b]"))
+    expect_equal(parse_many("a /*x*/ /*y*/, b"),
+                 c("Element[a]", "Element[b]"))
 })
 
 test_that("parsed elements print correctly", {
