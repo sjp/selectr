@@ -1,5 +1,3 @@
-context("nth-child with 'of S' selector list (CSS Level 4)")
-
 test_that(":nth-child(n of S) parses correctly", {
     parsed <- selectr:::parse("div:nth-child(2 of .foo)")
     expect_equal(length(parsed), 1)

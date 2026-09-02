@@ -1,5 +1,3 @@
-context("methods")
-
 test_that("method registration occurs correctly", {
     library(XML)
     xdoc <- xmlParse("<svg><circle /></svg>")
@@ -11,9 +9,9 @@ test_that("method registration occurs correctly", {
     # package's document class and find the element
     res_xml <- querySelector(xdoc, "circle")
     expect_true(inherits(res_xml, "XMLInternalNode"))
-    expect_that(xmlName(res_xml), equals("circle"))
+    expect_equal(xmlName(res_xml), "circle")
 
     res_xml2 <- querySelector(x2doc, "circle")
     expect_true(inherits(res_xml2, "xml_node"))
-    expect_that(xml_name(res_xml2), equals("circle"))
+    expect_equal(xml_name(res_xml2), "circle")
 })

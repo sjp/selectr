@@ -1,5 +1,3 @@
-context("pseudo")
-
 test_that("parser parses canonical pseudo element expressions", {
     parse_pseudo <- function(css) {
         selectors <- lapply(css, function(x) parse(x))
@@ -34,45 +32,45 @@ test_that("parser parses canonical pseudo element expressions", {
         result[[1]]
     }
 
-    expect_that(parse_one("foo"),
-                equals(list("Element[foo]", NULL)))
-    expect_that(parse_one("*"),
-                equals(list("Element[*]", NULL)))
-    expect_that(parse_one(":empty"),
-                equals(list("Pseudo[Element[*]:empty]", NULL)))
+    expect_equal(parse_one("foo"),
+                 list("Element[foo]", NULL))
+    expect_equal(parse_one("*"),
+                 list("Element[*]", NULL))
+    expect_equal(parse_one(":empty"),
+                 list("Pseudo[Element[*]:empty]", NULL))
 
     # Special cases for CSS 2.1 pseudo-elements
-    expect_that(parse_one(":BEfore"),
-                equals(list("Element[*]", "before")))
-    expect_that(parse_one(":aftER"),
-                equals(list("Element[*]", "after")))
-    expect_that(parse_one(":First-Line"),
-                equals(list("Element[*]", "first-line")))
-    expect_that(parse_one(":First-Letter"),
-                equals(list("Element[*]", "first-letter")))
+    expect_equal(parse_one(":BEfore"),
+                 list("Element[*]", "before"))
+    expect_equal(parse_one(":aftER"),
+                 list("Element[*]", "after"))
+    expect_equal(parse_one(":First-Line"),
+                 list("Element[*]", "first-line"))
+    expect_equal(parse_one(":First-Letter"),
+                 list("Element[*]", "first-letter"))
 
-    expect_that(parse_one("::befoRE"),
-                equals(list("Element[*]", "before")))
-    expect_that(parse_one("::AFter"),
-                equals(list("Element[*]", "after")))
-    expect_that(parse_one("::firsT-linE"),
-                equals(list("Element[*]", "first-line")))
-    expect_that(parse_one("::firsT-letteR"),
-                equals(list("Element[*]", "first-letter")))
+    expect_equal(parse_one("::befoRE"),
+                 list("Element[*]", "before"))
+    expect_equal(parse_one("::AFter"),
+                 list("Element[*]", "after"))
+    expect_equal(parse_one("::firsT-linE"),
+                 list("Element[*]", "first-line"))
+    expect_equal(parse_one("::firsT-letteR"),
+                 list("Element[*]", "first-letter"))
 
-    expect_that(parse_one("::Selection"),
-                equals(list("Element[*]", "selection")))
-    expect_that(parse_one("foo:after"),
-                equals(list("Element[foo]", "after")))
-    expect_that(parse_one("foo::selection"),
-                equals(list("Element[foo]", "selection")))
-    expect_that(parse_one("lorem#ipsum ~ a#b.c[href]:empty::selection"),
-                equals(list("CombinedSelector[Hash[Element[lorem]#ipsum] ~ Pseudo[Attrib[Class[Hash[Element[a]#b].c][href]]:empty]]", "selection")))
+    expect_equal(parse_one("::Selection"),
+                 list("Element[*]", "selection"))
+    expect_equal(parse_one("foo:after"),
+                 list("Element[foo]", "after"))
+    expect_equal(parse_one("foo::selection"),
+                 list("Element[foo]", "selection"))
+    expect_equal(parse_one("lorem#ipsum ~ a#b.c[href]:empty::selection"),
+                 list("CombinedSelector[Hash[Element[lorem]#ipsum] ~ Pseudo[Attrib[Class[Hash[Element[a]#b].c][href]]:empty]]", "selection"))
 
-    expect_that(parse_pseudo("foo:before, bar, baz:after"),
-                equals(list(list("Element[foo]", "before"),
-                            list("Element[bar]", NULL),
-                            list("Element[baz]", "after"))))
+    expect_equal(parse_pseudo("foo:before, bar, baz:after"),
+                 list(list("Element[foo]", "before"),
+                      list("Element[bar]", NULL),
+                      list("Element[baz]", "after")))
 })
 
 test_that("runtime-state pseudo-classes translate as never matching", {
@@ -81,14 +79,14 @@ test_that("runtime-state pseudo-classes translate as never matching", {
     # behave alike) and matches nothing; see the never-match table on
     # GenericTranslator in R/xpath.R
     for (translator in c("generic", "html", "xhtml")) {
-        expect_that(css_to_xpath("a:focus", translator = translator),
-                    equals("descendant-or-self::a[0]"))
-        expect_that(css_to_xpath("a:focus-within", translator = translator),
-                    equals("descendant-or-self::a[0]"))
-        expect_that(css_to_xpath("a:focus-visible", translator = translator),
-                    equals("descendant-or-self::a[0]"))
-        expect_that(css_to_xpath("a:target-within", translator = translator),
-                    equals("descendant-or-self::a[0]"))
+        expect_equal(css_to_xpath("a:focus", translator = translator),
+                     "descendant-or-self::a[0]")
+        expect_equal(css_to_xpath("a:focus-within", translator = translator),
+                     "descendant-or-self::a[0]")
+        expect_equal(css_to_xpath("a:focus-visible", translator = translator),
+                     "descendant-or-self::a[0]")
+        expect_equal(css_to_xpath("a:target-within", translator = translator),
+                     "descendant-or-self::a[0]")
     }
 
     # Pseudo-classes outside the accepted families still error, so
@@ -116,17 +114,17 @@ test_that(":required and :optional translate from the @required attribute", {
         "local-name(.) = 'select' or",
         "local-name(.) = 'textarea')")
     for (translator in c("html", "xhtml")) {
-        expect_that(css_to_xpath("input:required", translator = translator),
-                    equals(paste0("descendant-or-self::input[",
-                                  required_xpath, "]")))
-        expect_that(css_to_xpath("input:optional", translator = translator),
-                    equals(paste0("descendant-or-self::input[",
-                                  optional_xpath, "]")))
+        expect_equal(css_to_xpath("input:required", translator = translator),
+                     paste0("descendant-or-self::input[",
+                            required_xpath, "]"))
+        expect_equal(css_to_xpath("input:optional", translator = translator),
+                     paste0("descendant-or-self::input[",
+                            optional_xpath, "]"))
     }
-    expect_that(css_to_xpath("input:required"),
-                equals("descendant-or-self::input[0]"))
-    expect_that(css_to_xpath("input:optional"),
-                equals("descendant-or-self::input[0]"))
+    expect_equal(css_to_xpath("input:required"),
+                 "descendant-or-self::input[0]")
+    expect_equal(css_to_xpath("input:optional"),
+                 "descendant-or-self::input[0]")
 
     # The other form-state pseudo-classes have no exact static
     # translation and stay unknown
@@ -167,16 +165,16 @@ test_that(":required and :optional match form elements correctly", {
 
     # Only form elements that can take @required and have it; a hidden
     # input cannot be required, and a div's @required is meaningless
-    expect_that(get_ids("*:required"),
-                equals(c("i1", "s1", "t1")))
+    expect_equal(get_ids("*:required"),
+                 c("i1", "s1", "t1"))
 
     # The rest of the same element set; non-form elements (and hidden
     # inputs) are neither :required nor :optional
-    expect_that(get_ids("*:optional"),
-                equals(c("i2", "s2", "t2")))
+    expect_equal(get_ids("*:optional"),
+                 c("i2", "s2", "t2"))
 
-    expect_that(get_ids("input:required"), equals("i1"))
-    expect_that(get_ids("select:optional"), equals("s2"))
+    expect_equal(get_ids("input:required"), "i1")
+    expect_equal(get_ids("select:optional"), "s2")
 })
 
 test_that(":empty keeps the Selectors 3 white space semantics", {
@@ -198,12 +196,12 @@ test_that(":empty keeps the Selectors 3 white space semantics", {
     doc <- xmlRoot(xmlParse(doc_xml))
     ids <- sapply(querySelectorAll(doc, "p:empty"),
                   function(x) xmlGetAttr(x, "id"))
-    expect_that(ids, equals(c("truly-empty", "comment")))
+    expect_equal(ids, c("truly-empty", "comment"))
 
     library(xml2)
     doc2 <- read_xml(doc_xml)
-    expect_that(xml_attr(querySelectorAll(doc2, "p:empty"), "id"),
-                equals(c("truly-empty", "comment")))
+    expect_equal(xml_attr(querySelectorAll(doc2, "p:empty"), "id"),
+                 c("truly-empty", "comment"))
 })
 
 test_that(":any-link matches the same elements as :link", {
@@ -216,13 +214,13 @@ test_that(":any-link matches the same elements as :link", {
         "descendant-or-self::e[@href and ",
         "(local-name(.) = 'a' or local-name(.) = 'link' or local-name(.) = 'area')]")
     for (translator in c("html", "xhtml")) {
-        expect_that(css_to_xpath("e:any-link", translator = translator),
-                    equals(link_xpath))
-        expect_that(css_to_xpath("e:any-link", translator = translator),
-                    equals(css_to_xpath("e:link", translator = translator)))
+        expect_equal(css_to_xpath("e:any-link", translator = translator),
+                     link_xpath)
+        expect_equal(css_to_xpath("e:any-link", translator = translator),
+                     css_to_xpath("e:link", translator = translator))
     }
 
     # The generic translator has no link semantics: never matches
-    expect_that(css_to_xpath("e:any-link"),
-                equals("descendant-or-self::e[0]"))
+    expect_equal(css_to_xpath("e:any-link"),
+                 "descendant-or-self::e[0]")
 })

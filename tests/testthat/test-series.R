@@ -1,5 +1,3 @@
-context("series")
-
 test_that("parser generates correct series", {
     # An+B is validated in the parser, so an invalid series never
     # reaches parse_series() through parse(); tokenize the argument on
@@ -10,40 +8,40 @@ test_that("parser generates correct series", {
         parse_series(tokens)
     }
 
-    expect_that(series("1n+3"), equals(c(1, 3)))
-    expect_that(series("1n +3"), equals(c(1, 3)))
-    expect_that(series("1n + 3"), equals(c(1, 3)))
-    expect_that(series("1n+ 3"), equals(c(1, 3)))
-    expect_that(series("1n-3"), equals(c(1, -3)))
-    expect_that(series("1n -3"), equals(c(1, -3)))
-    expect_that(series("1n - 3"), equals(c(1, -3)))
-    expect_that(series("1n- 3"), equals(c(1, -3)))
-    expect_that(series("n-5"), equals(c(1, -5)))
-    expect_that(series("odd"), equals(c(2, 1)))
-    expect_that(series("even"), equals(c(2, 0)))
-    expect_that(series("3n"), equals(c(3, 0)))
-    expect_that(series("n"), equals(c(1, 0)))
-    expect_that(series("+n"), equals(c(1, 0)))
-    expect_that(series("-n"), equals(c(-1, 0)))
-    expect_that(series("5"), equals(c(0, 5)))
-    expect_that(series("foo"), equals(NULL))
-    expect_that(series("n+"), equals(NULL))
+    expect_equal(series("1n+3"), c(1, 3))
+    expect_equal(series("1n +3"), c(1, 3))
+    expect_equal(series("1n + 3"), c(1, 3))
+    expect_equal(series("1n+ 3"), c(1, 3))
+    expect_equal(series("1n-3"), c(1, -3))
+    expect_equal(series("1n -3"), c(1, -3))
+    expect_equal(series("1n - 3"), c(1, -3))
+    expect_equal(series("1n- 3"), c(1, -3))
+    expect_equal(series("n-5"), c(1, -5))
+    expect_equal(series("odd"), c(2, 1))
+    expect_equal(series("even"), c(2, 0))
+    expect_equal(series("3n"), c(3, 0))
+    expect_equal(series("n"), c(1, 0))
+    expect_equal(series("+n"), c(1, 0))
+    expect_equal(series("-n"), c(-1, 0))
+    expect_equal(series("5"), c(0, 5))
+    expect_equal(series("foo"), NULL)
+    expect_equal(series("n+"), NULL)
 })
 
 test_that("series are parsed case-insensitively", {
     xpath <- function(css) css_to_xpath(paste0("e:nth-child(", css, ")"))
 
-    expect_that(xpath("2N"), equals(xpath("2n")))
-    expect_that(xpath("ODD"), equals(xpath("odd")))
-    expect_that(xpath("EVEN"), equals(xpath("even")))
-    expect_that(xpath("Odd"), equals(xpath("odd")))
-    expect_that(xpath("eVen"), equals(xpath("even")))
-    expect_that(xpath("N"), equals(xpath("n")))
-    expect_that(xpath("N+1"), equals(xpath("n+1")))
-    expect_that(xpath("-N+3"), equals(xpath("-n+3")))
-    expect_that(xpath("2N+1"), equals(xpath("2n+1")))
-    expect_that(css_to_xpath("e:nth-last-of-type(2N)"),
-                equals(css_to_xpath("e:nth-last-of-type(2n)")))
+    expect_equal(xpath("2N"), xpath("2n"))
+    expect_equal(xpath("ODD"), xpath("odd"))
+    expect_equal(xpath("EVEN"), xpath("even"))
+    expect_equal(xpath("Odd"), xpath("odd"))
+    expect_equal(xpath("eVen"), xpath("even"))
+    expect_equal(xpath("N"), xpath("n"))
+    expect_equal(xpath("N+1"), xpath("n+1"))
+    expect_equal(xpath("-N+3"), xpath("-n+3"))
+    expect_equal(xpath("2N+1"), xpath("2n+1"))
+    expect_equal(css_to_xpath("e:nth-last-of-type(2N)"),
+                 css_to_xpath("e:nth-last-of-type(2n)"))
 
     # Genuinely invalid input must still error
     expect_error(css_to_xpath("e:nth-child(2x)"))
@@ -53,14 +51,14 @@ test_that("series are parsed case-insensitively", {
 
 test_that("whitespace is only permitted around the sign before B", {
     # spec-legal placements keep working
-    expect_that(css_to_xpath("e:nth-child(2n + 1)"),
-                equals(css_to_xpath("e:nth-child(2n+1)")))
-    expect_that(css_to_xpath("e:nth-child(2n +1)"),
-                equals(css_to_xpath("e:nth-child(2n+1)")))
-    expect_that(css_to_xpath("e:nth-child(n+ 1)"),
-                equals(css_to_xpath("e:nth-child(n+1)")))
-    expect_that(css_to_xpath("e:nth-child( 2n+1 )"),
-                equals(css_to_xpath("e:nth-child(2n+1)")))
+    expect_equal(css_to_xpath("e:nth-child(2n + 1)"),
+                 css_to_xpath("e:nth-child(2n+1)"))
+    expect_equal(css_to_xpath("e:nth-child(2n +1)"),
+                 css_to_xpath("e:nth-child(2n+1)"))
+    expect_equal(css_to_xpath("e:nth-child(n+ 1)"),
+                 css_to_xpath("e:nth-child(n+1)"))
+    expect_equal(css_to_xpath("e:nth-child( 2n+1 )"),
+                 css_to_xpath("e:nth-child(2n+1)"))
     # whitespace anywhere else is invalid (css-syntax-3 An+B grammar)
     expect_error(css_to_xpath("e:nth-child(3 7)"))
     expect_error(css_to_xpath("e:nth-child(2 n)"))
@@ -80,8 +78,8 @@ test_that("non-integer A and B values are rejected", {
     expect_error(css_to_xpath("e:nth-child(2.5n+1)"))
     expect_error(css_to_xpath("e:nth-child(2n+1.5)"))
     # signed integers and leading zeros remain valid
-    expect_that(css_to_xpath("e:nth-child(+05)"),
-                equals(css_to_xpath("e:nth-child(5)")))
+    expect_equal(css_to_xpath("e:nth-child(+05)"),
+                 css_to_xpath("e:nth-child(5)"))
 })
 
 test_that("an invalid An+B argument is rejected at parse time", {

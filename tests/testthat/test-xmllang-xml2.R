@@ -1,5 +1,3 @@
-context("lang-xml2")
-
 test_that("xml lang function matches correct elements", {
     xmlLangText <- paste0('<test>',
                           '<a id="first" xml:lang="en">a</a>',
@@ -32,17 +30,17 @@ test_that("xml lang function matches correct elements", {
         result
     }
 
-    expect_that(pid(':lang("EN")'), equals(c('first', 'second', 'third', 'fourth')))
-    expect_that(pid(':lang("en-us")'), equals(c('second', 'fourth')))
-    expect_that(pid(':lang(en-nz)'), equals('third'))
-    expect_that(pid(':lang(fr)'), equals('fifth'))
-    expect_that(pid(':lang(ru)'), equals('sixth'))
-    expect_that(pid(":lang('ZH')"), equals('eighth'))
-    expect_that(pid(':lang(de) :lang(zh)'), equals('eighth'))
-    expect_that(pid(':lang(en), :lang(zh)'), equals(c('first', 'second', 'third', 'fourth', 'eighth')))
-    expect_that(pid(":lang(es)"), equals(NULL))
+    expect_equal(pid(':lang("EN")'), c('first', 'second', 'third', 'fourth'))
+    expect_equal(pid(':lang("en-us")'), c('second', 'fourth'))
+    expect_equal(pid(':lang(en-nz)'), 'third')
+    expect_equal(pid(':lang(fr)'), 'fifth')
+    expect_equal(pid(':lang(ru)'), 'sixth')
+    expect_equal(pid(":lang('ZH')"), 'eighth')
+    expect_equal(pid(':lang(de) :lang(zh)'), 'eighth')
+    expect_equal(pid(':lang(en), :lang(zh)'), c('first', 'second', 'third', 'fourth', 'eighth'))
+    expect_equal(pid(":lang(es)"), NULL)
     # Wildcard language ranges match the primary subtag and any extension
-    expect_that(pid(':lang(en-*)'), equals(c('first', 'second', 'third', 'fourth')))
-    expect_that(pid(':lang(fr-*)'), equals('fifth'))
-    expect_that(pid(':lang(es-*)'), equals(NULL))
+    expect_equal(pid(':lang(en-*)'), c('first', 'second', 'third', 'fourth'))
+    expect_equal(pid(':lang(fr-*)'), 'fifth')
+    expect_equal(pid(':lang(es-*)'), NULL)
 })

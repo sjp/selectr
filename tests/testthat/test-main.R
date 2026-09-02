@@ -1,19 +1,17 @@
-context("main")
-
 # We know that the results are correct via other tests, just check that
 # this produces the correct results with respect to its arguments
 test_that("css_to_xpath vectorises arguments", {
-    expect_that(css_to_xpath("a b"), equals("descendant-or-self::a//b"))
-    expect_that(css_to_xpath("a b", prefix = ""), equals("a//b"))
-    expect_that(css_to_xpath("a b", prefix = c("descendant-or-self::", "")), equals(c("descendant-or-self::a//b", "a//b")))
+    expect_equal(css_to_xpath("a b"), "descendant-or-self::a//b")
+    expect_equal(css_to_xpath("a b", prefix = ""), "a//b")
+    expect_equal(css_to_xpath("a b", prefix = c("descendant-or-self::", "")), c("descendant-or-self::a//b", "a//b"))
     fold <- "translate(@type, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
     checked_html <- paste0(
         "a[(@selected and local-name(.) = 'option') or (@checked and ",
         "local-name(.) = 'input' and (",
         fold, " = 'checkbox' or ", fold, " = 'radio'))]")
-    expect_that(css_to_xpath("a:checked", prefix = "", translator = c("generic", "html", "xhtml")),
-                             equals(c("a[0]", checked_html, checked_html)))
-    expect_that(css_to_xpath(c("a b", "b c"), prefix = ""), equals(c("a//b", "b//c")))
+    expect_equal(css_to_xpath("a:checked", prefix = "", translator = c("generic", "html", "xhtml")),
+                              c("a[0]", checked_html, checked_html))
+    expect_equal(css_to_xpath(c("a b", "b c"), prefix = ""), c("a//b", "b//c"))
 })
 
 test_that("css_to_xpath translates duplicate selectors only once per call", {
@@ -23,23 +21,23 @@ test_that("css_to_xpath translates duplicate selectors only once per call", {
                            tracer = function() parses <<- parses + 1L))
     on.exit(suppressMessages(untrace("parse", where = ns)))
 
-    expect_that(css_to_xpath(c("#a", "#b", "#a"), prefix = ""),
-                equals(c("*[@id = 'a']", "*[@id = 'b']", "*[@id = 'a']")))
-    expect_that(parses, equals(2L))
+    expect_equal(css_to_xpath(c("#a", "#b", "#a"), prefix = ""),
+                 c("*[@id = 'a']", "*[@id = 'b']", "*[@id = 'a']"))
+    expect_equal(parses, 2L)
 
     # A repeated selector still re-parses when the prefix or
     # translator differs, and the de-duplication does not persist
     # across calls
     parses <- 0L
-    expect_that(css_to_xpath(c("#a", "#a"), prefix = c("", "p//")),
-                equals(c("*[@id = 'a']", "p//*[@id = 'a']")))
-    expect_that(css_to_xpath("#a", prefix = ""), equals("*[@id = 'a']"))
-    expect_that(parses, equals(3L))
+    expect_equal(css_to_xpath(c("#a", "#a"), prefix = c("", "p//")),
+                 c("*[@id = 'a']", "p//*[@id = 'a']"))
+    expect_equal(css_to_xpath("#a", prefix = ""), "*[@id = 'a']")
+    expect_equal(parses, 3L)
 
     # The length-prefixed key cannot confuse selector/prefix boundaries
-    expect_that(xpath_cache_key("a", "b//", "generic") ==
-                xpath_cache_key("a\r1\rb", "//", "generic"),
-                equals(FALSE))
+    expect_equal(xpath_cache_key("a", "b//", "generic") ==
+                 xpath_cache_key("a\r1\rb", "//", "generic"),
+                 FALSE)
 
     # A selector whose key exceeds the 10000 byte limit on R symbols
     # is translated uncached rather than failing the lookup
@@ -47,7 +45,7 @@ test_that("css_to_xpath translates duplicate selectors only once per call", {
     expected <- paste0("descendant-or-self::",
                        paste(rep("a", 4000), collapse = "/"))
     expect_true(nchar(xpath_cache_key(long, "", "generic")) > 10000)
-    expect_that(css_to_xpath(c(long, long)), equals(c(expected, expected)))
+    expect_equal(css_to_xpath(c(long, long)), c(expected, expected))
 })
 
 test_that("css_to_xpath handles bad arguments", {
@@ -85,25 +83,25 @@ test_that("css_to_xpath handles bad arguments", {
                  "arguments do not: selector \\(length 2\\), translator \\(length 2\\)")
 
     # length 1 arguments are still broadcast to the common length
-    expect_that(css_to_xpath(c("a", "b"), prefix = ""),
-                equals(c("a", "b")))
-    expect_that(css_to_xpath("a", prefix = c("", "//")),
-                equals(c("a", "//a")))
-    expect_that(css_to_xpath(c("a", "b"), prefix = c("", "//"),
-                             translator = "html"),
-                equals(c("a", "//b")))
+    expect_equal(css_to_xpath(c("a", "b"), prefix = ""),
+                 c("a", "b"))
+    expect_equal(css_to_xpath("a", prefix = c("", "//")),
+                 c("a", "//a"))
+    expect_equal(css_to_xpath(c("a", "b"), prefix = c("", "//"),
+                              translator = "html"),
+                 c("a", "//b"))
 
     # performs partial matching
-    expect_that(css_to_xpath("a", translator = "g"),
-                equals("descendant-or-self::a"))
-    expect_that(css_to_xpath("a", translator = "gEnErIC"),
-                equals("descendant-or-self::a"))
-    expect_that(css_to_xpath("a", translator = "h"),
-                equals("descendant-or-self::a"))
-    expect_that(css_to_xpath("a", translator = "x"),
-                equals("descendant-or-self::a"))
-    expect_that(css_to_xpath("a", translator = c("g", "h", "x")),
-                equals(rep("descendant-or-self::a", 3)))
+    expect_equal(css_to_xpath("a", translator = "g"),
+                 "descendant-or-self::a")
+    expect_equal(css_to_xpath("a", translator = "gEnErIC"),
+                 "descendant-or-self::a")
+    expect_equal(css_to_xpath("a", translator = "h"),
+                 "descendant-or-self::a")
+    expect_equal(css_to_xpath("a", translator = "x"),
+                 "descendant-or-self::a")
+    expect_equal(css_to_xpath("a", translator = c("g", "h", "x")),
+                 rep("descendant-or-self::a", 3))
 
     # errors anything not matching generic, html, xhtml
     expect_error(css_to_xpath("a", translator = ""), "'arg' should be one of.*")
@@ -113,13 +111,13 @@ test_that("css_to_xpath handles bad arguments", {
 
 test_that("namespace handling works correctly", {
     # formatNS must return a NULL or a named vector
-    expect_that(formatNS(NULL), equals(NULL))
-    expect_that(formatNS(list(a = "b")), equals(c(a = "b")))
-    expect_that(formatNS(c(a = "b")), equals(c(a = "b")))
+    expect_equal(formatNS(NULL), NULL)
+    expect_equal(formatNS(list(a = "b")), c(a = "b"))
+    expect_equal(formatNS(c(a = "b")), c(a = "b"))
     # a zero-length namespace object means "no namespaces", so it is
     # not validated for names and passes straight through
-    expect_that(formatNS(character(0)), equals(character(0)))
-    expect_that(formatNS(list()), equals(character(0)))
+    expect_equal(formatNS(character(0)), character(0))
+    expect_equal(formatNS(list()), character(0))
 
     # bad input handling
     expect_error(formatNS(1), "A namespace object must be.*")
@@ -146,12 +144,12 @@ test_that("namespace handling works correctly", {
 
     # formatNSPrefix must return a pipe separated string of namespace
     # prefixes, relative to the node the query starts from
-    expect_that(formatNSPrefix(c(svg = "svg"), ""),
-                equals("(descendant-or-self::svg:*)/"))
-    expect_that(formatNSPrefix(c(svg = "svg"), "asd"),
-                equals("(descendant-or-self::svg:*)/asd"))
-    expect_that(formatNSPrefix(c(svg = "svg", math = "mathml"), ""),
-                equals("(descendant-or-self::svg:*|descendant-or-self::math:*)/"))
-    expect_that(formatNSPrefix(c(svg = "svg", math = "mathml"), "asd"),
-                equals("(descendant-or-self::svg:*|descendant-or-self::math:*)/asd"))
+    expect_equal(formatNSPrefix(c(svg = "svg"), ""),
+                 "(descendant-or-self::svg:*)/")
+    expect_equal(formatNSPrefix(c(svg = "svg"), "asd"),
+                 "(descendant-or-self::svg:*)/asd")
+    expect_equal(formatNSPrefix(c(svg = "svg", math = "mathml"), ""),
+                 "(descendant-or-self::svg:*|descendant-or-self::math:*)/")
+    expect_equal(formatNSPrefix(c(svg = "svg", math = "mathml"), "asd"),
+                 "(descendant-or-self::svg:*|descendant-or-self::math:*)/asd")
 })

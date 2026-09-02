@@ -1,270 +1,268 @@
-context("translation")
-
 test_that("translation from parsed objects to XPath works", {
     gt <- GenericTranslator$new()
     xpath <- function(css) {
         gt$css_to_xpath(css, prefix = "")
     }
 
-    expect_that(xpath("*"), equals("*"))
-    expect_that(xpath("e"), equals("e"))
-    expect_that(xpath("*|e"), equals("*[local-name() = 'e']"))
-    expect_that(xpath("|e"), equals("e"))
-    expect_that(xpath("e|f"), equals("e:f"))
-    expect_that(xpath("e[foo]"), equals("e[@foo]"))
-    expect_that(xpath("e[foo|bar]"), equals("e[@foo:bar]"))
-    expect_that(xpath('e[foo="bar"]'), equals("e[@foo = 'bar']"))
-    expect_that(xpath("e[foo='(test)']"), equals("e[@foo = '(test)']"))
-    expect_that(xpath('e[foo="(test)"]'), equals("e[@foo = '(test)']"))
-    expect_that(xpath("e[foo='(abc)']"), equals("e[@foo = '(abc)']"))
-    expect_that(xpath("e[foo='(e2e)']"), equals("e[@foo = '(e2e)']"))
-    expect_that(xpath('e[foo="(e2e)"]'), equals("e[@foo = '(e2e)']"))
-    expect_that(xpath("e[foo='(123)']"), equals("e[@foo = '(123)']"))
-    expect_that(xpath("e[foo='(12345)']"), equals("e[@foo = '(12345)']"))
+    expect_equal(xpath("*"), "*")
+    expect_equal(xpath("e"), "e")
+    expect_equal(xpath("*|e"), "*[local-name() = 'e']")
+    expect_equal(xpath("|e"), "e")
+    expect_equal(xpath("e|f"), "e:f")
+    expect_equal(xpath("e[foo]"), "e[@foo]")
+    expect_equal(xpath("e[foo|bar]"), "e[@foo:bar]")
+    expect_equal(xpath('e[foo="bar"]'), "e[@foo = 'bar']")
+    expect_equal(xpath("e[foo='(test)']"), "e[@foo = '(test)']")
+    expect_equal(xpath('e[foo="(test)"]'), "e[@foo = '(test)']")
+    expect_equal(xpath("e[foo='(abc)']"), "e[@foo = '(abc)']")
+    expect_equal(xpath("e[foo='(e2e)']"), "e[@foo = '(e2e)']")
+    expect_equal(xpath('e[foo="(e2e)"]'), "e[@foo = '(e2e)']")
+    expect_equal(xpath("e[foo='(123)']"), "e[@foo = '(123)']")
+    expect_equal(xpath("e[foo='(12345)']"), "e[@foo = '(12345)']")
     # Six hex digits (max for CSS unicode escape)
-    expect_that(xpath("e[foo='(abcdef)']"), equals("e[@foo = '(abcdef)']"))
-    expect_that(xpath("e[foo='(123456)']"), equals("e[@foo = '(123456)']"))
+    expect_equal(xpath("e[foo='(abcdef)']"), "e[@foo = '(abcdef)']")
+    expect_equal(xpath("e[foo='(123456)']"), "e[@foo = '(123456)']")
     # Seven hex digits (exceeds max, so not unicode escape required)
-    expect_that(xpath("e[foo='(1234567)']"), equals("e[@foo = '(1234567)']"))
-    expect_that(xpath("e[foo='(AbCdEf)']"), equals("e[@foo = '(AbCdEf)']"))
-    expect_that(xpath("e[foo='(E2E)']"), equals("e[@foo = '(E2E)']"))
-    expect_that(xpath("e[foo='(o2o)']"), equals("e[@foo = '(o2o)']"))
-    expect_that(xpath('e[foo="(o2o)"]'), equals("e[@foo = '(o2o)']"))
-    expect_that(xpath("e[foo='(xyz)']"), equals("e[@foo = '(xyz)']"))
-    expect_that(xpath("e[foo='(test123)']"), equals("e[@foo = '(test123)']"))
-    expect_that(xpath("e[foo='(abc)(def)']"), equals("e[@foo = '(abc)(def)']"))
-    expect_that(xpath("e[foo='(abc )']"), equals("e[@foo = '(abc )']"))
+    expect_equal(xpath("e[foo='(1234567)']"), "e[@foo = '(1234567)']")
+    expect_equal(xpath("e[foo='(AbCdEf)']"), "e[@foo = '(AbCdEf)']")
+    expect_equal(xpath("e[foo='(E2E)']"), "e[@foo = '(E2E)']")
+    expect_equal(xpath("e[foo='(o2o)']"), "e[@foo = '(o2o)']")
+    expect_equal(xpath('e[foo="(o2o)"]'), "e[@foo = '(o2o)']")
+    expect_equal(xpath("e[foo='(xyz)']"), "e[@foo = '(xyz)']")
+    expect_equal(xpath("e[foo='(test123)']"), "e[@foo = '(test123)']")
+    expect_equal(xpath("e[foo='(abc)(def)']"), "e[@foo = '(abc)(def)']")
+    expect_equal(xpath("e[foo='(abc )']"), "e[@foo = '(abc )']")
     # Unicode escapes are decoded to the characters they represent,
     # in idents, hashes, and strings alike
-    expect_that(xpath("#\\31 23"), equals("*[@id = '123']"))
-    expect_that(xpath("\\31 23"), equals("*[name() = '123']"))
-    expect_that(xpath("[\\31 23]"),
-                equals("*[attribute::*[name() = '123']]"))
-    expect_that(xpath("e[foo='\\31 23']"), equals("e[@foo = '123']"))
-    expect_that(xpath("e[foo='x\\79 z']"), equals("e[@foo = 'xyz']"))
-    expect_that(xpath("e[foo='\\4a']"), equals("e[@foo = 'J']"))
+    expect_equal(xpath("#\\31 23"), "*[@id = '123']")
+    expect_equal(xpath("\\31 23"), "*[name() = '123']")
+    expect_equal(xpath("[\\31 23]"),
+                 "*[attribute::*[name() = '123']]")
+    expect_equal(xpath("e[foo='\\31 23']"), "e[@foo = '123']")
+    expect_equal(xpath("e[foo='x\\79 z']"), "e[@foo = 'xyz']")
+    expect_equal(xpath("e[foo='\\4a']"), "e[@foo = 'J']")
     # An escaped backslash yields a literal backslash; what follows it
     # must not be re-processed as another escape
-    expect_that(xpath("e[foo='x\\\\79 z']"), equals("e[@foo = 'x\\79 z']"))
-    expect_that(xpath("e[foo='\\\\31 23']"), equals("e[@foo = '\\31 23']"))
-    expect_that(xpath("#\\\\31 x"), equals("*[@id = '\\31']//x"))
-    expect_that(xpath('e[foo~="bar"]'),
-                equals("e[@foo and contains(concat(' ', normalize-space(@foo), ' '), ' bar ')]"))
-    expect_that(xpath('e[foo^="bar"]'),
-                equals("e[@foo and starts-with(@foo, 'bar')]"))
-    expect_that(xpath('e[foo$="bar"]'),
-                equals("e[@foo and substring(@foo, string-length(@foo)-2) = 'bar']"))
-    expect_that(xpath('e[foo*="bar"]'),
-                equals("e[@foo and contains(@foo, 'bar')]"))
-    expect_that(xpath('e[hreflang|="en"]'),
-                equals("e[@hreflang and (@hreflang = 'en' or starts-with(@hreflang, 'en-'))]"))
+    expect_equal(xpath("e[foo='x\\\\79 z']"), "e[@foo = 'x\\79 z']")
+    expect_equal(xpath("e[foo='\\\\31 23']"), "e[@foo = '\\31 23']")
+    expect_equal(xpath("#\\\\31 x"), "*[@id = '\\31']//x")
+    expect_equal(xpath('e[foo~="bar"]'),
+                 "e[@foo and contains(concat(' ', normalize-space(@foo), ' '), ' bar ')]")
+    expect_equal(xpath('e[foo^="bar"]'),
+                 "e[@foo and starts-with(@foo, 'bar')]")
+    expect_equal(xpath('e[foo$="bar"]'),
+                 "e[@foo and substring(@foo, string-length(@foo)-2) = 'bar']")
+    expect_equal(xpath('e[foo*="bar"]'),
+                 "e[@foo and contains(@foo, 'bar')]")
+    expect_equal(xpath('e[hreflang|="en"]'),
+                 "e[@hreflang and (@hreflang = 'en' or starts-with(@hreflang, 'en-'))]")
     # CSS Selectors Level 4 case-sensitivity flags
     lower_foo <- paste0("translate(@foo, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',",
                         " 'abcdefghijklmnopqrstuvwxyz')")
-    expect_that(xpath('e[foo="Bar" i]'),
-                equals(paste0("e[", lower_foo, " = 'bar']")))
-    expect_that(xpath('e[foo^="Bar" i]'),
-                equals(paste0("e[", lower_foo, " and starts-with(",
-                              lower_foo, ", 'bar')]")))
-    expect_that(xpath('e[foo$="Bar" i]'),
-                equals(paste0("e[", lower_foo, " and substring(",
-                              lower_foo, ", string-length(",
-                              lower_foo, ")-2) = 'bar']")))
-    expect_that(xpath('e[foo*="Bar" i]'),
-                equals(paste0("e[", lower_foo, " and contains(",
-                              lower_foo, ", 'bar')]")))
-    expect_that(xpath('e[foo~="Bar" i]'),
-                equals(paste0("e[", lower_foo,
-                              " and contains(concat(' ', normalize-space(",
-                              lower_foo, "), ' '), ' bar ')]")))
-    expect_that(xpath('e[foo|="Bar" i]'),
-                equals(paste0("e[", lower_foo, " and (",
-                              lower_foo, " = 'bar' or starts-with(",
-                              lower_foo, ", 'bar-'))]")))
+    expect_equal(xpath('e[foo="Bar" i]'),
+                 paste0("e[", lower_foo, " = 'bar']"))
+    expect_equal(xpath('e[foo^="Bar" i]'),
+                 paste0("e[", lower_foo, " and starts-with(",
+                        lower_foo, ", 'bar')]"))
+    expect_equal(xpath('e[foo$="Bar" i]'),
+                 paste0("e[", lower_foo, " and substring(",
+                        lower_foo, ", string-length(",
+                        lower_foo, ")-2) = 'bar']"))
+    expect_equal(xpath('e[foo*="Bar" i]'),
+                 paste0("e[", lower_foo, " and contains(",
+                        lower_foo, ", 'bar')]"))
+    expect_equal(xpath('e[foo~="Bar" i]'),
+                 paste0("e[", lower_foo,
+                        " and contains(concat(' ', normalize-space(",
+                        lower_foo, "), ' '), ' bar ')]"))
+    expect_equal(xpath('e[foo|="Bar" i]'),
+                 paste0("e[", lower_foo, " and (",
+                        lower_foo, " = 'bar' or starts-with(",
+                        lower_foo, ", 'bar-'))]"))
     # The 'i' flag is ASCII case-insensitive: non-ASCII characters such
     # as 'É' are left alone
-    expect_that(xpath("e[foo='\\C9 x' i]"),
-                equals(paste0("e[", lower_foo, " = '\uC9x']")))
+    expect_equal(xpath("e[foo='\\C9 x' i]"),
+                 paste0("e[", lower_foo, " = '\uC9x']"))
     # An empty value cannot differ by case, so it keeps the exact
     # (existence-preserving) translation
-    expect_that(xpath('e[foo="" i]'), equals("e[@foo = '']"))
+    expect_equal(xpath('e[foo="" i]'), "e[@foo = '']")
     # The 's' flag requests the default case-sensitive matching
-    expect_that(xpath('e[foo="Bar" s]'), equals("e[@foo = 'Bar']"))
-    expect_that(xpath('e[foo^="Bar" s]'),
-                equals("e[@foo and starts-with(@foo, 'Bar')]"))
-    expect_that(xpath('e:nth-child(1)'),
-                equals("e[count(preceding-sibling::*) = 0]"))
-    expect_that(xpath('e:nth-child(3n+2)'),
-                equals("e[count(preceding-sibling::*) >= 1 and (count(preceding-sibling::*) +2) mod 3 = 0]"))
-    expect_that(xpath('e:nth-child(3n-2)'),
-                equals("e[count(preceding-sibling::*) mod 3 = 0]"))
-    expect_that(xpath('e:nth-child(-n+6)'),
-                equals("e[count(preceding-sibling::*) <= 5]"))
-    expect_that(xpath('e:nth-last-child(1)'),
-                equals("e[count(following-sibling::*) = 0]"))
-    expect_that(xpath('e:nth-last-child(2n)'),
-                equals("e[(count(following-sibling::*) +1) mod 2 = 0]"))
-    expect_that(xpath('e:nth-last-child(2n+1)'),
-                equals("e[count(following-sibling::*) mod 2 = 0]"))
-    expect_that(xpath('e:nth-last-child(2n+2)'),
-                equals("e[count(following-sibling::*) >= 1 and (count(following-sibling::*) +1) mod 2 = 0]"))
-    expect_that(xpath('e:nth-last-child(3n+1)'),
-                equals("e[count(following-sibling::*) mod 3 = 0]"))
-    expect_that(xpath('e:nth-last-child(-n+2)'),
-                equals("e[count(following-sibling::*) <= 1]"))
-    expect_that(xpath('e:nth-of-type(1)'),
-                equals("e[count(preceding-sibling::e) = 0]"))
-    expect_that(xpath('e:nth-last-of-type(1)'),
-                equals("e[count(following-sibling::e) = 0]"))
-    expect_that(xpath('div e:nth-last-of-type(1) .aclass'),
-                equals("div//e[count(following-sibling::e) = 0]//*[@class and contains(concat(' ', normalize-space(@class), ' '), ' aclass ')]"))
-    expect_that(xpath('e:first-child'),
-                equals("e[count(preceding-sibling::*) = 0]"))
-    expect_that(xpath('e:last-child'),
-                equals("e[count(following-sibling::*) = 0]"))
-    expect_that(xpath('e:first-of-type'),
-                equals("e[count(preceding-sibling::e) = 0]"))
-    expect_that(xpath('e:last-of-type'),
-                equals("e[count(following-sibling::e) = 0]"))
-    expect_that(xpath('e:only-child'),
-                equals("e[count(preceding-sibling::*) = 0 and count(following-sibling::*) = 0]"))
-    expect_that(xpath('e:only-of-type'),
-                equals("e[count(preceding-sibling::e) = 0 and count(following-sibling::e) = 0]"))
+    expect_equal(xpath('e[foo="Bar" s]'), "e[@foo = 'Bar']")
+    expect_equal(xpath('e[foo^="Bar" s]'),
+                 "e[@foo and starts-with(@foo, 'Bar')]")
+    expect_equal(xpath('e:nth-child(1)'),
+                 "e[count(preceding-sibling::*) = 0]")
+    expect_equal(xpath('e:nth-child(3n+2)'),
+                 "e[count(preceding-sibling::*) >= 1 and (count(preceding-sibling::*) +2) mod 3 = 0]")
+    expect_equal(xpath('e:nth-child(3n-2)'),
+                 "e[count(preceding-sibling::*) mod 3 = 0]")
+    expect_equal(xpath('e:nth-child(-n+6)'),
+                 "e[count(preceding-sibling::*) <= 5]")
+    expect_equal(xpath('e:nth-last-child(1)'),
+                 "e[count(following-sibling::*) = 0]")
+    expect_equal(xpath('e:nth-last-child(2n)'),
+                 "e[(count(following-sibling::*) +1) mod 2 = 0]")
+    expect_equal(xpath('e:nth-last-child(2n+1)'),
+                 "e[count(following-sibling::*) mod 2 = 0]")
+    expect_equal(xpath('e:nth-last-child(2n+2)'),
+                 "e[count(following-sibling::*) >= 1 and (count(following-sibling::*) +1) mod 2 = 0]")
+    expect_equal(xpath('e:nth-last-child(3n+1)'),
+                 "e[count(following-sibling::*) mod 3 = 0]")
+    expect_equal(xpath('e:nth-last-child(-n+2)'),
+                 "e[count(following-sibling::*) <= 1]")
+    expect_equal(xpath('e:nth-of-type(1)'),
+                 "e[count(preceding-sibling::e) = 0]")
+    expect_equal(xpath('e:nth-last-of-type(1)'),
+                 "e[count(following-sibling::e) = 0]")
+    expect_equal(xpath('div e:nth-last-of-type(1) .aclass'),
+                 "div//e[count(following-sibling::e) = 0]//*[@class and contains(concat(' ', normalize-space(@class), ' '), ' aclass ')]")
+    expect_equal(xpath('e:first-child'),
+                 "e[count(preceding-sibling::*) = 0]")
+    expect_equal(xpath('e:last-child'),
+                 "e[count(following-sibling::*) = 0]")
+    expect_equal(xpath('e:first-of-type'),
+                 "e[count(preceding-sibling::e) = 0]")
+    expect_equal(xpath('e:last-of-type'),
+                 "e[count(following-sibling::e) = 0]")
+    expect_equal(xpath('e:only-child'),
+                 "e[count(preceding-sibling::*) = 0 and count(following-sibling::*) = 0]")
+    expect_equal(xpath('e:only-of-type'),
+                 "e[count(preceding-sibling::e) = 0 and count(following-sibling::e) = 0]")
     # element names that cannot be used as an XPath name test still
     # support the of-type pseudo-classes via a name() node test
-    expect_that(xpath('é:first-of-type'),
-                equals("*[name() = 'é' and count(preceding-sibling::*[name() = 'é']) = 0]"))
-    expect_that(xpath('é:last-of-type'),
-                equals("*[name() = 'é' and count(following-sibling::*[name() = 'é']) = 0]"))
-    expect_that(xpath('é:only-of-type'),
-                equals("*[name() = 'é' and count(preceding-sibling::*[name() = 'é']) = 0 and count(following-sibling::*[name() = 'é']) = 0]"))
-    expect_that(xpath('é:nth-of-type(2)'),
-                equals("*[name() = 'é' and count(preceding-sibling::*[name() = 'é']) = 1]"))
-    expect_that(xpath('é:nth-last-of-type(2)'),
-                equals("*[name() = 'é' and count(following-sibling::*[name() = 'é']) = 1]"))
+    expect_equal(xpath('é:first-of-type'),
+                 "*[name() = 'é' and count(preceding-sibling::*[name() = 'é']) = 0]")
+    expect_equal(xpath('é:last-of-type'),
+                 "*[name() = 'é' and count(following-sibling::*[name() = 'é']) = 0]")
+    expect_equal(xpath('é:only-of-type'),
+                 "*[name() = 'é' and count(preceding-sibling::*[name() = 'é']) = 0 and count(following-sibling::*[name() = 'é']) = 0]")
+    expect_equal(xpath('é:nth-of-type(2)'),
+                 "*[name() = 'é' and count(preceding-sibling::*[name() = 'é']) = 1]")
+    expect_equal(xpath('é:nth-last-of-type(2)'),
+                 "*[name() = 'é' and count(following-sibling::*[name() = 'é']) = 1]")
     # likewise for elements in any namespace, via local-name()
-    expect_that(xpath('*|e:first-of-type'),
-                equals("*[local-name() = 'e' and count(preceding-sibling::*[local-name() = 'e']) = 0]"))
-    expect_that(xpath('e:empty'),
-                equals("e[not(*) and not(string-length())]"))
-    expect_that(xpath('e:EmPTY'),
-                equals("e[not(*) and not(string-length())]"))
-    expect_that(xpath('e:root'),
-                equals("e[not(parent::*)]"))
-    expect_that(xpath('e:hover'),
-                equals("e[0]")) #never matches
+    expect_equal(xpath('*|e:first-of-type'),
+                 "*[local-name() = 'e' and count(preceding-sibling::*[local-name() = 'e']) = 0]")
+    expect_equal(xpath('e:empty'),
+                 "e[not(*) and not(string-length())]")
+    expect_equal(xpath('e:EmPTY'),
+                 "e[not(*) and not(string-length())]")
+    expect_equal(xpath('e:root'),
+                 "e[not(parent::*)]")
+    expect_equal(xpath('e:hover'),
+                 "e[0]") #never matches
     expect_error(xpath('e:contains("foo")'),
                  "The pseudo-class :contains\\(\\) is unknown")
-    expect_that(xpath('e.warning'),
-                equals("e[@class and contains(concat(' ', normalize-space(@class), ' '), ' warning ')]"))
-    expect_that(xpath('e#myid'),
-                equals("e[@id = 'myid']"))
-    expect_that(xpath('e:not(:nth-child(odd))'),
-                equals("e[not(count(preceding-sibling::*) mod 2 = 0)]"))
-    expect_that(xpath('e:nOT(*)'),
-                equals("e[0]")) # never matches
+    expect_equal(xpath('e.warning'),
+                 "e[@class and contains(concat(' ', normalize-space(@class), ' '), ' warning ')]")
+    expect_equal(xpath('e#myid'),
+                 "e[@id = 'myid']")
+    expect_equal(xpath('e:not(:nth-child(odd))'),
+                 "e[not(count(preceding-sibling::*) mod 2 = 0)]")
+    expect_equal(xpath('e:nOT(*)'),
+                 "e[0]") # never matches
     # Selectors Level 4: :not() can nest inside functional pseudo-classes
-    expect_that(xpath(':not(:not(a))'),
-                equals("*[not(not(self::a))]"))
-    expect_that(xpath('e:is(:not(f))'),
-                equals("e[not(self::f)]"))
-    expect_that(xpath('e:has(:not(f))'),
-                equals("e[.//*[not(self::f)]]"))
+    expect_equal(xpath(':not(:not(a))'),
+                 "*[not(not(self::a))]")
+    expect_equal(xpath('e:is(:not(f))'),
+                 "e[not(self::f)]")
+    expect_equal(xpath('e:has(:not(f))'),
+                 "e[.//*[not(self::f)]]")
     # Selectors Level 4: complex selectors inside functional pseudo-classes
     # apply the rightmost compound to the candidate and walk the rest
     # through reversed axes
-    expect_that(xpath(':is(a b)'),
-                equals("*[self::b and ancestor::*[self::a]]"))
-    expect_that(xpath(':is(a > b)'),
-                equals("*[self::b and parent::*[self::a]]"))
-    expect_that(xpath(':is(a + b)'),
-                equals("*[self::b and preceding-sibling::*[1][self::a]]"))
-    expect_that(xpath(':is(a ~ b)'),
-                equals("*[self::b and preceding-sibling::*[self::a]]"))
-    expect_that(xpath(':is(a > b ~ c)'),
-                equals("*[self::c and preceding-sibling::*[self::b and parent::*[self::a]]]"))
-    expect_that(xpath('e:not(a b)'),
-                equals("e[not(self::b and ancestor::*[self::a])]"))
-    expect_that(xpath(':where(a + b)'),
-                equals("*[self::b and preceding-sibling::*[1][self::a]]"))
-    expect_that(xpath(':is(a.x > b#y)'),
-                equals("*[@id = 'y' and self::b and parent::*[@class and contains(concat(' ', normalize-space(@class), ' '), ' x ') and self::a]]"))
+    expect_equal(xpath(':is(a b)'),
+                 "*[self::b and ancestor::*[self::a]]")
+    expect_equal(xpath(':is(a > b)'),
+                 "*[self::b and parent::*[self::a]]")
+    expect_equal(xpath(':is(a + b)'),
+                 "*[self::b and preceding-sibling::*[1][self::a]]")
+    expect_equal(xpath(':is(a ~ b)'),
+                 "*[self::b and preceding-sibling::*[self::a]]")
+    expect_equal(xpath(':is(a > b ~ c)'),
+                 "*[self::c and preceding-sibling::*[self::b and parent::*[self::a]]]")
+    expect_equal(xpath('e:not(a b)'),
+                 "e[not(self::b and ancestor::*[self::a])]")
+    expect_equal(xpath(':where(a + b)'),
+                 "*[self::b and preceding-sibling::*[1][self::a]]")
+    expect_equal(xpath(':is(a.x > b#y)'),
+                 "*[@id = 'y' and self::b and parent::*[@class and contains(concat(' ', normalize-space(@class), ' '), ' x ') and self::a]]")
     # The :is()/:where() alternatives must stay grouped: conditions added
     # before or after the pseudo-class AND with the whole selector list,
     # rather than the ORs flattening into the compound's condition chain
-    expect_that(xpath('e.warning:is(.a, .b)'),
-                equals("e[@class and contains(concat(' ', normalize-space(@class), ' '), ' warning ') and (@class and contains(concat(' ', normalize-space(@class), ' '), ' a ') or @class and contains(concat(' ', normalize-space(@class), ' '), ' b '))]"))
-    expect_that(xpath(':is(f, g):first-child'),
-                equals("*[(self::f or self::g) and count(preceding-sibling::*) = 0]"))
-    expect_that(xpath('e:is(.a):is(.b)'),
-                equals("e[@class and contains(concat(' ', normalize-space(@class), ' '), ' a ') and @class and contains(concat(' ', normalize-space(@class), ' '), ' b ')]"))
-    expect_that(xpath('e.warning:where(f, g)'),
-                equals("e[@class and contains(concat(' ', normalize-space(@class), ' '), ' warning ') and (self::f or self::g)]"))
+    expect_equal(xpath('e.warning:is(.a, .b)'),
+                 "e[@class and contains(concat(' ', normalize-space(@class), ' '), ' warning ') and (@class and contains(concat(' ', normalize-space(@class), ' '), ' a ') or @class and contains(concat(' ', normalize-space(@class), ' '), ' b '))]")
+    expect_equal(xpath(':is(f, g):first-child'),
+                 "*[(self::f or self::g) and count(preceding-sibling::*) = 0]")
+    expect_equal(xpath('e:is(.a):is(.b)'),
+                 "e[@class and contains(concat(' ', normalize-space(@class), ' '), ' a ') and @class and contains(concat(' ', normalize-space(@class), ' '), ' b ')]")
+    expect_equal(xpath('e.warning:where(f, g)'),
+                 "e[@class and contains(concat(' ', normalize-space(@class), ' '), ' warning ') and (self::f or self::g)]")
     # An always-true argument (a bare '*') must not be dropped from a
     # selector list: the whole list then matches everything, so :is()
     # imposes no condition, :not() never matches, and the "of S" form
     # counts all siblings
     # A forgiving selector list may be empty (selectors-4); with no
     # alternative to satisfy, ':is()' matches nothing
-    expect_that(xpath(':is()'), equals("*[0]"))
-    expect_that(xpath(':matches()'), equals("*[0]"))
-    expect_that(xpath('a:where()'), equals("a[0]"))
-    expect_that(xpath(':is( )'), equals("*[0]"))
-    expect_that(xpath('e.warning:is()'),
-                equals("e[@class and contains(concat(' ', normalize-space(@class), ' '), ' warning ') and 0]"))
+    expect_equal(xpath(':is()'), "*[0]")
+    expect_equal(xpath(':matches()'), "*[0]")
+    expect_equal(xpath('a:where()'), "a[0]")
+    expect_equal(xpath(':is( )'), "*[0]")
+    expect_equal(xpath('e.warning:is()'),
+                 "e[@class and contains(concat(' ', normalize-space(@class), ' '), ' warning ') and 0]")
     # ... and so, as an argument, it excludes nothing from a :not()
-    expect_that(xpath(':not(:is())'), equals("*[not(0)]"))
-    expect_that(xpath(':is(:where())'), equals("*[0]"))
-    expect_that(xpath(':is(f, *)'),
-                equals("*"))
-    expect_that(xpath('e.warning:is(f, *)'),
-                equals("e[@class and contains(concat(' ', normalize-space(@class), ' '), ' warning ')]"))
-    expect_that(xpath('e:not(f, *)'),
-                equals("e[0]"))
-    expect_that(xpath('e:nth-child(2 of f, *)'),
-                equals("e[count(preceding-sibling::*) = 1]"))
-    expect_that(xpath('e:nth-last-child(2 of f, *)'),
-                equals("e[count(following-sibling::*) = 1]"))
-    expect_that(xpath('e f'),
-                equals("e//f"))
-    expect_that(xpath('e > f'),
-                equals("e/f"))
-    expect_that(xpath('e + f'),
-                equals("e/following-sibling::*[1][self::f]"))
-    expect_that(xpath('e ~ f'),
-                equals("e/following-sibling::f"))
-    expect_that(xpath('e ~ f:nth-child(3)'),
-                equals("e/following-sibling::f[count(preceding-sibling::*) = 2]"))
-    expect_that(xpath('div#container p'),
-                equals("div[@id = 'container']//p"))
+    expect_equal(xpath(':not(:is())'), "*[not(0)]")
+    expect_equal(xpath(':is(:where())'), "*[0]")
+    expect_equal(xpath(':is(f, *)'),
+                 "*")
+    expect_equal(xpath('e.warning:is(f, *)'),
+                 "e[@class and contains(concat(' ', normalize-space(@class), ' '), ' warning ')]")
+    expect_equal(xpath('e:not(f, *)'),
+                 "e[0]")
+    expect_equal(xpath('e:nth-child(2 of f, *)'),
+                 "e[count(preceding-sibling::*) = 1]")
+    expect_equal(xpath('e:nth-last-child(2 of f, *)'),
+                 "e[count(following-sibling::*) = 1]")
+    expect_equal(xpath('e f'),
+                 "e//f")
+    expect_equal(xpath('e > f'),
+                 "e/f")
+    expect_equal(xpath('e + f'),
+                 "e/following-sibling::*[1][self::f]")
+    expect_equal(xpath('e ~ f'),
+                 "e/following-sibling::f")
+    expect_equal(xpath('e ~ f:nth-child(3)'),
+                 "e/following-sibling::f[count(preceding-sibling::*) = 2]")
+    expect_equal(xpath('div#container p'),
+                 "div[@id = 'container']//p")
 
     # expect that the following do nothing for the generic translator
-    expect_that(xpath('a:any-link'), equals("a[0]"))
-    expect_that(xpath('a:link'), equals("a[0]"))
-    expect_that(xpath('a:visited'), equals("a[0]"))
-    expect_that(xpath('a:hover'), equals("a[0]"))
-    expect_that(xpath('a:active'), equals("a[0]"))
-    expect_that(xpath('a:focus'), equals("a[0]"))
-    expect_that(xpath('a:target'), equals("a[0]"))
-    expect_that(xpath('a:target-within'), equals("a[0]"))
-    expect_that(xpath('a:local-link'), equals("a[0]"))
-    expect_that(xpath('a:enabled'), equals("a[0]"))
-    expect_that(xpath('a:disabled'), equals("a[0]"))
-    expect_that(xpath('a:checked'), equals("a[0]"))
+    expect_equal(xpath('a:any-link'), "a[0]")
+    expect_equal(xpath('a:link'), "a[0]")
+    expect_equal(xpath('a:visited'), "a[0]")
+    expect_equal(xpath('a:hover'), "a[0]")
+    expect_equal(xpath('a:active'), "a[0]")
+    expect_equal(xpath('a:focus'), "a[0]")
+    expect_equal(xpath('a:target'), "a[0]")
+    expect_equal(xpath('a:target-within'), "a[0]")
+    expect_equal(xpath('a:local-link'), "a[0]")
+    expect_equal(xpath('a:enabled'), "a[0]")
+    expect_equal(xpath('a:disabled'), "a[0]")
+    expect_equal(xpath('a:checked'), "a[0]")
 
     # Invalid characters in XPath element names
 
     charsets <- localeToCharset()
     if (!anyNA(charsets) && charsets[1] == "UTF-8") {
-        expect_that(xpath('di\ua0v'),
-                    equals("*[name() = 'di v']")) # div\ua0v
-        expect_that(xpath('[h\ua0ref]'),
-                    equals("*[attribute::*[name() = 'h ref']]")) # h\ua0ref
+        expect_equal(xpath('di\ua0v'),
+                     "*[name() = 'di v']") # div\ua0v
+        expect_equal(xpath('[h\ua0ref]'),
+                     "*[attribute::*[name() = 'h ref']]") # h\ua0ref
     }
-    expect_that(xpath('di\\[v'),
-                equals("*[name() = 'di[v']"))
-    expect_that(xpath('[h\\]ref]'),
-                equals("*[attribute::*[name() = 'h]ref']]"))
+    expect_equal(xpath('di\\[v'),
+                 "*[name() = 'di[v']")
+    expect_equal(xpath('[h\\]ref]'),
+                 "*[attribute::*[name() = 'h]ref']]")
 })
 
 test_that("invalid unicode escapes translate to U+FFFD", {
@@ -277,16 +275,16 @@ test_that("invalid unicode escapes translate to U+FFFD", {
     # Null, surrogate and out-of-range escapes are replacement
     # characters, not errors (css-syntax-3)
     for (esc in c("\\0", "\\D800", "\\DFFF", "\\110000", "\\FFFFFF")) {
-        expect_that(xpath(esc),
-                    equals(paste0("*[name() = '", repl, "']")))
-        expect_that(xpath(paste0("#", esc)),
-                    equals(paste0("*[@id = '", repl, "']")))
-        expect_that(xpath(paste0("[x=\"", esc, "\"]")),
-                    equals(paste0("*[@x = '", repl, "']")))
-        expect_that(xpath(paste0(".", esc)),
-                    equals(paste0("*[@class and contains(concat(' ', ",
-                                  "normalize-space(@class), ' '), ' ",
-                                  repl, " ')]")))
+        expect_equal(xpath(esc),
+                     paste0("*[name() = '", repl, "']"))
+        expect_equal(xpath(paste0("#", esc)),
+                     paste0("*[@id = '", repl, "']"))
+        expect_equal(xpath(paste0("[x=\"", esc, "\"]")),
+                     paste0("*[@x = '", repl, "']"))
+        expect_equal(xpath(paste0(".", esc)),
+                     paste0("*[@class and contains(concat(' ', ",
+                            "normalize-space(@class), ' '), ' ",
+                            repl, " ')]"))
     }
 
     # No escape whatsoever throws anything but a parse error
@@ -309,21 +307,21 @@ test_that("long combinator chains translate without recursion limits", {
     repeated <- function(step) paste0("descendant-or-self::a",
                                       paste(rep(step, n - 1), collapse = ""))
 
-    expect_that(css_to_xpath(chain(" > ")), equals(repeated("/a")))
-    expect_that(css_to_xpath(chain(" ")), equals(repeated("//a")))
-    expect_that(css_to_xpath(chain(" ~ ")),
-                equals(repeated("/following-sibling::a")))
-    expect_that(css_to_xpath(chain(" + ")),
-                equals(repeated("/following-sibling::*[1][self::a]")))
+    expect_equal(css_to_xpath(chain(" > ")), repeated("/a"))
+    expect_equal(css_to_xpath(chain(" ")), repeated("//a"))
+    expect_equal(css_to_xpath(chain(" ~ ")),
+                 repeated("/following-sibling::a"))
+    expect_equal(css_to_xpath(chain(" + ")),
+                 repeated("/following-sibling::*[1][self::a]"))
 })
 
 test_that("long combinator chains report and score without recursion", {
     n <- 2000
     selectors <- parse(paste(rep("a", n), collapse = " > "))
-    expect_that(length(selectors), equals(1))
+    expect_equal(length(selectors), 1)
 
     # repr() and specificity() walk the same left spine iteratively
-    expect_that(selectors[[1]]$specificity(), equals(c(0, 0, n)))
+    expect_equal(selectors[[1]]$specificity(), c(0, 0, n))
     expect_true(grepl("^CombinedSelector\\[", selectors[[1]]$repr()))
 
     # Pseudo-class arguments are still translated recursively; this is

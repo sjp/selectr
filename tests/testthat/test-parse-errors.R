@@ -1,132 +1,130 @@
-context("parse-errors")
-
 test_that("useful errors are returned", {
     get_error <- function(css) {
         parse(css)
         NULL
     }
 
-    expect_that(get_error("attributes(href)/html/body/a"),
-                throws_error("Unexpected character"))
-    expect_that(get_error("attributes(href)"),
-                throws_error("Expected selector"))
-    expect_that(get_error("html/body/a"),
-                throws_error("Unexpected character"))
-    expect_that(get_error(" "),
-                throws_error("Expected selector, got <EOF at 2>"))
-    expect_that(get_error("div, "),
-                throws_error("Expected selector, got <EOF at 6>"))
-    expect_that(get_error(" , div"),
-                throws_error("Expected selector, got <DELIM ',' at 2>"))
-    expect_that(get_error("p, , div"),
-                throws_error("Expected selector, got <DELIM ',' at 4>"))
-    expect_that(get_error("div > "),
-                throws_error("Expected selector, got <EOF at 7>"))
-    expect_that(get_error("  > div"),
-                throws_error("Expected selector, got <DELIM '>' at 3>"))
-    expect_that(get_error("foo|#bar"),
-                throws_error("Expected ident or '\\*'"))
-    expect_that(get_error("#.foo"),
-                throws_error("Expected selector, got <DELIM '#' at 1>"))
-    expect_that(get_error(".#foo"),
-                throws_error("Expected ident, got <HASH 'foo' at 2>"))
-    expect_that(get_error(":#foo"),
-                throws_error("Expected ident, got <HASH 'foo' at 2>"))
-    expect_that(get_error("[*]"),
-                throws_error("Expected '|'"))
-    expect_that(get_error("[foo|]"),
-                throws_error("Expected ident, got <DELIM ']' at 6>"))
-    expect_that(get_error("[#]"),
-                throws_error("Expected ident or '\\*', got <DELIM '#' at 2>"))
-    expect_that(get_error("[foo=#]"),
-                throws_error("Expected string or ident, got <DELIM '#' at 6>"))
-    expect_that(get_error(":nth-child()"),
-                throws_error("Expected at least one argument, got <DELIM ')' at 12>"))
-    expect_that(get_error("[href]a"),
-                throws_error("Expected selector, got <IDENT 'a' at 7>"))
-    expect_that(get_error("[rel=stylesheet]"),
-                equals(NULL))
-    expect_that(get_error("[rel:stylesheet]"),
-                throws_error("Operator expected, got <DELIM ':' at 5>"))
-    expect_that(get_error("[rel=stylesheet k]"),
-                throws_error("Expected ']', got <IDENT 'k' at 17>"))
-    expect_that(get_error("[rel=stylesheet i i]"),
-                throws_error("Expected ']', got <IDENT 'i' at 19>"))
+    expect_error(get_error("attributes(href)/html/body/a"),
+                 "Unexpected character")
+    expect_error(get_error("attributes(href)"),
+                 "Expected selector")
+    expect_error(get_error("html/body/a"),
+                 "Unexpected character")
+    expect_error(get_error(" "),
+                 "Expected selector, got <EOF at 2>")
+    expect_error(get_error("div, "),
+                 "Expected selector, got <EOF at 6>")
+    expect_error(get_error(" , div"),
+                 "Expected selector, got <DELIM ',' at 2>")
+    expect_error(get_error("p, , div"),
+                 "Expected selector, got <DELIM ',' at 4>")
+    expect_error(get_error("div > "),
+                 "Expected selector, got <EOF at 7>")
+    expect_error(get_error("  > div"),
+                 "Expected selector, got <DELIM '>' at 3>")
+    expect_error(get_error("foo|#bar"),
+                 "Expected ident or '\\*'")
+    expect_error(get_error("#.foo"),
+                 "Expected selector, got <DELIM '#' at 1>")
+    expect_error(get_error(".#foo"),
+                 "Expected ident, got <HASH 'foo' at 2>")
+    expect_error(get_error(":#foo"),
+                 "Expected ident, got <HASH 'foo' at 2>")
+    expect_error(get_error("[*]"),
+                 "Expected '|'")
+    expect_error(get_error("[foo|]"),
+                 "Expected ident, got <DELIM ']' at 6>")
+    expect_error(get_error("[#]"),
+                 "Expected ident or '\\*', got <DELIM '#' at 2>")
+    expect_error(get_error("[foo=#]"),
+                 "Expected string or ident, got <DELIM '#' at 6>")
+    expect_error(get_error(":nth-child()"),
+                 "Expected at least one argument, got <DELIM ')' at 12>")
+    expect_error(get_error("[href]a"),
+                 "Expected selector, got <IDENT 'a' at 7>")
+    expect_equal(get_error("[rel=stylesheet]"),
+                 NULL)
+    expect_error(get_error("[rel:stylesheet]"),
+                 "Operator expected, got <DELIM ':' at 5>")
+    expect_error(get_error("[rel=stylesheet k]"),
+                 "Expected ']', got <IDENT 'k' at 17>")
+    expect_error(get_error("[rel=stylesheet i i]"),
+                 "Expected ']', got <IDENT 'i' at 19>")
     # A case-sensitivity flag requires an operator and value
-    expect_that(get_error("[rel i]"),
-                throws_error("Operator expected, got <IDENT 'i' at 6>"))
-    expect_that(get_error(":lang(fr)"),
-                equals(NULL))
-    expect_that(get_error(":lang(en, fr)"),
-                equals(NULL))
-    expect_that(get_error(":lang( en , fr )"),
-                equals(NULL))
+    expect_error(get_error("[rel i]"),
+                 "Operator expected, got <IDENT 'i' at 6>")
+    expect_equal(get_error(":lang(fr)"),
+                 NULL)
+    expect_equal(get_error(":lang(en, fr)"),
+                 NULL)
+    expect_equal(get_error(":lang( en , fr )"),
+                 NULL)
     # A second range without a preceding comma is rejected, not
     # silently treated as comma-separated (whitespace is not a
     # substitute for ',')
-    expect_that(get_error(":lang(en fr)"),
-                throws_error("Expected ',' or '\\)', got <IDENT 'fr' at 10>"))
-    expect_that(get_error(":lang(en *)"),
-                throws_error("Expected ',' or '\\)', got <DELIM '\\*' at 10>"))
+    expect_error(get_error(":lang(en fr)"),
+                 "Expected ',' or '\\)', got <IDENT 'fr' at 10>")
+    expect_error(get_error(":lang(en *)"),
+                 "Expected ',' or '\\)', got <DELIM '\\*' at 10>")
     # EOF only auto-closes a construct (see below); a missing interior
     # part still errors, exactly as its closed form would
-    expect_that(get_error("[foo="),
-                throws_error("Expected string or ident, got <EOF at 6>"))
-    expect_that(get_error("["),
-                throws_error("Expected ident or '\\*', got <EOF at 2>"))
-    expect_that(get_error(":lang("),
-                throws_error("Expected at least one argument, got <EOF at 7>"))
-    expect_that(get_error(":is(a,"),
-                throws_error("Expected selector, got <EOF at 7>"))
-    expect_that(get_error("foo!"),
-                throws_error("Unexpected character"))
+    expect_error(get_error("[foo="),
+                 "Expected string or ident, got <EOF at 6>")
+    expect_error(get_error("["),
+                 "Expected ident or '\\*', got <EOF at 2>")
+    expect_error(get_error(":lang("),
+                 "Expected at least one argument, got <EOF at 7>")
+    expect_error(get_error(":is(a,"),
+                 "Expected selector, got <EOF at 7>")
+    expect_error(get_error("foo!"),
+                 "Unexpected character")
     # The non-standard != attribute operator is not supported
-    expect_that(get_error("a[rel!=nofollow]"),
-                throws_error("Unexpected character"))
-    expect_that(get_error("a:not(b;)"),
-                throws_error("Unexpected character"))
+    expect_error(get_error("a[rel!=nofollow]"),
+                 "Unexpected character")
+    expect_error(get_error("a:not(b;)"),
+                 "Unexpected character")
 
     # Mis-placed pseudo-elements
-    expect_that(get_error("a:before:empty"),
-                throws_error("Got pseudo-element ::before not at the end of a selector"))
-    expect_that(get_error("li:before a"),
-                throws_error("Got pseudo-element ::before not at the end of a selector"))
-    expect_that(get_error(":not(:before)"),
-                throws_error("Got pseudo-element ::before inside :not\\(\\) at 13"))
+    expect_error(get_error("a:before:empty"),
+                 "Got pseudo-element ::before not at the end of a selector")
+    expect_error(get_error("li:before a"),
+                 "Got pseudo-element ::before not at the end of a selector")
+    expect_error(get_error(":not(:before)"),
+                 "Got pseudo-element ::before inside :not\\(\\) at 13")
     # A trailing comma is reported as the missing selector it is, not
     # as an unexpected ',' that was in fact expected
-    expect_that(get_error(":not(a,)"),
-                throws_error("Expected selector after ',', got <DELIM '\\)' at 8>"))
-    expect_that(get_error(":is(a,)"),
-                throws_error("Expected selector after ',', got <DELIM '\\)' at 7>"))
-    expect_that(get_error(":is(a, )"),
-                throws_error("Expected selector after ',', got <DELIM '\\)' at 8>"))
-    expect_that(get_error(":has(a,)"),
-                throws_error("Expected selector after ',', got <DELIM '\\)' at 8>"))
-    expect_that(get_error(":is(:before)"),
-                throws_error("Got pseudo-element ::before inside :is\\(\\) at 12"))
-    expect_that(get_error(":matches(:before)"),
-                throws_error("Got pseudo-element ::before inside :matches\\(\\) at 17"))
+    expect_error(get_error(":not(a,)"),
+                 "Expected selector after ',', got <DELIM '\\)' at 8>")
+    expect_error(get_error(":is(a,)"),
+                 "Expected selector after ',', got <DELIM '\\)' at 7>")
+    expect_error(get_error(":is(a, )"),
+                 "Expected selector after ',', got <DELIM '\\)' at 8>")
+    expect_error(get_error(":has(a,)"),
+                 "Expected selector after ',', got <DELIM '\\)' at 8>")
+    expect_error(get_error(":is(:before)"),
+                 "Got pseudo-element ::before inside :is\\(\\) at 12")
+    expect_error(get_error(":matches(:before)"),
+                 "Got pseudo-element ::before inside :matches\\(\\) at 17")
     # pseudo-elements are rejected anywhere in a complex argument
-    expect_that(get_error(":is(a:before b)"),
-                throws_error("Got pseudo-element ::before inside :is\\(\\)"))
-    expect_that(get_error(":is(a b:before)"),
-                throws_error("Got pseudo-element ::before inside :is\\(\\)"))
+    expect_error(get_error(":is(a:before b)"),
+                 "Got pseudo-element ::before inside :is\\(\\)")
+    expect_error(get_error(":is(a b:before)"),
+                 "Got pseudo-element ::before inside :is\\(\\)")
     # trailing combinators in arguments
-    expect_that(get_error(":is(a >)"),
-                throws_error("Expected selector, got <DELIM '\\)' at 8>"))
+    expect_error(get_error(":is(a >)"),
+                 "Expected selector, got <DELIM '\\)' at 8>")
     # Only :is()/:where() take a forgiving selector list, so an empty
     # argument list stays an error for the other functional pseudo-classes
-    expect_that(get_error(":not()"),
-                throws_error("Expected selector, got <DELIM '\\)' at 6>"))
-    expect_that(get_error(":has()"),
-                throws_error("Expected selector, got <DELIM '\\)' at 6>"))
-    expect_that(get_error("a:not( )"),
-                throws_error("Expected selector, got <DELIM '\\)' at 8>"))
+    expect_error(get_error(":not()"),
+                 "Expected selector, got <DELIM '\\)' at 6>")
+    expect_error(get_error(":has()"),
+                 "Expected selector, got <DELIM '\\)' at 6>")
+    expect_error(get_error("a:not( )"),
+                 "Expected selector, got <DELIM '\\)' at 8>")
     # An empty forgiving list is empty, not a list holding one empty
     # selector: a lone ',' is still an error
-    expect_that(get_error(":is(,)"),
-                throws_error("Expected selector, got <DELIM ',' at 5>"))
+    expect_error(get_error(":is(,)"),
+                 "Expected selector, got <DELIM ',' at 5>")
 })
 
 test_that("constructs unclosed at EOF translate as their closed forms", {
@@ -135,8 +133,8 @@ test_that("constructs unclosed at EOF translate as their closed forms", {
     # these selectors
     eof <- function(unclosed, closed) {
         for (translator in c("generic", "html", "xhtml")) {
-            expect_that(css_to_xpath(unclosed, translator = translator),
-                        equals(css_to_xpath(closed, translator = translator)))
+            expect_equal(css_to_xpath(unclosed, translator = translator),
+                         css_to_xpath(closed, translator = translator))
         }
     }
 
@@ -170,8 +168,8 @@ test_that("constructs unclosed at EOF translate as their closed forms", {
 })
 
 test_that("a trailing backslash at EOF decodes to U+FFFD in a selector", {
-    expect_that(css_to_xpath("a\\", prefix = ""),
-                equals(paste0("*[name() = 'a", "\uFFFD", "']")))
+    expect_equal(css_to_xpath("a\\", prefix = ""),
+                 paste0("*[name() = 'a", "\uFFFD", "']"))
 })
 
 test_that("unsupported column constructs are rejected by name", {
@@ -196,10 +194,10 @@ test_that("unsupported column constructs are rejected by name", {
                  fixed = TRUE)
 
     # Single-pipe namespace syntax is unaffected
-    expect_that(css_to_xpath("*|b", prefix = ""),
-                equals("*[local-name() = 'b']"))
-    expect_that(css_to_xpath("|b", prefix = ""),
-                equals("b"))
+    expect_equal(css_to_xpath("*|b", prefix = ""),
+                 "*[local-name() = 'b']")
+    expect_equal(css_to_xpath("|b", prefix = ""),
+                 "b")
 })
 
 test_that("parse errors include a caret-pointer gutter", {

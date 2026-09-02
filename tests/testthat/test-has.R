@@ -1,69 +1,67 @@
-context(":has() pseudo-class")
-
 test_that(":has() generates correct XPath", {
     xpath <- function(css) {
         css_to_xpath(css, prefix = "")
     }
 
     # Simple :has() with element
-    expect_that(xpath("div:has(p)"),
-                equals("div[.//p]"))
+    expect_equal(xpath("div:has(p)"),
+                 "div[.//p]")
 
     # :has() with class selector
-    expect_that(xpath("div:has(.foo)"),
-                equals("div[.//*[@class and contains(concat(' ', normalize-space(@class), ' '), ' foo ')]]"))
+    expect_equal(xpath("div:has(.foo)"),
+                 "div[.//*[@class and contains(concat(' ', normalize-space(@class), ' '), ' foo ')]]")
 
     # :has() with ID selector
-    expect_that(xpath("section:has(#main)"),
-                equals("section[.//*[@id = 'main']]"))
+    expect_equal(xpath("section:has(#main)"),
+                 "section[.//*[@id = 'main']]")
 
     # :has() with attribute selector
-    expect_that(xpath("form:has([required])"),
-                equals("form[.//*[@required]]"))
+    expect_equal(xpath("form:has([required])"),
+                 "form[.//*[@required]]")
 
     # :has() with multiple selectors (OR logic)
-    expect_that(xpath("div:has(p, span)"),
-                equals("div[.//p | .//span]"))
+    expect_equal(xpath("div:has(p, span)"),
+                 "div[.//p | .//span]")
 
     # Multiple :has() selectors
-    expect_that(xpath("div:has(p):has(span)"),
-                equals("div[.//p and .//span]"))
+    expect_equal(xpath("div:has(p):has(span)"),
+                 "div[.//p and .//span]")
 
     # :has() on universal selector
-    expect_that(xpath("*:has(img)"),
-                equals("*[.//img]"))
+    expect_equal(xpath("*:has(img)"),
+                 "*[.//img]")
 
     # Complex: :has() with class on descendant
-    expect_that(xpath("section:has(div.content)"),
-                equals("section[.//div[@class and contains(concat(' ', normalize-space(@class), ' '), ' content ')]]"))
+    expect_equal(xpath("section:has(div.content)"),
+                 "section[.//div[@class and contains(concat(' ', normalize-space(@class), ' '), ' content ')]]")
 
     # Leading combinators (selectors-4 relative selectors)
-    expect_that(xpath("e:has(> img)"),
-                equals("e[child::img]"))
-    expect_that(xpath("e:has(~ p)"),
-                equals("e[following-sibling::p]"))
-    expect_that(xpath("e:has(+ p)"),
-                equals("e[following-sibling::*[1][self::p]]"))
-    expect_that(xpath("e:has(> a, ~ p)"),
-                equals("e[child::a | following-sibling::p]"))
-    expect_that(xpath("e:has(> .foo)"),
-                equals("e[child::*[@class and contains(concat(' ', normalize-space(@class), ' '), ' foo ')]]"))
-    expect_that(xpath("e:has(+ p.foo)"),
-                equals("e[following-sibling::*[1][@class and contains(concat(' ', normalize-space(@class), ' '), ' foo ') and self::p]]"))
+    expect_equal(xpath("e:has(> img)"),
+                 "e[child::img]")
+    expect_equal(xpath("e:has(~ p)"),
+                 "e[following-sibling::p]")
+    expect_equal(xpath("e:has(+ p)"),
+                 "e[following-sibling::*[1][self::p]]")
+    expect_equal(xpath("e:has(> a, ~ p)"),
+                 "e[child::a | following-sibling::p]")
+    expect_equal(xpath("e:has(> .foo)"),
+                 "e[child::*[@class and contains(concat(' ', normalize-space(@class), ' '), ' foo ')]]")
+    expect_equal(xpath("e:has(+ p.foo)"),
+                 "e[following-sibling::*[1][@class and contains(concat(' ', normalize-space(@class), ' '), ' foo ') and self::p]]")
 
     # Complex relative selectors (selectors-4): forward axes step by step
-    expect_that(xpath("e:has(a b)"),
-                equals("e[.//a//b]"))
-    expect_that(xpath("e:has(a > b)"),
-                equals("e[.//a/b]"))
-    expect_that(xpath("e:has(a + b)"),
-                equals("e[.//a/following-sibling::*[1][self::b]]"))
-    expect_that(xpath("e:has(a ~ b)"),
-                equals("e[.//a/following-sibling::b]"))
-    expect_that(xpath("e:has(> a b)"),
-                equals("e[child::a//b]"))
-    expect_that(xpath("e:has(~ a > b)"),
-                equals("e[following-sibling::a/b]"))
+    expect_equal(xpath("e:has(a b)"),
+                 "e[.//a//b]")
+    expect_equal(xpath("e:has(a > b)"),
+                 "e[.//a/b]")
+    expect_equal(xpath("e:has(a + b)"),
+                 "e[.//a/following-sibling::*[1][self::b]]")
+    expect_equal(xpath("e:has(a ~ b)"),
+                 "e[.//a/following-sibling::b]")
+    expect_equal(xpath("e:has(> a b)"),
+                 "e[child::a//b]")
+    expect_equal(xpath("e:has(~ a > b)"),
+                 "e[following-sibling::a/b]")
 })
 
 test_that(":has() with complex arguments matches correctly", {
@@ -86,12 +84,12 @@ test_that(":has() with complex arguments matches correctly", {
 
     # descendant chains stay inside the subtree: the sibling ul li
     # must not make d3 match
-    expect_that(get_ids("div:has(ul li)"), equals("d1"))
-    expect_that(get_ids("div:has(> ul > li)"), equals("d1"))
+    expect_equal(get_ids("div:has(ul li)"), "d1")
+    expect_equal(get_ids("div:has(> ul > li)"), "d1")
     # but the sibling form reaches it
-    expect_that(get_ids("div:has(~ ul li)"), equals(c("d1", "d2", "d3")))
+    expect_equal(get_ids("div:has(~ ul li)"), c("d1", "d2", "d3"))
     # a li outside a ul does not satisfy 'ul li'
-    expect_that(get_ids("div:has(li)"), equals(c("d1", "d2")))
+    expect_equal(get_ids("div:has(li)"), c("d1", "d2"))
 })
 
 test_that("leading combinators are :has()-only", {
@@ -158,41 +156,41 @@ test_that(":has() works correctly with XML documents", {
     }
 
     # Section containing a p element
-    expect_that(get_ids("section:has(p)"),
-                equals("s1"))
+    expect_equal(get_ids("section:has(p)"),
+                 "s1")
 
     # Section containing a div
-    expect_that(get_ids("section:has(div)"),
-                equals(c("s1", "s2")))
+    expect_equal(get_ids("section:has(div)"),
+                 c("s1", "s2"))
 
     # Section containing an h1
-    expect_that(get_ids("section:has(h1)"),
-                equals("s3"))
+    expect_equal(get_ids("section:has(h1)"),
+                 "s3")
 
     # Section with div.content
-    expect_that(get_ids("section:has(div.content)"),
-                equals("s1"))
+    expect_equal(get_ids("section:has(div.content)"),
+                 "s1")
 
     # Section with div.sidebar
-    expect_that(get_ids("section:has(div.sidebar)"),
-                equals("s2"))
+    expect_equal(get_ids("section:has(div.sidebar)"),
+                 "s2")
 
     # Any element containing a p
     # Note: XML returns root element too since it's also ancestor
     ids <- get_ids(":has(p)")
-    expect_that("s1" %in% ids && "a1" %in% ids, equals(TRUE))
+    expect_equal("s1" %in% ids && "a1" %in% ids, TRUE)
 
     # Multiple selectors: section with p OR span
-    expect_that(get_ids("section:has(p, span)"),
-                equals(c("s1", "s2")))
+    expect_equal(get_ids("section:has(p, span)"),
+                 c("s1", "s2"))
 
     # Chained :has() - section with both div and p
-    expect_that(get_ids("section:has(div):has(p)"),
-                equals("s1"))
+    expect_equal(get_ids("section:has(div):has(p)"),
+                 "s1")
 
     # :has() should not match the element itself
-    expect_that(length(querySelectorAll(doc, "p:has(p)")),
-                equals(0))
+    expect_equal(length(querySelectorAll(doc, "p:has(p)")),
+                 0)
 })
 
 test_that(":has() works correctly with xml2 documents", {
@@ -231,41 +229,41 @@ test_that(":has() works correctly with xml2 documents", {
     }
 
     # Section containing a p element
-    expect_that(get_ids("section:has(p)"),
-                equals("s1"))
+    expect_equal(get_ids("section:has(p)"),
+                 "s1")
 
     # Section containing a div
-    expect_that(get_ids("section:has(div)"),
-                equals(c("s1", "s2")))
+    expect_equal(get_ids("section:has(div)"),
+                 c("s1", "s2"))
 
     # Section containing an h1
-    expect_that(get_ids("section:has(h1)"),
-                equals("s3"))
+    expect_equal(get_ids("section:has(h1)"),
+                 "s3")
 
     # Section with div.content
-    expect_that(get_ids("section:has(div.content)"),
-                equals("s1"))
+    expect_equal(get_ids("section:has(div.content)"),
+                 "s1")
 
     # Section with div.sidebar
-    expect_that(get_ids("section:has(div.sidebar)"),
-                equals("s2"))
+    expect_equal(get_ids("section:has(div.sidebar)"),
+                 "s2")
 
     # Any element containing a p
     # Note: returns all ancestors including root
     ids <- get_ids(":has(p)")
-    expect_that("s1" %in% ids && "a1" %in% ids, equals(TRUE))
+    expect_equal("s1" %in% ids && "a1" %in% ids, TRUE)
 
     # Multiple selectors: section with p OR span
-    expect_that(get_ids("section:has(p, span)"),
-                equals(c("s1", "s2")))
+    expect_equal(get_ids("section:has(p, span)"),
+                 c("s1", "s2"))
 
     # Chained :has() - section with both div and p
-    expect_that(get_ids("section:has(div):has(p)"),
-                equals("s1"))
+    expect_equal(get_ids("section:has(div):has(p)"),
+                 "s1")
 
     # :has() should not match the element itself
-    expect_that(length(querySelectorAll(doc, "p:has(p)")),
-                equals(0))
+    expect_equal(length(querySelectorAll(doc, "p:has(p)")),
+                 0)
 })
 
 test_that(":has() handles edge cases correctly", {
@@ -277,8 +275,8 @@ test_that(":has() handles edge cases correctly", {
 
     # Only d2 has a p descendant
     result1 <- querySelectorAll(doc1, "div:has(p)")
-    expect_that(length(result1), equals(1))
-    expect_that(xmlGetAttr(result1[[1]], "id"), equals("d2"))
+    expect_equal(length(result1), 1)
+    expect_equal(xmlGetAttr(result1[[1]], "id"), "d2")
 
     # Nested :has()
     html2 <- paste0(
@@ -304,13 +302,13 @@ test_that(":has() handles edge cases correctly", {
     expect_error(querySelectorAll(doc2, "section:has(article:has(div))"),
                  "Got nested :has()")
     result2 <- querySelectorAll(doc2, "section:has(div)")
-    expect_that(length(result2), equals(1))
-    expect_that(xmlGetAttr(result2[[1]], "id"), equals("s1"))
+    expect_equal(length(result2), 1)
+    expect_equal(xmlGetAttr(result2[[1]], "id"), "s1")
 
     # Section containing p.highlight
     result3 <- querySelectorAll(doc2, "section:has(p.highlight)")
-    expect_that(length(result3), equals(1))
-    expect_that(xmlGetAttr(result3[[1]], "id"), equals("s1"))
+    expect_equal(length(result3), 1)
+    expect_equal(xmlGetAttr(result3[[1]], "id"), "s1")
 
     # :has() with universal selector
     html3 <- '<root><div id="d1"><span/></div><div id="d2"></div></root>'
@@ -318,8 +316,8 @@ test_that(":has() handles edge cases correctly", {
 
     # Div that has any descendant
     result4 <- querySelectorAll(doc3, "div:has(*)")
-    expect_that(length(result4), equals(1))
-    expect_that(xmlGetAttr(result4[[1]], "id"), equals("d1"))
+    expect_equal(length(result4), 1)
+    expect_equal(xmlGetAttr(result4[[1]], "id"), "d1")
 })
 
 test_that(":has() with leading combinators matches correctly", {
@@ -342,10 +340,10 @@ test_that(":has() with leading combinators matches correctly", {
     }
 
     # implied descendant: child and grandchild both count
-    expect_that(get_ids("div:has(img)"), equals(c("d1", "d2")))
+    expect_equal(get_ids("div:has(img)"), c("d1", "d2"))
     # > child only: a grandchild img must not match, nor a sibling img
-    expect_that(get_ids("div:has(> img)"), equals("d1"))
-    expect_that(get_ids("div:has(> span)"), equals("d2"))
+    expect_equal(get_ids("div:has(> img)"), "d1")
+    expect_equal(get_ids("div:has(> span)"), "d2")
 
     # sibling document: a1 p1 a2 b1 p2
     html2 <- paste0(
@@ -360,12 +358,12 @@ test_that(":has() with leading combinators matches correctly", {
     }
 
     # ~ subsequent sibling: both a elements precede a p
-    expect_that(get_ids2("a:has(~ p)"), equals(c("a1", "a2")))
+    expect_equal(get_ids2("a:has(~ p)"), c("a1", "a2"))
     # + next sibling: a1 is immediately followed by p1; a2 is followed
     # by b1, so it must not match
-    expect_that(get_ids2("a:has(+ p)"), equals("a1"))
-    expect_that(get_ids2("a:has(+ b)"), equals("a2"))
-    expect_that(get_ids2("b:has(~ p)"), equals("b1"))
+    expect_equal(get_ids2("a:has(+ p)"), "a1")
+    expect_equal(get_ids2("a:has(+ b)"), "a2")
+    expect_equal(get_ids2("b:has(~ p)"), "b1")
     # sibling forms look at siblings, not the subtree: da has a child p
     # but no sibling p, so it must not match either sibling form
     html3 <- paste0(
@@ -376,12 +374,12 @@ test_that(":has() with leading combinators matches correctly", {
     )
     doc3 <- read_xml(html3)
     ids3 <- xml_attr(querySelectorAll(doc3, "div:has(~ p)"), "id")
-    expect_that(ids3, equals("dc"))
+    expect_equal(ids3, "dc")
     ids4 <- xml_attr(querySelectorAll(doc3, "div:has(+ p)"), "id")
-    expect_that(ids4, equals("dc"))
+    expect_equal(ids4, "dc")
 
     # mixed relative list: child a OR subsequent-sibling p
-    expect_that(get_ids2("a:has(+ b, + p)"), equals(c("a1", "a2")))
+    expect_equal(get_ids2("a:has(+ b, + p)"), c("a1", "a2"))
 })
 
 test_that(":has() works with querySelector (returns first match)", {
@@ -399,9 +397,9 @@ test_that(":has() works with querySelector (returns first match)", {
 
     # Should return first section with p
     result <- querySelector(doc, "section:has(p)")
-    expect_that(xml_attr(result, "id"), equals("s1"))
+    expect_equal(xml_attr(result, "id"), "s1")
 
     # Should return NULL when no match
     result_none <- querySelector(doc, "section:has(article)")
-    expect_that(result_none, equals(NULL))
+    expect_equal(result_none, NULL)
 })

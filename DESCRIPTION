@@ -12,6 +12,7 @@ Encoding: UTF-8
 Depends: R (>= 3.3)
 Imports: R6
 Suggests: testthat, XML, xml2
+Config/testthat/edition: 3
 URL: https://sjp.co.nz/projects/selectr/
 BugReports: https://github.com/sjp/selectr/issues
 Description: Translates a CSS selector into an equivalent XPath

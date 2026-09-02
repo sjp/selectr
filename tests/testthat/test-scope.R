@@ -1,45 +1,43 @@
-context(":scope pseudo-class")
-
 test_that("a leading :scope generates XPath anchored at the context node", {
     # A selector starting with :scope is anchored at the query's
     # scoping root, so the 'self' axis replaces the usual prefix
-    expect_that(css_to_xpath(":scope"),
-                equals("self::*"))
-    expect_that(css_to_xpath(":scope > a"),
-                equals("self::*/a"))
-    expect_that(css_to_xpath(":scope a"),
-                equals("self::*//a"))
-    expect_that(css_to_xpath(":scope ~ a"),
-                equals("self::*/following-sibling::a"))
-    expect_that(css_to_xpath(":scope + a"),
-                equals("self::*/following-sibling::*[1][self::a]"))
+    expect_equal(css_to_xpath(":scope"),
+                 "self::*")
+    expect_equal(css_to_xpath(":scope > a"),
+                 "self::*/a")
+    expect_equal(css_to_xpath(":scope a"),
+                 "self::*//a")
+    expect_equal(css_to_xpath(":scope ~ a"),
+                 "self::*/following-sibling::a")
+    expect_equal(css_to_xpath(":scope + a"),
+                 "self::*/following-sibling::*[1][self::a]")
 
     # Pseudo-class names are case-insensitive
-    expect_that(css_to_xpath(":SCOPE > a"),
-                equals("self::*/a"))
+    expect_equal(css_to_xpath(":SCOPE > a"),
+                 "self::*/a")
 
     # Other simple selectors in the compound constrain the scoping root
-    expect_that(css_to_xpath("div:scope > a"),
-                equals("self::div/a"))
-    expect_that(css_to_xpath(":scope.foo"),
-                equals("self::*[@class and contains(concat(' ', normalize-space(@class), ' '), ' foo ')]"))
-    expect_that(css_to_xpath(":scope:first-child"),
-                equals("self::*[count(preceding-sibling::*) = 0]"))
+    expect_equal(css_to_xpath("div:scope > a"),
+                 "self::div/a")
+    expect_equal(css_to_xpath(":scope.foo"),
+                 "self::*[@class and contains(concat(' ', normalize-space(@class), ' '), ' foo ')]")
+    expect_equal(css_to_xpath(":scope:first-child"),
+                 "self::*[count(preceding-sibling::*) = 0]")
 
     # In a selector list only the scoped selector is anchored
-    expect_that(css_to_xpath(":scope > a, b"),
-                equals("self::*/a | descendant-or-self::b"))
+    expect_equal(css_to_xpath(":scope > a, b"),
+                 "self::*/a | descendant-or-self::b")
 
     # The 'self' axis replaces the prefix whatever its value: the
     # scoping root is the context node by definition
-    expect_that(css_to_xpath(":scope > a", prefix = "//"),
-                equals("self::*/a"))
-    expect_that(css_to_xpath(":scope > a", prefix = ""),
-                equals("self::*/a"))
+    expect_equal(css_to_xpath(":scope > a", prefix = "//"),
+                 "self::*/a")
+    expect_equal(css_to_xpath(":scope > a", prefix = ""),
+                 "self::*/a")
 
     # Inherited unchanged by the HTML translator
-    expect_that(css_to_xpath(":scope > a", translator = "html"),
-                equals("self::*/a"))
+    expect_equal(css_to_xpath(":scope > a", translator = "html"),
+                 "self::*/a")
 })
 
 test_that("a non-leading :scope is rejected", {
@@ -87,39 +85,39 @@ test_that(":scope works correctly with XML documents", {
 
     # Only the children of the queried node, not all descendants and
     # not the document's other 'a' elements
-    expect_that(get_ids(section, ":scope > a"),
-                equals(c("a1", "a3")))
+    expect_equal(get_ids(section, ":scope > a"),
+                 c("a1", "a3"))
 
     # All descendants of the queried node
-    expect_that(get_ids(section, ":scope a"),
-                equals(c("a1", "a2", "a3")))
+    expect_equal(get_ids(section, ":scope a"),
+                 c("a1", "a2", "a3"))
 
     # Siblings following the queried node
-    expect_that(get_ids(section, ":scope ~ a"),
-                equals("a4"))
+    expect_equal(get_ids(section, ":scope ~ a"),
+                 "a4")
 
     # A bare :scope matches the queried node itself
     scope <- querySelector(section, ":scope")
-    expect_that(xmlGetAttr(scope, "id"), equals("s1"))
+    expect_equal(xmlGetAttr(scope, "id"), "s1")
 
     # A :scope constrained by other simple selectors only matches if
     # the queried node does
-    expect_that(get_ids(section, "section:scope > a"),
-                equals(c("a1", "a3")))
-    expect_that(length(querySelectorAll(section, "div:scope > a")),
-                equals(0))
+    expect_equal(get_ids(section, "section:scope > a"),
+                 c("a1", "a3"))
+    expect_equal(length(querySelectorAll(section, "div:scope > a")),
+                 0)
 
     # For a document, the scoping root is the root element itself,
     # not the document node, so a bare ':scope' matches the root and
     # ':scope > x' looks for a child of the root named 'x' -- unlike
     # the DOM, where document.querySelectorAll(':scope > html') finds
     # the root element and a bare ':scope' matches nothing (see #016)
-    expect_that(get_ids(doc, ":scope > section"),
-                equals("s1"))
+    expect_equal(get_ids(doc, ":scope > section"),
+                 "s1")
     root <- querySelector(doc, ":scope")
-    expect_that(xmlName(root), equals("root"))
-    expect_that(length(querySelectorAll(doc, ":scope > root")),
-                equals(0))
+    expect_equal(xmlName(root), "root")
+    expect_equal(length(querySelectorAll(doc, ":scope > root")),
+                 0)
 })
 
 test_that(":scope works correctly with xml2 documents", {
@@ -146,34 +144,34 @@ test_that(":scope works correctly with xml2 documents", {
 
     # Only the children of the queried node, not all descendants and
     # not the document's other 'a' elements
-    expect_that(get_ids(section, ":scope > a"),
-                equals(c("a1", "a3")))
+    expect_equal(get_ids(section, ":scope > a"),
+                 c("a1", "a3"))
 
     # All descendants of the queried node
-    expect_that(get_ids(section, ":scope a"),
-                equals(c("a1", "a2", "a3")))
+    expect_equal(get_ids(section, ":scope a"),
+                 c("a1", "a2", "a3"))
 
     # Siblings following the queried node
-    expect_that(get_ids(section, ":scope ~ a"),
-                equals("a4"))
+    expect_equal(get_ids(section, ":scope ~ a"),
+                 "a4")
 
     # A bare :scope matches the queried node itself
     scope <- querySelector(section, ":scope")
-    expect_that(xml_attr(scope, "id"), equals("s1"))
+    expect_equal(xml_attr(scope, "id"), "s1")
 
     # A :scope constrained by other simple selectors only matches if
     # the queried node does
-    expect_that(get_ids(section, "section:scope > a"),
-                equals(c("a1", "a3")))
-    expect_that(length(querySelectorAll(section, "div:scope > a")),
-                equals(0))
+    expect_equal(get_ids(section, "section:scope > a"),
+                 c("a1", "a3"))
+    expect_equal(length(querySelectorAll(section, "div:scope > a")),
+                 0)
 
     # For a document, the scoping root is the root element itself,
     # not the document node -- see the identical XML case above (#016)
-    expect_that(get_ids(doc, ":scope > section"),
-                equals("s1"))
+    expect_equal(get_ids(doc, ":scope > section"),
+                 "s1")
     root <- querySelector(doc, ":scope")
-    expect_that(xml_name(root), equals("root"))
-    expect_that(length(querySelectorAll(doc, ":scope > root")),
-                equals(0))
+    expect_equal(xml_name(root), "root")
+    expect_equal(length(querySelectorAll(doc, ":scope > root")),
+                 0)
 })

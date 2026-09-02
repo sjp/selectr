@@ -1,17 +1,15 @@
-context("querySelector-xml2")
-
 test_that("querySelector returns a single node or NULL", {
     library(xml2)
     doc <- read_xml('<a><b id="#test"/><c class="ex"/><c class="xmp"/></a>')
     p <- function(x) {
         if (is.null(x)) x else as.character(x)
     }
-    expect_that(p(querySelector(doc, "a")),
-                equals(p(xml_find_first(doc, "//a"))))
-    expect_that(p(querySelector(doc, "*", prefix = "")),
-                equals(p(xml_find_first(doc, "*"))))
-    expect_that(p(querySelector(doc, "d")), equals(NULL))
-    expect_that(p(querySelector(doc, "c")), equals(p(xml_find_first(doc, "//c"))))
+    expect_equal(p(querySelector(doc, "a")),
+                 p(xml_find_first(doc, "//a")))
+    expect_equal(p(querySelector(doc, "*", prefix = "")),
+                 p(xml_find_first(doc, "*")))
+    expect_equal(p(querySelector(doc, "d")), NULL)
+    expect_equal(p(querySelector(doc, "c")), p(xml_find_first(doc, "//c")))
 })
 
 test_that("querySelectorAll returns expected nodes", {
@@ -20,12 +18,12 @@ test_that("querySelectorAll returns expected nodes", {
     p <- function(x) {
         lapply(x, function(node) as.character(node))
     }
-    expect_that(p(querySelectorAll(doc, "a")),
-                equals(p(xml_find_all(doc, "//a"))))
-    expect_that(p(querySelectorAll(doc, "*", prefix = "")),
-                equals(p(xml_find_all(doc, "*"))))
-    expect_that(p(querySelectorAll(doc, "c")),
-                equals(p(xml_find_all(doc, "//c"))))
+    expect_equal(p(querySelectorAll(doc, "a")),
+                 p(xml_find_all(doc, "//a")))
+    expect_equal(p(querySelectorAll(doc, "*", prefix = "")),
+                 p(xml_find_all(doc, "*")))
+    expect_equal(p(querySelectorAll(doc, "c")),
+                 p(xml_find_all(doc, "//c")))
 })
 
 test_that("querySelectorAll returns empty list for no match", {
@@ -34,8 +32,8 @@ test_that("querySelectorAll returns empty list for no match", {
     p <- function(x) {
         lapply(x, function(node) as.character(node))
     }
-    expect_that(p(querySelectorAll(doc, "d")),
-                equals(p(xml_find_all(doc, "//d"))))
+    expect_equal(p(querySelectorAll(doc, "d")),
+                 p(xml_find_all(doc, "//d")))
 })
 
 test_that("querySelector handles namespaces", {
@@ -45,19 +43,19 @@ test_that("querySelector handles namespaces", {
         if (is.null(x)) x else as.character(x)
     }
 
-    expect_that(querySelector(doc, "circle"), equals(NULL))
-    expect_that(querySelector(doc, "circle", ns = c(svg = "http://www.w3.org/2000/svg")),
-                equals(NULL))
-    expect_that(p(querySelector(doc, "svg|circle", ns = c(svg = "http://www.w3.org/2000/svg"))),
-                equals(p(xml_find_all(doc, "//svg:circle", ns = c(svg = "http://www.w3.org/2000/svg"))[[1]])))
+    expect_equal(querySelector(doc, "circle"), NULL)
+    expect_equal(querySelector(doc, "circle", ns = c(svg = "http://www.w3.org/2000/svg")),
+                 NULL)
+    expect_equal(p(querySelector(doc, "svg|circle", ns = c(svg = "http://www.w3.org/2000/svg"))),
+                 p(xml_find_all(doc, "//svg:circle", ns = c(svg = "http://www.w3.org/2000/svg"))[[1]]))
     # a named list is also accepted, consistent with the 'XML' methods
-    expect_that(p(querySelector(doc, "svg|circle", ns = list(svg = "http://www.w3.org/2000/svg"))),
-                equals(p(xml_find_all(doc, "//svg:circle", ns = c(svg = "http://www.w3.org/2000/svg"))[[1]])))
+    expect_equal(p(querySelector(doc, "svg|circle", ns = list(svg = "http://www.w3.org/2000/svg"))),
+                 p(xml_find_all(doc, "//svg:circle", ns = c(svg = "http://www.w3.org/2000/svg"))[[1]]))
 
     # now with querySelectorNS
-    expect_that(querySelectorNS(doc, "circle", c(svg = "http://www.w3.org/2000/svg")), equals(NULL))
-    expect_that(p(querySelectorNS(doc, "svg|circle", c(svg = "http://www.w3.org/2000/svg"))),
-                equals(p(xml_find_all(doc, "//svg:circle", ns = c(svg = "http://www.w3.org/2000/svg"))[[1]])))
+    expect_equal(querySelectorNS(doc, "circle", c(svg = "http://www.w3.org/2000/svg")), NULL)
+    expect_equal(p(querySelectorNS(doc, "svg|circle", c(svg = "http://www.w3.org/2000/svg"))),
+                 p(xml_find_all(doc, "//svg:circle", ns = c(svg = "http://www.w3.org/2000/svg"))[[1]]))
 })
 
 test_that("querySelectorAll handles namespaces", {
@@ -67,21 +65,21 @@ test_that("querySelectorAll handles namespaces", {
         lapply(x, function(node) as.character(node))
     }
 
-    expect_that(p(querySelectorAll(doc, "circle")),
-                equals(p(xml_find_all(doc, "//circle"))))
-    expect_that(p(querySelectorAll(doc, "circle", ns = c(svg = "http://www.w3.org/2000/svg"))),
-                equals(p(xml_find_all(doc, "//circle", ns = c(svg = "http://www.w3.org/2000/svg")))))
-    expect_that(p(querySelectorAll(doc, "svg|circle", ns = c(svg = "http://www.w3.org/2000/svg"))),
-                equals(p(xml_find_all(doc, "//svg:circle", ns = c(svg = "http://www.w3.org/2000/svg")))))
+    expect_equal(p(querySelectorAll(doc, "circle")),
+                 p(xml_find_all(doc, "//circle")))
+    expect_equal(p(querySelectorAll(doc, "circle", ns = c(svg = "http://www.w3.org/2000/svg"))),
+                 p(xml_find_all(doc, "//circle", ns = c(svg = "http://www.w3.org/2000/svg"))))
+    expect_equal(p(querySelectorAll(doc, "svg|circle", ns = c(svg = "http://www.w3.org/2000/svg"))),
+                 p(xml_find_all(doc, "//svg:circle", ns = c(svg = "http://www.w3.org/2000/svg"))))
     # a named list is also accepted, consistent with the 'XML' methods
-    expect_that(p(querySelectorAll(doc, "svg|circle", ns = list(svg = "http://www.w3.org/2000/svg"))),
-                equals(p(xml_find_all(doc, "//svg:circle", ns = c(svg = "http://www.w3.org/2000/svg")))))
+    expect_equal(p(querySelectorAll(doc, "svg|circle", ns = list(svg = "http://www.w3.org/2000/svg"))),
+                 p(xml_find_all(doc, "//svg:circle", ns = c(svg = "http://www.w3.org/2000/svg"))))
 
     # now with querySelectorAllNS
-    expect_that(p(querySelectorAllNS(doc, "circle", c(svg = "http://www.w3.org/2000/svg"))),
-                equals(p(xml_find_all(doc, "//circle", ns = c(svg = "http://www.w3.org/2000/svg")))))
-    expect_that(p(querySelectorAllNS(doc, "svg|circle", c(svg = "http://www.w3.org/2000/svg"))),
-                equals(p(xml_find_all(doc, "//svg:circle", ns = c(svg = "http://www.w3.org/2000/svg")))))
+    expect_equal(p(querySelectorAllNS(doc, "circle", c(svg = "http://www.w3.org/2000/svg"))),
+                 p(xml_find_all(doc, "//circle", ns = c(svg = "http://www.w3.org/2000/svg"))))
+    expect_equal(p(querySelectorAllNS(doc, "svg|circle", c(svg = "http://www.w3.org/2000/svg"))),
+                 p(xml_find_all(doc, "//svg:circle", ns = c(svg = "http://www.w3.org/2000/svg"))))
 })
 
 test_that("querySelectorAll honours attribute case-sensitivity flags", {
@@ -91,15 +89,15 @@ test_that("querySelectorAll honours attribute case-sensitivity flags", {
         unlist(lapply(querySelectorAll(doc, css), xml_attr, "rel"))
     }
 
-    expect_that(rels('a[rel="nofollow"]'), equals("nofollow"))
-    expect_that(rels('a[rel="nofollow" i]'),
-                equals(c("NoFollow", "nofollow")))
-    expect_that(rels('a[rel="NOFOLLOW" i]'),
-                equals(c("NoFollow", "nofollow")))
-    expect_that(rels('a[rel="nofollow" s]'), equals("nofollow"))
-    expect_that(rels('a[rel^="NO" i]'), equals(c("NoFollow", "nofollow")))
-    expect_that(rels('a[rel$="LOW" i]'), equals(c("NoFollow", "nofollow")))
-    expect_that(rels('a[rel*="FOLL" i]'), equals(c("NoFollow", "nofollow")))
+    expect_equal(rels('a[rel="nofollow"]'), "nofollow")
+    expect_equal(rels('a[rel="nofollow" i]'),
+                 c("NoFollow", "nofollow"))
+    expect_equal(rels('a[rel="NOFOLLOW" i]'),
+                 c("NoFollow", "nofollow"))
+    expect_equal(rels('a[rel="nofollow" s]'), "nofollow")
+    expect_equal(rels('a[rel^="NO" i]'), c("NoFollow", "nofollow"))
+    expect_equal(rels('a[rel$="LOW" i]'), c("NoFollow", "nofollow"))
+    expect_equal(rels('a[rel*="FOLL" i]'), c("NoFollow", "nofollow"))
 })
 
 test_that("the namespaced queries are scoped to the node given", {
@@ -111,23 +109,23 @@ test_that("the namespaced queries are scoped to the node given", {
 
     # the namespace filter must not escape the queried node: the
     # 'outer' element is not inside <wrap>
-    expect_that(xml_attr(querySelectorAllNS(wrap, "s|a", ns), "id"),
-                equals("inner"))
-    expect_that(xml_attr(querySelectorNS(wrap, "s|a", ns), "id"),
-                equals("inner"))
+    expect_equal(xml_attr(querySelectorAllNS(wrap, "s|a", ns), "id"),
+                 "inner")
+    expect_equal(xml_attr(querySelectorNS(wrap, "s|a", ns), "id"),
+                 "inner")
     # which is what the plain query with a namespace already does
-    expect_that(xml_attr(querySelectorAll(wrap, "s|a", ns = ns), "id"),
-                equals("inner"))
+    expect_equal(xml_attr(querySelectorAll(wrap, "s|a", ns = ns), "id"),
+                 "inner")
 
     # a node set is scoped the same way, node by node
-    expect_that(xml_attr(querySelectorAllNS(xml_find_all(doc, "//wrap"),
-                                            "s|a", ns), "id"),
-                equals("inner"))
+    expect_equal(xml_attr(querySelectorAllNS(xml_find_all(doc, "//wrap"),
+                                             "s|a", ns), "id"),
+                 "inner")
 
     # from the document both are still found: the 'descendant-or-self'
     # axis from the document node includes the root
-    expect_that(xml_attr(querySelectorAllNS(doc, "s|a", ns), "id"),
-                equals(c("outer", "inner")))
+    expect_equal(xml_attr(querySelectorAllNS(doc, "s|a", ns), "id"),
+                 c("outer", "inner"))
 })
 
 test_that("querySelector methods handle invalid arguments", {
