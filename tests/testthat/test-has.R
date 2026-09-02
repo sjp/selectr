@@ -9,7 +9,7 @@ test_that(":has() generates correct XPath", {
 
     # :has() with class selector
     expect_equal(xpath("div:has(.foo)"),
-                 "div[.//*[@class and contains(concat(' ', normalize-space(@class), ' '), ' foo ')]]")
+                 "div[.//*[contains(concat(' ', normalize-space(@class), ' '), ' foo ')]]")
 
     # :has() with ID selector
     expect_equal(xpath("section:has(#main)"),
@@ -33,7 +33,7 @@ test_that(":has() generates correct XPath", {
 
     # Complex: :has() with class on descendant
     expect_equal(xpath("section:has(div.content)"),
-                 "section[.//div[@class and contains(concat(' ', normalize-space(@class), ' '), ' content ')]]")
+                 "section[.//div[contains(concat(' ', normalize-space(@class), ' '), ' content ')]]")
 
     # Leading combinators (selectors-4 relative selectors)
     expect_equal(xpath("e:has(> img)"),
@@ -45,9 +45,9 @@ test_that(":has() generates correct XPath", {
     expect_equal(xpath("e:has(> a, ~ p)"),
                  "e[child::a | following-sibling::p]")
     expect_equal(xpath("e:has(> .foo)"),
-                 "e[child::*[@class and contains(concat(' ', normalize-space(@class), ' '), ' foo ')]]")
+                 "e[child::*[contains(concat(' ', normalize-space(@class), ' '), ' foo ')]]")
     expect_equal(xpath("e:has(+ p.foo)"),
-                 "e[following-sibling::*[1][@class and contains(concat(' ', normalize-space(@class), ' '), ' foo ') and self::p]]")
+                 "e[following-sibling::*[1][contains(concat(' ', normalize-space(@class), ' '), ' foo ') and self::p]]")
 
     # Complex relative selectors (selectors-4): forward axes step by step
     expect_equal(xpath("e:has(a b)"),
@@ -62,6 +62,29 @@ test_that(":has() generates correct XPath", {
                  "e[child::a//b]")
     expect_equal(xpath("e:has(~ a > b)"),
                  "e[following-sibling::a/b]")
+
+    # A multi-argument :has() union is parenthesized once AND-joined with
+    # another condition, so the "and" does not silently bind to only the
+    # first alternative (is_or_group; R/xpath.R xpath_has())
+    expect_equal(xpath("e:has(a, b):has(c)"),
+                 "e[(.//a | .//b) and .//c]")
+    expect_equal(xpath("div.x:has(a,b)"),
+                 paste0("div[contains(concat(' ', normalize-space(@class), ",
+                        "' '), ' x ') and (.//a | .//b)]"))
+    # A single-argument :has() needs no parentheses either way
+    expect_equal(xpath("e:has(a)"), "e[.//a]")
+})
+
+test_that(":has() union parenthesization matches the same nodes", {
+    skip_if_not_installed("xml2")
+    library(xml2)
+
+    # g has both an 'h' and a 'k' descendant, so 'g:has(h, i):has(k)'
+    # must match it: '(.//h | .//i) and .//k', not './/h | (.//i and
+    # .//k)', which the missing parentheses would parse as
+    doc <- read_xml("<r><g><h/><i/><k/></g><j><k/></j></r>")
+    expect_equal(xml_name(querySelectorAll(doc, "g:has(h, i):has(k)")), "g")
+    expect_equal(length(querySelectorAll(doc, "g:has(z)")), 0)
 })
 
 test_that(":has() with complex arguments matches correctly", {

@@ -5,12 +5,15 @@ test_that("css_to_xpath vectorises arguments", {
     expect_equal(css_to_xpath("a b", prefix = ""), "a//b")
     expect_equal(css_to_xpath("a b", prefix = c("descendant-or-self::", "")), c("descendant-or-self::a//b", "a//b"))
     fold <- "translate(@type, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
-    checked_html <- paste0(
-        "a[(@selected and local-name(.) = 'option') or (@checked and ",
-        "local-name(.) = 'input' and (",
-        fold, " = 'checkbox' or ", fold, " = 'radio'))]")
+    # 'a' is not in ':checked''s element set (option, input), so the HTML
+    # translators prune the whole predicate down to a bare '0' - see
+    # add_disjunction() in R/xpath.R
     expect_equal(css_to_xpath("a:checked", prefix = "", translator = c("generic", "html", "xhtml")),
-                              c("a[0]", checked_html, checked_html))
+                              c("a[0]", "a[0]", "a[0]"))
+    checked_html <- paste0(
+        "input[@checked and (", fold, " = 'checkbox' or ", fold, " = 'radio')]")
+    expect_equal(css_to_xpath("input:checked", prefix = "", translator = c("generic", "html", "xhtml")),
+                              c("input[0]", checked_html, checked_html))
     expect_equal(css_to_xpath(c("a b", "b c"), prefix = ""), c("a//b", "b//c"))
 })
 

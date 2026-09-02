@@ -9,7 +9,7 @@ test_that(":where() generates correct XPath", {
 
     # :where() with class selector
     expect_equal(xpath("div:where(.foo)"),
-                 "div[@class and contains(concat(' ', normalize-space(@class), ' '), ' foo ')]")
+                 "div[contains(concat(' ', normalize-space(@class), ' '), ' foo ')]")
 
     # :where() with ID selector
     expect_equal(xpath("section:where(#main)"),
@@ -25,7 +25,7 @@ test_that(":where() generates correct XPath", {
 
     # :where() with element and class (both conditions must match)
     expect_equal(xpath("*:where(div.content)"),
-                 "*[@class and contains(concat(' ', normalize-space(@class), ' '), ' content ') and self::div]")
+                 "*[contains(concat(' ', normalize-space(@class), ' '), ' content ') and self::div]")
 
     # Stacked :where() selectors - each adds its own condition, so
     # both must match (AND)
@@ -34,15 +34,15 @@ test_that(":where() generates correct XPath", {
 
     # :where() on universal selector
     expect_equal(xpath("*:where(.highlight)"),
-                 "*[@class and contains(concat(' ', normalize-space(@class), ' '), ' highlight ')]")
+                 "*[contains(concat(' ', normalize-space(@class), ' '), ' highlight ')]")
 
     # :where() with multiple classes
     expect_equal(xpath("div:where(.foo, .bar)"),
-                 "div[@class and contains(concat(' ', normalize-space(@class), ' '), ' foo ') or @class and contains(concat(' ', normalize-space(@class), ' '), ' bar ')]")
+                 "div[contains(concat(' ', normalize-space(@class), ' '), ' foo ') or contains(concat(' ', normalize-space(@class), ' '), ' bar ')]")
 
     # Complex: :where() with mix of selectors
     expect_equal(xpath("p:where(.highlight, #special, [data-key])"),
-                 "p[@class and contains(concat(' ', normalize-space(@class), ' '), ' highlight ') or @id = 'special' or @data-key]")
+                 "p[contains(concat(' ', normalize-space(@class), ' '), ' highlight ') or @id = 'special' or @data-key]")
 })
 
 test_that(":where() works correctly with XML documents", {

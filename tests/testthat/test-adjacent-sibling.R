@@ -13,7 +13,7 @@ test_that("adjacent sibling combinator generates simplified XPath", {
 
     # With class on right side
     expect_equal(xpath('a + b.test'),
-                 "a/following-sibling::*[1][self::b][@class and contains(concat(' ', normalize-space(@class), ' '), ' test ')]")
+                 "a/following-sibling::*[1][self::b][contains(concat(' ', normalize-space(@class), ' '), ' test ')]")
 
     # With ID on right side
     expect_equal(xpath('a + b#myid'),
@@ -25,18 +25,18 @@ test_that("adjacent sibling combinator generates simplified XPath", {
 
     # With class and attribute on right side
     expect_equal(xpath('a + b.test[title]'),
-                 "a/following-sibling::*[1][self::b][@class and contains(concat(' ', normalize-space(@class), ' '), ' test ') and @title]")
+                 "a/following-sibling::*[1][self::b][contains(concat(' ', normalize-space(@class), ' '), ' test ') and @title]")
 
     # With conditions on both sides
     expect_equal(xpath('a.link + b[id]'),
-                 "a[@class and contains(concat(' ', normalize-space(@class), ' '), ' link ')]/following-sibling::*[1][self::b][@id]")
+                 "a[contains(concat(' ', normalize-space(@class), ' '), ' link ')]/following-sibling::*[1][self::b][@id]")
 
     expect_equal(xpath('a[href] + b.test'),
-                 "a[@href]/following-sibling::*[1][self::b][@class and contains(concat(' ', normalize-space(@class), ' '), ' test ')]")
+                 "a[@href]/following-sibling::*[1][self::b][contains(concat(' ', normalize-space(@class), ' '), ' test ')]")
 
     # With ID on left, class and attribute on right
     expect_equal(xpath('div#main + p.intro[title]'),
-                 "div[@id = 'main']/following-sibling::*[1][self::p][@class and contains(concat(' ', normalize-space(@class), ' '), ' intro ') and @title]")
+                 "div[@id = 'main']/following-sibling::*[1][self::p][contains(concat(' ', normalize-space(@class), ' '), ' intro ') and @title]")
 
     # Universal selector on right needs no (tautological) name test
     expect_equal(xpath('a + *'),
@@ -57,7 +57,7 @@ test_that("adjacent sibling combinator generates simplified XPath", {
 
     # Complex: multiple combinators and conditions
     expect_equal(xpath('article.post > h2.title + p.intro[data-info]'),
-                 "article[@class and contains(concat(' ', normalize-space(@class), ' '), ' post ')]/h2[@class and contains(concat(' ', normalize-space(@class), ' '), ' title ')]/following-sibling::*[1][self::p][@class and contains(concat(' ', normalize-space(@class), ' '), ' intro ') and @data-info]")
+                 "article[contains(concat(' ', normalize-space(@class), ' '), ' post ')]/h2[contains(concat(' ', normalize-space(@class), ' '), ' title ')]/following-sibling::*[1][self::p][contains(concat(' ', normalize-space(@class), ' '), ' intro ') and @data-info]")
 })
 
 test_that("adjacent sibling combinator works correctly with querySelector", {

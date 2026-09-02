@@ -47,38 +47,38 @@ test_that("translation from parsed objects to XPath works", {
     expect_equal(xpath("e[foo='\\\\31 23']"), "e[@foo = '\\31 23']")
     expect_equal(xpath("#\\\\31 x"), "*[@id = '\\31']//x")
     expect_equal(xpath('e[foo~="bar"]'),
-                 "e[@foo and contains(concat(' ', normalize-space(@foo), ' '), ' bar ')]")
+                 "e[contains(concat(' ', normalize-space(@foo), ' '), ' bar ')]")
     expect_equal(xpath('e[foo^="bar"]'),
-                 "e[@foo and starts-with(@foo, 'bar')]")
+                 "e[starts-with(@foo, 'bar')]")
     expect_equal(xpath('e[foo$="bar"]'),
-                 "e[@foo and substring(@foo, string-length(@foo)-2) = 'bar']")
+                 "e[substring(@foo, string-length(@foo)-2) = 'bar']")
     expect_equal(xpath('e[foo*="bar"]'),
-                 "e[@foo and contains(@foo, 'bar')]")
+                 "e[contains(@foo, 'bar')]")
     expect_equal(xpath('e[hreflang|="en"]'),
-                 "e[@hreflang and (@hreflang = 'en' or starts-with(@hreflang, 'en-'))]")
+                 "e[@hreflang = 'en' or starts-with(@hreflang, 'en-')]")
     # CSS Selectors Level 4 case-sensitivity flags
     lower_foo <- paste0("translate(@foo, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',",
                         " 'abcdefghijklmnopqrstuvwxyz')")
     expect_equal(xpath('e[foo="Bar" i]'),
                  paste0("e[", lower_foo, " = 'bar']"))
     expect_equal(xpath('e[foo^="Bar" i]'),
-                 paste0("e[", lower_foo, " and starts-with(",
+                 paste0("e[starts-with(",
                         lower_foo, ", 'bar')]"))
     expect_equal(xpath('e[foo$="Bar" i]'),
-                 paste0("e[", lower_foo, " and substring(",
+                 paste0("e[substring(",
                         lower_foo, ", string-length(",
                         lower_foo, ")-2) = 'bar']"))
     expect_equal(xpath('e[foo*="Bar" i]'),
-                 paste0("e[", lower_foo, " and contains(",
+                 paste0("e[contains(",
                         lower_foo, ", 'bar')]"))
     expect_equal(xpath('e[foo~="Bar" i]'),
-                 paste0("e[", lower_foo,
-                        " and contains(concat(' ', normalize-space(",
+                 paste0("e[",
+                        "contains(concat(' ', normalize-space(",
                         lower_foo, "), ' '), ' bar ')]"))
     expect_equal(xpath('e[foo|="Bar" i]'),
-                 paste0("e[", lower_foo, " and (",
+                 paste0("e[",
                         lower_foo, " = 'bar' or starts-with(",
-                        lower_foo, ", 'bar-'))]"))
+                        lower_foo, ", 'bar-')]"))
     # The 'i' flag is ASCII case-insensitive: non-ASCII characters such
     # as 'É' are left alone
     expect_equal(xpath("e[foo='\\C9 x' i]"),
@@ -89,7 +89,7 @@ test_that("translation from parsed objects to XPath works", {
     # The 's' flag requests the default case-sensitive matching
     expect_equal(xpath('e[foo="Bar" s]'), "e[@foo = 'Bar']")
     expect_equal(xpath('e[foo^="Bar" s]'),
-                 "e[@foo and starts-with(@foo, 'Bar')]")
+                 "e[starts-with(@foo, 'Bar')]")
     expect_equal(xpath('e:nth-child(1)'),
                  "e[count(preceding-sibling::*) = 0]")
     expect_equal(xpath('e:nth-child(3n+2)'),
@@ -115,7 +115,7 @@ test_that("translation from parsed objects to XPath works", {
     expect_equal(xpath('e:nth-last-of-type(1)'),
                  "e[count(following-sibling::e) = 0]")
     expect_equal(xpath('div e:nth-last-of-type(1) .aclass'),
-                 "div//e[count(following-sibling::e) = 0]//*[@class and contains(concat(' ', normalize-space(@class), ' '), ' aclass ')]")
+                 "div//e[count(following-sibling::e) = 0]//*[contains(concat(' ', normalize-space(@class), ' '), ' aclass ')]")
     expect_equal(xpath('e:first-child'),
                  "e[count(preceding-sibling::*) = 0]")
     expect_equal(xpath('e:last-child'),
@@ -154,7 +154,7 @@ test_that("translation from parsed objects to XPath works", {
     expect_error(xpath('e:contains("foo")'),
                  "The pseudo-class :contains\\(\\) is unknown")
     expect_equal(xpath('e.warning'),
-                 "e[@class and contains(concat(' ', normalize-space(@class), ' '), ' warning ')]")
+                 "e[contains(concat(' ', normalize-space(@class), ' '), ' warning ')]")
     expect_equal(xpath('e#myid'),
                  "e[@id = 'myid']")
     expect_equal(xpath('e:not(:nth-child(odd))'),
@@ -192,26 +192,26 @@ test_that("translation from parsed objects to XPath works", {
     # add_name_test() leaves its condition_is_or flag untouched), is
     # parenthesized before being AND-ed with the reversed-axis test
     expect_equal(xpath(':is(a > :is(.x, .y))'),
-                 paste0("*[(@class and contains(concat(' ', normalize-space(@class), ' '), ' x ')",
-                       " or @class and contains(concat(' ', normalize-space(@class), ' '), ' y '))",
+                 paste0("*[(contains(concat(' ', normalize-space(@class), ' '), ' x ')",
+                       " or contains(concat(' ', normalize-space(@class), ' '), ' y '))",
                        " and parent::*[self::a]]"))
     expect_equal(xpath('e:not(a b)'),
                  "e[not(self::b and ancestor::*[self::a])]")
     expect_equal(xpath(':where(a + b)'),
                  "*[self::b and preceding-sibling::*[1][self::a]]")
     expect_equal(xpath(':is(a.x > b#y)'),
-                 "*[@id = 'y' and self::b and parent::*[@class and contains(concat(' ', normalize-space(@class), ' '), ' x ') and self::a]]")
+                 "*[@id = 'y' and self::b and parent::*[contains(concat(' ', normalize-space(@class), ' '), ' x ') and self::a]]")
     # The :is()/:where() alternatives must stay grouped: conditions added
     # before or after the pseudo-class AND with the whole selector list,
     # rather than the ORs flattening into the compound's condition chain
     expect_equal(xpath('e.warning:is(.a, .b)'),
-                 "e[@class and contains(concat(' ', normalize-space(@class), ' '), ' warning ') and (@class and contains(concat(' ', normalize-space(@class), ' '), ' a ') or @class and contains(concat(' ', normalize-space(@class), ' '), ' b '))]")
+                 "e[contains(concat(' ', normalize-space(@class), ' '), ' warning ') and (contains(concat(' ', normalize-space(@class), ' '), ' a ') or contains(concat(' ', normalize-space(@class), ' '), ' b '))]")
     expect_equal(xpath(':is(f, g):first-child'),
                  "*[(self::f or self::g) and count(preceding-sibling::*) = 0]")
     expect_equal(xpath('e:is(.a):is(.b)'),
-                 "e[@class and contains(concat(' ', normalize-space(@class), ' '), ' a ') and @class and contains(concat(' ', normalize-space(@class), ' '), ' b ')]")
+                 "e[contains(concat(' ', normalize-space(@class), ' '), ' a ') and contains(concat(' ', normalize-space(@class), ' '), ' b ')]")
     expect_equal(xpath('e.warning:where(f, g)'),
-                 "e[@class and contains(concat(' ', normalize-space(@class), ' '), ' warning ') and (self::f or self::g)]")
+                 "e[contains(concat(' ', normalize-space(@class), ' '), ' warning ') and (self::f or self::g)]")
     # An always-true argument (a bare '*') must not be dropped from a
     # selector list: the whole list then matches everything, so :is()
     # imposes no condition, :not() never matches, and the "of S" form
@@ -223,14 +223,14 @@ test_that("translation from parsed objects to XPath works", {
     expect_equal(xpath('a:where()'), "a[0]")
     expect_equal(xpath(':is( )'), "*[0]")
     expect_equal(xpath('e.warning:is()'),
-                 "e[@class and contains(concat(' ', normalize-space(@class), ' '), ' warning ') and 0]")
+                 "e[contains(concat(' ', normalize-space(@class), ' '), ' warning ') and 0]")
     # ... and so, as an argument, it excludes nothing from a :not()
     expect_equal(xpath(':not(:is())'), "*[not(0)]")
     expect_equal(xpath(':is(:where())'), "*[0]")
     expect_equal(xpath(':is(f, *)'),
                  "*")
     expect_equal(xpath('e.warning:is(f, *)'),
-                 "e[@class and contains(concat(' ', normalize-space(@class), ' '), ' warning ')]")
+                 "e[contains(concat(' ', normalize-space(@class), ' '), ' warning ')]")
     expect_equal(xpath('e:not(f, *)'),
                  "e[0]")
     expect_equal(xpath('e:nth-child(2 of f, *)'),
@@ -309,7 +309,7 @@ test_that("invalid unicode escapes translate to U+FFFD", {
         expect_equal(xpath(paste0("[x=\"", esc, "\"]")),
                      paste0("*[@x = '", repl, "']"))
         expect_equal(xpath(paste0(".", esc)),
-                     paste0("*[@class and contains(concat(' ', ",
+                     paste0("*[contains(concat(' ', ",
                             "normalize-space(@class), ' '), ' ",
                             repl, " ')]"))
     }

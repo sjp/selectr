@@ -20,7 +20,7 @@ test_that("a leading :scope generates XPath anchored at the context node", {
     expect_equal(css_to_xpath("div:scope > a"),
                  "self::div/a")
     expect_equal(css_to_xpath(":scope.foo"),
-                 "self::*[@class and contains(concat(' ', normalize-space(@class), ' '), ' foo ')]")
+                 "self::*[contains(concat(' ', normalize-space(@class), ' '), ' foo ')]")
     expect_equal(css_to_xpath(":scope:first-child"),
                  "self::*[count(preceding-sibling::*) = 0]")
 

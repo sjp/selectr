@@ -47,19 +47,22 @@ XPathExpr <- R6Class("XPathExpr",
             paste0(first_class_name(self), "[", self$str(), "]")
         },
         add_condition = function(condition, is_or_group = FALSE) {
-            # Always AND with the existing condition: an "or" appended here
-            # would flatten into the accumulated condition chain (XPath
-            # "and" binds tighter than "or"), changing its meaning.
-            # Callers wanting alternatives must OR-join them and add the
-            # result as one condition, flagged with 'is_or_group'.
+            # Always AND with the existing condition: an "or" (or a union,
+            # see below) appended here would flatten into the accumulated
+            # condition chain, changing its meaning. Callers wanting
+            # alternatives must OR- or union-join them and add the result
+            # as one condition, flagged with 'is_or_group'.
             #
-            # Parenthesize only when needed: "or" is the only XPath
-            # operator binding more loosely than the "and" used to join
-            # conditions, so an or-group alone in the bracketed
-            # predicate needs no parentheses. Defer them to the moment
-            # the or-group is joined with another condition, on
-            # whichever side it sits; the joined result is an
-            # and-chain, no longer an or-group.
+            # Parenthesize only when needed. 'is_or_group' covers any
+            # expression that a reader would need XPath's precedence rules
+            # to see as a single unit once it sits beside an "and": an
+            # "or", the only operator that binds more loosely than "and",
+            # needs no parentheses while alone in the bracketed predicate;
+            # a union ('|') binds tighter than "and" and so is already
+            # correct unparenthesized, but is flagged the same way purely
+            # for readability (xpath_has()). Defer them to the moment the
+            # group is joined with another condition, on whichever side it
+            # sits; the joined result is an and-chain, no longer a group.
             if (nzchar(self$condition)) {
                 if (is_or_group)
                     condition <- paste0("(", condition, ")")
@@ -389,6 +392,82 @@ disabled_by_fieldset <- paste0(
     "[not(preceding-sibling::*[local-name() = 'legend'])]",
     "[parent::*[local-name() = 'fieldset'][@disabled]])")
 
+# The compound's element name, for pruning the HTML pseudo-class
+# disjunctions below against it - but only when 'xpath$element' is a
+# plain, unprefixed name usable as an XPath name test. is_safe_name()
+# already excludes the universal selector '*' and a namespaced name such
+# as 'svg:input' (a colon fails the regex); an unsafe name has already
+# been folded into a name() condition by add_name_test(), which resets
+# 'element' to '*' - so both cases fall through to the same NULL result,
+# meaning "unknown, keep every disjunct". This also means a pseudo-class
+# argument translated against a fresh, element-less selector (e.g. the
+# ':checked' in 'input:not(:checked)', which xpath_argument_condition()
+# translates from '*') is never pruned - exactly as it should be, since
+# that '*' says nothing about the candidate element the compound pins.
+known_local_element <- function(xpath) {
+    if (is_safe_name(xpath$element)) xpath$element else NULL
+}
+
+# OR-join 'disjuncts' - each list(element, condition, is_or = FALSE) -
+# where 'condition' assumes the context node is already known to be
+# 'element' (no local-name(.) test of its own), and 'is_or' says whether
+# 'condition' is itself a bare top-level "or" expression that needs
+# parentheses once joined with something else. Item 4 of the
+# xpath-output-size issue: the HTML pseudo-class methods below built a
+# fixed disjunction over every element the HTML standard gives the
+# pseudo-class, even though the compound had already pinned the element
+# down (e.g. 'input:checked' carried the entire never-firing 'option'
+# disjunct, whose local-name(.) test can never be true once 'input' is
+# already known).
+#
+# When the compound's element is not known (known_local_element() is
+# NULL - a bare ':checked', or one inside :not()/:is() applied to '*'),
+# every disjunct must still test its own local-name(.), exactly as
+# before this pruning existed.
+#
+# When it is known and no disjunct names it, the predicate is genuinely
+# always-false for this element, and add_condition("0") is correct -
+# this is not the "no bare never-match" policy further down in this file
+# (the GenericTranslator "Policy:" comment above xpath_checked_pseudo and
+# its never-matching neighbours); that policy refuses to pretend an
+# *unsupported* pseudo-class matches something, while this is a
+# supported pseudo-class whose disjuncts have each been shown
+# unreachable for this specific, statically-known element.
+add_disjunction <- function(xpath, disjuncts) {
+    known <- known_local_element(xpath)
+    if (!is.null(known)) {
+        disjuncts <- Filter(function(d) identical(d$element, known),
+                            disjuncts)
+        if (!length(disjuncts)) {
+            xpath$add_condition("0")
+            return(xpath)
+        }
+        conditions <- vapply(disjuncts, `[[`, character(1), "condition")
+        is_or <- length(conditions) > 1 || isTRUE(disjuncts[[1]]$is_or)
+    } else {
+        conditions <- vapply(disjuncts, function(d)
+            paste0("local-name(.) = ", xpath_literal(d$element),
+                  " and (", d$condition, ")"), character(1))
+        is_or <- length(conditions) > 1
+    }
+    xpath$add_condition(paste(conditions, collapse = " or "),
+                        is_or_group = is_or)
+    xpath
+}
+
+# The disjuncts shared by xpath_required_pseudo() and
+# xpath_optional_pseudo(): both partition the same element set (input,
+# select, textarea) that can take @required, and differ only in whether
+# 'required_condition' is '@required' or 'not(@required)'
+required_optional_disjuncts <- function(required_condition) {
+    list(
+        list(element = "input",
+             condition = paste0(required_condition, " and not(", fold_type,
+                                " = 'hidden')")),
+        list(element = "select", condition = required_condition),
+        list(element = "textarea", condition = required_condition))
+}
+
 xpath_literal <- function(literal) {
     if (!is.character(literal) || length(literal) != 1) {
         internal_stop("literal must be a single character string")
@@ -706,7 +785,12 @@ GenericTranslator <- R6Class("GenericTranslator",
             # Combine conditions with OR (any match means the element matches)
             if (length(conditions) > 0) {
                 combined_condition <- paste0(conditions, collapse = " | ")
-                xpath$add_condition(combined_condition)
+                # Flag a multi-argument union with is_or_group so it is
+                # parenthesized if AND-joined with anything else later - a
+                # single argument needs no parentheses either way and is
+                # left exactly as add_condition() would render it bare.
+                xpath$add_condition(combined_condition,
+                                    is_or_group = length(conditions) > 1)
             }
 
             xpath
@@ -1260,12 +1344,17 @@ GenericTranslator <- R6Class("GenericTranslator",
             xpath$add_condition(paste0(name, " = ", xpath_literal(value)))
             xpath
         },
+        # The four methods below (and xpath_attrib_dashmatch just after)
+        # omit the "name and " existence guard cssselect prepends to each
+        # condition: with no such attribute, every one of these tests is
+        # already false, because each nzchar(value) branch below sends the
+        # empty-value case - the one case where that would not hold - to
+        # add_condition("0") instead.
         xpath_attrib_includes = function(xpath, name, value) {
             if (!is.null(value) && nzchar(value) &&
                 grepl("^[^ \t\r\n\f]+$", value)) {
                 xpath$add_condition(paste0(
-                    name,
-                    " and contains(concat(' ', normalize-space(",
+                    "contains(concat(' ', normalize-space(",
                     name,
                     "), ' '), ",
                     xpath_literal(paste0(" ", value, " ")),
@@ -1278,22 +1367,19 @@ GenericTranslator <- R6Class("GenericTranslator",
         xpath_attrib_dashmatch = function(xpath, name, value) {
             xpath$add_condition(paste0(
                 name,
-                " and (",
-                name,
                 " = ",
                 xpath_literal(value),
                 " or starts-with(",
                 name,
                 ", ",
                 xpath_literal(paste0(value, "-")),
-                "))"))
+                ")"), is_or_group = TRUE)
             xpath
         },
         xpath_attrib_prefixmatch = function(xpath, name, value) {
             if (!is.null(value) && nzchar(value)) {
                 xpath$add_condition(paste0(
-                    name,
-                    " and starts-with(",
+                    "starts-with(",
                     name,
                     ", ",
                     xpath_literal(value),
@@ -1307,8 +1393,7 @@ GenericTranslator <- R6Class("GenericTranslator",
         xpath_attrib_suffixmatch = function(xpath, name, value) {
             if (!is.null(value) && nzchar(value)) {
                 xpath$add_condition(paste0(
-                    name,
-                    " and substring(",
+                    "substring(",
                     name,
                     ", string-length(",
                     name,
@@ -1324,8 +1409,7 @@ GenericTranslator <- R6Class("GenericTranslator",
         xpath_attrib_substringmatch = function(xpath, name, value) {
             if (!is.null(value) && nzchar(value)) {
                 xpath$add_condition(paste0(
-                    name,
-                    " and contains(",
+                    "contains(",
                     name,
                     ", ",
                     xpath_literal(value),
@@ -1362,13 +1446,12 @@ HTMLTranslator <- R6Class("HTMLTranslator",
         # made ':enabled', are deliberately not matched - no browser
         # matches 'a:enabled' either; ':link'/':any-link' select links
         xpath_checked_pseudo = function(xpath) {
-            xpath$add_condition(
-                paste0("(@selected and local-name(.) = 'option') or ",
-                       "(@checked and local-name(.) = 'input' ",
-                       "and (", fold_type, " = 'checkbox' or ",
-                       fold_type, " = 'radio'))"),
-                is_or_group = TRUE)
-            xpath
+            add_disjunction(xpath, list(
+                list(element = "option", condition = "@selected"),
+                list(element = "input",
+                     condition = paste0("@checked and (", fold_type,
+                                        " = 'checkbox' or ", fold_type,
+                                        " = 'radio')"))))
         },
         # ':required' and ':optional' partition the form elements that
         # can take the required attribute (input, select, textarea);
@@ -1376,22 +1459,15 @@ HTMLTranslator <- R6Class("HTMLTranslator",
         # in xpath_disabled_pseudo, a hidden input is excluded - the
         # required attribute does not apply to it - but the rarer
         # non-required input types (range, color, the button types)
-        # are not carved out
+        # are not carved out. required_optional_disjuncts() is shared
+        # between the two pseudo-classes: only the leading condition
+        # differs
         xpath_required_pseudo = function(xpath) {
-            xpath$add_condition(
-                paste("@required and",
-                      paste0("((", input_not_hidden, ") or"),
-                      "local-name(.) = 'select' or",
-                      "local-name(.) = 'textarea')"))
-            xpath
+            add_disjunction(xpath, required_optional_disjuncts("@required"))
         },
         xpath_optional_pseudo = function(xpath) {
-            xpath$add_condition(
-                paste("not(@required) and",
-                      paste0("((", input_not_hidden, ") or"),
-                      "local-name(.) = 'select' or",
-                      "local-name(.) = 'textarea')"))
-            xpath
+            add_disjunction(xpath,
+                            required_optional_disjuncts("not(@required)"))
         },
         xpath_lang_function = function(xpath, fn) {
             validate_lang_args(fn)
@@ -1440,8 +1516,10 @@ HTMLTranslator <- R6Class("HTMLTranslator",
             xpath
         },
         xpath_link_pseudo = function(xpath) {
-            xpath$add_condition("@href and (local-name(.) = 'a' or local-name(.) = 'link' or local-name(.) = 'area')")
-            xpath
+            add_disjunction(xpath, list(
+                list(element = "a", condition = "@href"),
+                list(element = "link", condition = "@href"),
+                list(element = "area", condition = "@href")))
         },
         xpath_any_link_pseudo = function(xpath) {
             # ':any-link' is ':link or :visited' (selectors-4 section
@@ -1453,49 +1531,53 @@ HTMLTranslator <- R6Class("HTMLTranslator",
             self$xpath_link_pseudo(xpath)
         },
         xpath_disabled_pseudo = function(xpath) {
-            xpath$add_condition(
-                paste("(",
-                      "@disabled and",
-                      "(",
-                      paste0("(", input_not_hidden, ") or"),
-                      "local-name(.) = 'button' or",
-                      "local-name(.) = 'select' or",
-                      "local-name(.) = 'textarea' or",
-                      "local-name(.) = 'fieldset' or",
-                      "local-name(.) = 'optgroup' or",
-                      "local-name(.) = 'option'",
-                      ")",
-                      ") or (",
-                      "(",
-                      paste0("(", input_not_hidden, ") or"),
-                      "local-name(.) = 'button' or",
-                      "local-name(.) = 'select' or",
-                      "local-name(.) = 'textarea'",
-                      ")",
-                      "and", disabled_by_fieldset,
-                      ") or (",
-                      # an option under a disabled optgroup is
-                      # "actually disabled" even without its own
-                      # @disabled; ancestor:: matches ':enabled' and is
-                      # equivalent to the spec's parent:: because
-                      # optgroups cannot nest
-                      "local-name(.) = 'option' and ancestor::*[local-name() = 'optgroup'][@disabled]",
-                      ")"),
-                is_or_group = TRUE)
-            xpath
+            # An element that can be disabled by an ancestor <fieldset>
+            # (input, button, select, textarea) is disabled by @disabled
+            # or by disabled_by_fieldset; the rest (fieldset, optgroup)
+            # only by their own @disabled. input also excludes @type
+            # 'hidden', which cannot be disabled
+            fieldset_disjunct <- paste0("@disabled or (", disabled_by_fieldset,
+                                        ")")
+            add_disjunction(xpath, list(
+                list(element = "input",
+                     condition = paste0("not(", fold_type, " = 'hidden') ",
+                                        "and (", fieldset_disjunct, ")")),
+                list(element = "button", condition = fieldset_disjunct,
+                     is_or = TRUE),
+                list(element = "select", condition = fieldset_disjunct,
+                     is_or = TRUE),
+                list(element = "textarea", condition = fieldset_disjunct,
+                     is_or = TRUE),
+                list(element = "fieldset", condition = "@disabled"),
+                list(element = "optgroup", condition = "@disabled"),
+                # an option under a disabled optgroup is "actually
+                # disabled" even without its own @disabled; ancestor::
+                # matches ':enabled' and is equivalent to the spec's
+                # parent:: because optgroups cannot nest
+                list(element = "option",
+                     condition = paste0(
+                         "@disabled or ",
+                         "ancestor::*[local-name() = 'optgroup'][@disabled]"),
+                     is_or = TRUE)))
         },
         xpath_enabled_pseudo = function(xpath) {
-            xpath$add_condition(
-                paste("((local-name(.) = 'fieldset' or local-name(.) = 'optgroup') and not(@disabled))",
-                      "or",
-                      paste0("(((", input_not_hidden, ")"),
-                      "or local-name(.) = 'button'",
-                      "or local-name(.) = 'select'",
-                      "or local-name(.) = 'textarea')",
-                      paste0("and not (@disabled or ", disabled_by_fieldset, "))"),
-                      "or (local-name(.) = 'option' and not(@disabled or ancestor::*[local-name() = 'optgroup'][@disabled]))"),
-                is_or_group = TRUE)
-            xpath
+            not_fieldset_disabled <- paste0("not(@disabled or (",
+                                            disabled_by_fieldset, "))")
+            add_disjunction(xpath, list(
+                list(element = "fieldset", condition = "not(@disabled)"),
+                list(element = "optgroup", condition = "not(@disabled)"),
+                list(element = "input",
+                     condition = paste0("not(", fold_type, " = 'hidden') ",
+                                        "and ", not_fieldset_disabled)),
+                list(element = "button", condition = not_fieldset_disabled),
+                list(element = "select", condition = not_fieldset_disabled),
+                list(element = "textarea",
+                     condition = not_fieldset_disabled),
+                list(element = "option",
+                     condition = paste0(
+                         "not(@disabled or ",
+                         "ancestor::*[local-name() = 'optgroup'][@disabled])"))
+            ))
         }
     )
 )

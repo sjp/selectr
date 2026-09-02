@@ -100,19 +100,14 @@ test_that(":required and :optional translate from the @required attribute", {
     # translation on the HTML translator (like :checked), never-match
     # on the generic translator
     not_hidden <- paste0(
-        "local-name(.) = 'input' and not(translate(@type, ",
-        "'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') ",
-        "= 'hidden')")
-    required_xpath <- paste(
-        "@required and",
-        paste0("((", not_hidden, ") or"),
-        "local-name(.) = 'select' or",
-        "local-name(.) = 'textarea')")
-    optional_xpath <- paste(
-        "not(@required) and",
-        paste0("((", not_hidden, ") or"),
-        "local-name(.) = 'select' or",
-        "local-name(.) = 'textarea')")
+        "not(translate(@type, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
+        "'abcdefghijklmnopqrstuvwxyz') = 'hidden')")
+    # 'input' is the only element in the required/optional set the HTML
+    # translator prunes against here, so the compound's known element
+    # ('input') drops the 'select'/'textarea' disjuncts and their
+    # local-name() tests entirely - see add_disjunction() in R/xpath.R
+    required_xpath <- paste("@required and", not_hidden)
+    optional_xpath <- paste("not(@required) and", not_hidden)
     for (translator in c("html", "xhtml")) {
         expect_equal(css_to_xpath("input:required", translator = translator),
                      paste0("descendant-or-self::input[",
@@ -213,9 +208,11 @@ test_that(":any-link matches the same elements as :link", {
     # translators give it the :link condition verbatim (the design
     # shared with selectrs: internal consistency over the spec-exact
     # a/area element set, which would omit 'link')
-    link_xpath <- paste0(
-        "descendant-or-self::e[@href and ",
-        "(local-name(.) = 'a' or local-name(.) = 'link' or local-name(.) = 'area')]")
+    # 'e' names none of ':link''s elements (a, link, area), so once the
+    # HTML translator prunes against the compound's known element, the
+    # predicate is a bare, always-false '0' - see add_disjunction() in
+    # R/xpath.R
+    link_xpath <- "descendant-or-self::e[0]"
     for (translator in c("html", "xhtml")) {
         expect_equal(css_to_xpath("e:any-link", translator = translator),
                      link_xpath)
@@ -226,6 +223,49 @@ test_that(":any-link matches the same elements as :link", {
     # The generic translator has no link semantics: never matches
     expect_equal(css_to_xpath("e:any-link"),
                  "descendant-or-self::e[0]")
+})
+
+test_that("HTML pseudo-classes prune disjuncts the compound rules out", {
+    # add_disjunction() (R/xpath.R) drops a form-state pseudo-class's
+    # per-element disjuncts once the compound's element is known to be
+    # something else - e.g. 'input:checked' no longer carries the
+    # 'option' disjunct. Confirm both the shrunk XPath text and that the
+    # pruned and unpruned forms select the same nodes
+    skip_if_not_installed("xml2")
+    library(xml2)
+
+    fold <- paste0("translate(@type, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
+                   "'abcdefghijklmnopqrstuvwxyz')")
+    expect_equal(
+        css_to_xpath("input:checked", prefix = "", translator = "html"),
+        paste0("input[@checked and (", fold, " = 'checkbox' or ",
+              fold, " = 'radio')]"))
+    expect_equal(css_to_xpath("option:checked", prefix = "",
+                              translator = "html"),
+                 "option[@selected]")
+    # 'p' is in neither disjunct: the predicate collapses to '0'
+    expect_equal(css_to_xpath("p:checked", prefix = "", translator = "html"),
+                 "p[0]")
+    expect_equal(css_to_xpath("button:required", prefix = "",
+                              translator = "html"),
+                 "button[0]")
+
+    doc <- read_xml(paste0(
+        "<form>",
+        "<input id='i1' type='checkbox' checked='checked'/>",
+        "<option id='o1' selected='selected'>x</option>",
+        "<option id='o2'>y</option>",
+        "<p id='p1'>z</p>",
+        "</form>"))
+    get_ids <- function(css) {
+        xml_attr(querySelectorAll(doc, css, translator = "html"), "id")
+    }
+    expect_equal(get_ids("input:checked"), "i1")
+    expect_equal(get_ids("option:checked"), "o1")
+    expect_equal(get_ids("p:checked"), character(0))
+    # The pruned, single-element form still matches the same nodes as
+    # the unpruned, element-less form
+    expect_equal(get_ids(":checked"), c("i1", "o1"))
 })
 
 test_that("pseudo-class names spelled with underscores are unknown", {

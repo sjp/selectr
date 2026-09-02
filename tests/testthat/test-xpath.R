@@ -54,7 +54,7 @@ test_that("HTML translator lowercases attribute names but not values", {
     expect_equal(translator$css_to_xpath('[Data-State="Active"]'),
                  "descendant-or-self::*[@data-state = 'Active']")
     expect_equal(translator$css_to_xpath('[data-state~="Active"]'),
-                 paste0("descendant-or-self::*[@data-state and ",
+                 paste0("descendant-or-self::*[",
                         "contains(concat(' ', ",
                         "normalize-space(@data-state), ' '), ",
                         "' Active ')]"))
