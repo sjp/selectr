@@ -19,6 +19,23 @@
       and a node matching from more than one node of the set is
       returned once, at the position it first matched.
 
+      \item The \code{querySelector()} family of functions now uses
+      the \code{html} translator by default when the document being
+      queried was parsed as HTML, by \code{XML::htmlParse()} or
+      \code{xml2::read_html()}; the \code{generic} (XML) translator
+      remains the default for everything else. Element and attribute
+      names are therefore matched case-insensitively, and
+      \code{:checked}, \code{:disabled}, \code{:link} and
+      \code{:lang()} (via the \code{lang} attribute) match as they
+      do in a browser, without \code{translator = "html"} having to
+      be passed on every call. An explicit \code{translator}
+      argument still wins. For \pkg{xml2} the document is recognised
+      however the query starts, including from a node or an
+      \code{xml_nodeset}; the \pkg{XML} package gives the nodes of
+      an HTML document the same class as those of an XML document, so
+      there only a query starting from the document itself is
+      recognised.
+
       \item An \pkg{xml2} \code{xml_missing}, as returned by a failed
       \code{xml_find_first()}, is now accepted by the
       \code{querySelector()} family and yields no matches ---
