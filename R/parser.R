@@ -9,9 +9,7 @@ nonascii <- "[^\1-\177]"
 
 TokenMacros <- list(escape = escape,
                     string_escape = paste0("\\\\(?:\n|\r\n|\r|\f)|", escape),
-                    nonascii = nonascii,
-                    nmchar = paste0("([_a-z0-9-]|", escape, "|", nonascii, ")"),
-                    nmstart = paste0("[_a-z]|", escape, "|", nonascii))
+                    nonascii = nonascii)
 
 Selector <- R6Class("Selector",
     public = list(
@@ -146,6 +144,16 @@ Pseudo <- R6Class("Pseudo",
     )
 )
 
+# :not(), :is() and :has() all take the specificity of their most
+# specific argument (CSS Selectors Level 4). vapply() pins the result to
+# a 3 x n matrix, so one argument is handled just like many; the caller
+# is responsible for the empty case, where there is no such argument.
+max_specificity <- function(selector_list) {
+    specs <- vapply(selector_list, function(s) s$specificity(), numeric(3))
+    # most specific first: (id, class, element) descending
+    specs[, order(-specs[1, ], -specs[2, ], -specs[3, ])[1]]
+}
+
 Negation <- R6Class("Negation",
     public = list(
         selector = NULL,
@@ -167,23 +175,8 @@ Negation <- R6Class("Negation",
                 ")]")
         },
         specificity = function() {
-            specs <- self$selector$specificity()
-            # according to CSS Selectors Level 4, :not() takes the specificity of
-            # its most specific argument
-            sub_specs <- sapply(self$selector_list, function(s) s$specificity())
-            # sapply returns a matrix with each column being a selector's specificity
-            if (is.matrix(sub_specs)) {
-                # get rows as selectors
-                sub_specs <- t(sub_specs)
-                if (nrow(sub_specs) > 1) {
-                    # sort by specificity (id, class, element) descending
-                    sub_specs <- sub_specs[order(-sub_specs[, 1], -sub_specs[, 2], -sub_specs[, 3]), , drop = FALSE]
-                }
-                specs + sub_specs[1, ]
-            } else {
-                # single value case
-                specs + sub_specs
-            }
+            # :not() always has at least one argument
+            self$selector$specificity() + max_specificity(self$selector_list)
         },
         show = function() { # nocov start
             cat(self$repr(), "\n")
@@ -219,14 +212,7 @@ Matching <- R6Class("Matching",
             base_specs <- self$selector$specificity()
             if (length(self$selector_list) == 0)
                 return(base_specs)
-            sub_specs <- sapply(self$selector_list, function(s) s$specificity())
-            # sapply returns a matrix with each column being a selector's specificity
-            sub_specs <- t(sub_specs)
-            if (nrow(sub_specs) > 1) {
-                # sort by specificity (id, class, element) descending
-                sub_specs <- sub_specs[order(-sub_specs[, 1], -sub_specs[, 2], -sub_specs[, 3]), , drop = FALSE]
-            }
-            base_specs + sub_specs[1, ]
+            base_specs + max_specificity(self$selector_list)
         },
         show = function() { # nocov start
             cat(self$repr(), "\n")
@@ -322,14 +308,7 @@ Has <- R6Class("Has",
             # :has() takes the specificity of its most specific argument,
             # added to the base selector
             base_specs <- self$selector$specificity()
-            sub_specs <- sapply(self$selector_list, function(s) s$specificity())
-            # sapply returns a matrix with each column being a selector's specificity
-            sub_specs <- t(sub_specs)
-            if (nrow(sub_specs) > 1) {
-                # sort by specificity (id, class, element) descending
-                sub_specs <- sub_specs[order(-sub_specs[, 1], -sub_specs[, 2], -sub_specs[, 3]), , drop = FALSE]
-            }
-            base_specs + sub_specs[1, ]
+            base_specs + max_specificity(self$selector_list)
         },
         show = function() { # nocov start
             cat(self$repr(), "\n")
@@ -554,7 +533,6 @@ parse <- function(css) {
     tryCatch(
         {
             stream <- TokenStream$new(tokenize(css))
-            stream$source_text <- css
             parse_selector_group(stream)
         },
         selectr_parse_error = function(e) {
@@ -1480,13 +1458,11 @@ TokenStream <- R6Class("TokenStream",
         # between. The sticky EOF token (see next_token()) leaves pos --
         # and so this -- alone once it has been consumed the first time.
         consumed = 0,
-        source_text = NULL,
         peeked = list(),
         peeking = FALSE,
-        initialize = function(tokens, source_text = NULL) {
+        initialize = function(tokens) {
             self$tokens <- tokens
             self$ntokens <- length(tokens)
-            self$source_text <- source_text
         },
         nxt = function() {
             nt <- if (self$peeking) {

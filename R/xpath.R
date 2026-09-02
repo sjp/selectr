@@ -116,10 +116,7 @@ XPathExpr <- R6Class("XPathExpr",
             self$element <- "*"
         },
         join = function(combiner, other) {
-            p <- paste0(self$str(), combiner)
-            if (other$path != "*/")
-                p <- paste0(p, other$path)
-            self$path <- p
+            self$path <- paste0(self$str(), combiner, other$path)
             self$element <- other$element
             self$predicates <- other$predicates
             self$condition <- other$condition
@@ -419,16 +416,12 @@ GenericTranslator <- R6Class("GenericTranslator",
         lower_case_attribute_values = FALSE,
         css_to_xpath = function(css, prefix = "descendant-or-self::") {
             selectors <- parse(css)
-            selectors <-
-                if (is.null(selectors)) list()
-                else if (!is.list(selectors)) list(selectors)
-                else selectors
 
-            lapply(selectors, function(selector) {
+            for (selector in selectors) {
                 if (first_class_name(selector) == "Selector" &&
                     !is.null(selector$pseudo_element))
                     stop("Pseudo-elements are not supported.")
-            })
+            }
 
             char_selectors <-
                 sapply(selectors,
@@ -450,7 +443,7 @@ GenericTranslator <- R6Class("GenericTranslator",
             # becomes 'self::*'
             if (xpath$scoped)
                 prefix <- "self::"
-            paste0(if (!is.null(prefix)) prefix else "", xpath$str())
+            paste0(prefix, xpath$str())
         },
         xpath = function(parsed_selector) {
             type_name <- first_class_name(parsed_selector)
@@ -1103,10 +1096,9 @@ GenericTranslator <- R6Class("GenericTranslator",
             # :dir() takes exactly one identifier (CSS Selectors Level 4).
             # A lone '-' lexes as an IDENT but is not a valid <ident>
             # per css-syntax, so reject it too.
-            arg_types <- fn$argument_types()
-            arg_values <- sapply(fn$arguments, function(a) a$value)
-            if (length(fn$arguments) != 1 || arg_types != "IDENT" ||
-                arg_values == "-") {
+            if (length(fn$arguments) != 1 ||
+                fn$arguments[[1]]$type != "IDENT" ||
+                fn$arguments[[1]]$value == "-") {
                 stop("Expected a single ident argument for :dir(), got ",
                      token_repr(fn$arguments[[1]]))
             }

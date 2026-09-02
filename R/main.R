@@ -115,7 +115,7 @@ css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator =
         results[i] <- cached
     }
 
-    as.character(results)
+    results
 }
 
 querySelector <- function(doc, selector, ns = NULL, ...) {
@@ -157,7 +157,7 @@ querySelectorAllNS.default <- function(doc, selector, ns,
 querySelector.XMLNodeSet          <-
 querySelector.XMLInternalNode     <-
 querySelector.XMLInternalDocument <- function(doc, selector, ns = NULL, ...) {
-    validateSelector(selector)
+    # The selector is validated by the querySelectorAll() method below
     results <- querySelectorAll(doc, selector, ns, ...)
     if (length(results))
         results[[1]]
@@ -270,7 +270,7 @@ querySelectorAll.xml_node <- function(doc, selector, ns = NULL,
 }
 
 querySelector.xml_nodeset <- function(doc, selector, ns = NULL, ...) {
-    validateSelector(selector)
+    # The selector is validated by the querySelectorAll() method below
     results <- querySelectorAll(doc, selector, ns, ...)
     if (length(results))
         results[[1]]

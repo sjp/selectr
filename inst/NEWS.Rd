@@ -50,9 +50,7 @@
 
       \item Parse errors now include a source-pointer block showing
       the offending CSS selector with a caret (\code{^}) positioned
-      beneath the character that triggered the error. The message
-      text is unchanged, so code that matches error strings continues
-      to work. No new package dependencies are introduced.
+      beneath the character that triggered the error.
 
       \item Parse errors are now signalled as a structured condition
       of class \code{c("selectr_parse_error", "selectr_error",
