@@ -744,14 +744,30 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                 # :lang() can accept a comma-separated list; :dir() takes
                 # exactly one identifier (CSS Selectors Level 4)
                 allow_commas <- tolower(ident) == "lang"
+                # has_arg/ws_since_arg track, within the current
+                # comma-delimited :lang() value, whether an argument
+                # token has been seen and whether whitespace followed
+                # it. A wildcard range can span several adjacent
+                # tokens with no whitespace between them (e.g. the
+                # '*', '-CH' of "*-CH", or the "de-", '*', '-DE' of
+                # "de-*-DE") -- those must NOT require a comma. Only
+                # whitespace standing in for a comma is rejected.
+                has_arg <- FALSE
+                ws_since_arg <- FALSE
 
                 while (TRUE) {
                     nt <- stream$nxt()
                     if (nt$type %in% c("IDENT", "STRING", "NUMBER") ||
                         (token_equality(nt, "DELIM", "+") ||
                          token_equality(nt, "DELIM", "-"))) {
+                        if (allow_commas && has_arg && ws_since_arg) {
+                            parse_stop("Expected ',' or ')', got ",
+                                       token_repr(nt), pos = nt$pos)
+                        }
                         arguments[[i]] <- nt
                         i <- i + 1
+                        has_arg <- TRUE
+                        ws_since_arg <- FALSE
 
                         # Check if this is the 'of' keyword for nth-child/nth-last-child
                         if (nt$type == "IDENT" && tolower(nt$value) == "of" &&
@@ -767,8 +783,14 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                         }
                     } else if (token_equality(nt, "DELIM", "*") && allow_commas) {
                         # For :lang(), allow * as a wildcard
+                        if (has_arg && ws_since_arg) {
+                            parse_stop("Expected ',' or ')', got ",
+                                       token_repr(nt), pos = nt$pos)
+                        }
                         arguments[[i]] <- nt
                         i <- i + 1
+                        has_arg <- TRUE
+                        ws_since_arg <- FALSE
                     } else if (nt$type == "S") {
                         # Keep whitespace tokens for the An+B (nth-*)
                         # functions so parse_series() can validate
@@ -778,10 +800,13 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                             arguments[[i]] <- nt
                             i <- i + 1
                         }
+                        ws_since_arg <- TRUE
                         next
                     } else if (token_equality(nt, "DELIM", ",") && allow_commas) {
                         # For :lang(), commas separate multiple values
                         stream$skip_whitespace()
+                        has_arg <- FALSE
+                        ws_since_arg <- FALSE
                         next
                     } else if (token_equality(nt, "DELIM", ")") ||
                                nt$type == "EOF") {

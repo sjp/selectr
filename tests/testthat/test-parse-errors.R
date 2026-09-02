@@ -57,6 +57,17 @@ test_that("useful errors are returned", {
                 throws_error("Operator expected, got <IDENT 'i' at 6>"))
     expect_that(get_error(":lang(fr)"),
                 equals(NULL))
+    expect_that(get_error(":lang(en, fr)"),
+                equals(NULL))
+    expect_that(get_error(":lang( en , fr )"),
+                equals(NULL))
+    # A second range without a preceding comma is rejected, not
+    # silently treated as comma-separated (whitespace is not a
+    # substitute for ',')
+    expect_that(get_error(":lang(en fr)"),
+                throws_error("Expected ',' or '\\)', got <IDENT 'fr' at 10>"))
+    expect_that(get_error(":lang(en *)"),
+                throws_error("Expected ',' or '\\)', got <DELIM '\\*' at 10>"))
     # EOF only auto-closes a construct (see below); a missing interior
     # part still errors, exactly as its closed form would
     expect_that(get_error("[foo="),
