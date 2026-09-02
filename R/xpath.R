@@ -431,15 +431,22 @@ GenericTranslator <- R6Class("GenericTranslator",
             method(parsed_selector)
         },
         xpath_combinedselector = function(combined) {
-            combinator <- self$combinator_mapping[combined$combinator]
-            method <- self[[paste0("xpath_", combinator, "_combinator")]]
-            if (is.null(method))
-                stop("Unknown combinator '", combinator, "'")
-            right <- self$xpath(combined$subselector)
-            if (right$scoped)
-                stop_non_leading_scope()
-            method(left = self$xpath(combined$selector),
-                   right = right)
+            # Fold the chain of combinators in a loop, translating each
+            # right-hand compound in turn; see 'combinator_spine' for
+            # why this is not written as a recursion
+            spine <- combinator_spine(combined)
+            left <- self$xpath(spine$leftmost)
+            for (node in spine$nodes) {
+                combinator <- self$combinator_mapping[node$combinator]
+                method <- self[[paste0("xpath_", combinator, "_combinator")]]
+                if (is.null(method))
+                    stop("Unknown combinator '", combinator, "'")
+                right <- self$xpath(node$subselector)
+                if (right$scoped)
+                    stop_non_leading_scope()
+                left <- method(left = left, right = right)
+            }
+            left
         },
         xpath_argument_condition = function(subselector) {
             # Translate one functional pseudo-class argument into a

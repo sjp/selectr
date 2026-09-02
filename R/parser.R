@@ -453,23 +453,23 @@ CombinedSelector <- R6Class("CombinedSelector",
             self$subselector <- subselector
         },
         repr = function() {
-            comb <-
-                if (self$combinator == " ") "<followed>"
-                else self$combinator
-            paste0(
-                first_class_name(self),
-                "[",
-                self$selector$repr(),
-                " ",
-                comb,
-                " ",
-                self$subselector$repr(),
-                "]")
+            spine <- combinator_spine(self)
+            out <- spine$leftmost$repr()
+            for (node in spine$nodes) {
+                comb <-
+                    if (node$combinator == " ") "<followed>"
+                    else node$combinator
+                out <- paste0(first_class_name(node), "[", out, " ", comb,
+                              " ", node$subselector$repr(), "]")
+            }
+            out
         },
         specificity = function() {
-            specs <- self$selector$specificity()
-            sub_specs <- self$subselector$specificity()
-            specs + sub_specs
+            spine <- combinator_spine(self)
+            specs <- spine$leftmost$specificity()
+            for (node in spine$nodes)
+                specs <- specs + node$subselector$specificity()
+            specs
         },
         show = function() { # nocov start
             cat(self$repr(), "\n")
@@ -478,6 +478,22 @@ CombinedSelector <- R6Class("CombinedSelector",
 )
 
 #### Parser
+
+# The parser builds a left-deep CombinedSelector tree, so 'a > b > c'
+# is ((a > b) > c). Split such a tree into the compound selector at the
+# far left and the CombinedSelector nodes above it, ordered
+# left-to-right, so that callers can fold the chain in a loop. Walking
+# the spine recursively instead would cost several R frames per
+# combinator, and long chains would exhaust R's expression nesting
+# limit (options(expressions=)) rather than translate.
+combinator_spine <- function(selector) {
+    spine <- list()
+    while (first_class_name(selector) == "CombinedSelector") {
+        spine[[length(spine) + 1L]] <- selector
+        selector <- selector$selector
+    }
+    list(leftmost = selector, nodes = rev(spine))
+}
 
 # Fast paths for the most common simple selectors, skipping
 # tokenization. INVARIANT: each regex must accept only selectors that

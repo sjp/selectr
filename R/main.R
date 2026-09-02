@@ -58,8 +58,12 @@ css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator =
         pref <- prefix[i]
         trans <- translator[i]
 
+        # R limits a symbol - and therefore an environment key - to
+        # 10000 bytes, so an unusually long selector is translated
+        # uncached rather than failing to be looked up
         key <- xpath_cache_key(sel, pref, trans)
-        cached <- cache[[key]]
+        cacheable <- nchar(key, type = "bytes") < 10000L
+        cached <- if (cacheable) cache[[key]] else NULL
         if (is.null(cached)) {
             tran <- if (trans == "html") {
                 HTMLTranslator$new()
@@ -70,7 +74,8 @@ css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator =
             }
 
             cached <- tran$css_to_xpath(sel, pref)
-            cache[[key]] <- cached
+            if (cacheable)
+                cache[[key]] <- cached
         }
         results[i] <- cached
     }

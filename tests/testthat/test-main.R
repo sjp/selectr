@@ -40,6 +40,14 @@ test_that("css_to_xpath translates duplicate selectors only once per call", {
     expect_that(xpath_cache_key("a", "b//", "generic") ==
                 xpath_cache_key("a\r1\rb", "//", "generic"),
                 equals(FALSE))
+
+    # A selector whose key exceeds the 10000 byte limit on R symbols
+    # is translated uncached rather than failing the lookup
+    long <- paste(rep("a", 4000), collapse = " > ")
+    expected <- paste0("descendant-or-self::",
+                       paste(rep("a", 4000), collapse = "/"))
+    expect_true(nchar(xpath_cache_key(long, "", "generic")) > 10000)
+    expect_that(css_to_xpath(c(long, long)), equals(c(expected, expected)))
 })
 
 test_that("css_to_xpath handles bad arguments", {

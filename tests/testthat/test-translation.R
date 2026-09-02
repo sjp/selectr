@@ -288,3 +288,36 @@ test_that("invalid unicode escapes translate to U+FFFD", {
         }
     }
 })
+
+test_that("long combinator chains translate without recursion limits", {
+    # Translation walks the left-deep parse tree in a loop, so the
+    # length of a chain is bounded by memory rather than by R's
+    # expression nesting limit (options(expressions=))
+    n <- 2000
+    chain <- function(combinator) paste(rep("a", n), collapse = combinator)
+    repeated <- function(step) paste0("descendant-or-self::a",
+                                      paste(rep(step, n - 1), collapse = ""))
+
+    expect_that(css_to_xpath(chain(" > ")), equals(repeated("/a")))
+    expect_that(css_to_xpath(chain(" ")), equals(repeated("//a")))
+    expect_that(css_to_xpath(chain(" ~ ")),
+                equals(repeated("/following-sibling::a")))
+    expect_that(css_to_xpath(chain(" + ")),
+                equals(repeated("/following-sibling::*[1][self::a]")))
+})
+
+test_that("long combinator chains report and score without recursion", {
+    n <- 2000
+    selectors <- parse(paste(rep("a", n), collapse = " > "))
+    expect_that(length(selectors), equals(1))
+
+    # repr() and specificity() walk the same left spine iteratively
+    expect_that(selectors[[1]]$specificity(), equals(c(0, 0, n)))
+    expect_true(grepl("^CombinedSelector\\[", selectors[[1]]$repr()))
+
+    # Pseudo-class arguments are still translated recursively; this is
+    # a regression guard on a nesting depth that is known to work
+    nested <- paste0(paste(rep(":not(", 250), collapse = ""), "a",
+                     paste(rep(")", 250), collapse = ""))
+    expect_true(is.character(css_to_xpath(nested)))
+})
