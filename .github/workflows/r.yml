@@ -84,11 +84,6 @@ jobs:
 
     env:
       _R_CHECK_FORCE_SUGGESTS_: false
-      # ubuntu-latest runners ship XML and xml2 pre-installed in the OS-wide
-      # site-library, outside of anything setup-r-dependencies installs.
-      # Point R_LIBS_SITE elsewhere so requireNamespace() reflects only what
-      # this job actually installed, not what the runner image bundles.
-      R_LIBS_SITE: /tmp/no-suggests-site-library
 
     steps:
       - uses: actions/checkout@v7
@@ -102,6 +97,15 @@ jobs:
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           dependencies: '"hard"'
+          # setup-r-dependencies falls back to a same-OS/R-version/arch cache
+          # from ANY job when there's no exact lockfile match (its
+          # restore-keys prefix doesn't include the lockfile hash). Without a
+          # distinct cache-version here, this job's restore silently pulls in
+          # the full R-CMD-check job's cache (which does install XML/xml2 as
+          # regular Suggests), defeating the point of this job. Keep it
+          # distinct per matrix leg too, so 'none' and 'xml2' don't share a
+          # cache with each other either.
+          cache-version: no-suggests-${{ matrix.suggests }}
           extra-packages: >-
             any::rcmdcheck
             any::testthat
