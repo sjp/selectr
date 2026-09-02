@@ -3,7 +3,7 @@
 # separate terms of service, privacy policy, and support
 # documentation.
 #
-# See https://github.com/r-lib/actions/tree/master/examples#readme for
+# See https://github.com/r-lib/actions/tree/v2-branch/examples#readme for
 # additional example workflows available for the R community.
 
 name: R
@@ -18,6 +18,11 @@ on:
   pull_request:
     branches:
       - master
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   R-CMD-check:
@@ -31,13 +36,9 @@ jobs:
         config:
           - {os: macOS-latest,   r: 'release'}
           - {os: windows-latest, r: 'release'}
-          - {os: ubuntu-latest,   r: 'devel', http-user-agent: 'release'}
-          - {os: ubuntu-latest,   r: 'release'}
-          - {os: ubuntu-latest,   r: 'oldrel-1'}
-
-    env:
-      R_REMOTES_NO_ERRORS_FROM_WARNINGS: true
-      RSPM: ${{ matrix.config.rspm }}
+          - {os: ubuntu-latest,  r: 'devel', http-user-agent: 'release'}
+          - {os: ubuntu-latest,  r: 'release'}
+          - {os: ubuntu-latest,  r: 'oldrel-1'}
 
     steps:
       - uses: actions/checkout@v7
@@ -52,10 +53,7 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: |
-            rcmdcheck
-            covr
-          pak-version: devel # See https://github.com/r-lib/actions/issues/559
+          extra-packages: any::rcmdcheck
 
       - uses: r-lib/actions/check-r-package@v2
 
@@ -66,11 +64,68 @@ jobs:
 
       - name: Upload check results
         if: failure()
-        uses: actions/upload-artifact@main
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ runner.os }}-r${{ matrix.config.r }}-results
           path: check
-          
+
+  test-coverage:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::covr, any::xml2
+
       - name: Test coverage
-        run: covr::codecov()
+        run: |
+          cov <- covr::package_coverage(
+            quiet = FALSE,
+            clean = FALSE,
+            install_path = file.path(normalizePath(Sys.getenv("RUNNER_TEMP"), winslash = "/"), "package")
+          )
+          print(cov)
+          covr::to_cobertura(cov)
         shell: Rscript {0}
+
+      - uses: codecov/codecov-action@v7
+        with:
+          # Fail on error unless this is a PR without access to the token
+          fail_ci_if_error: ${{ github.event_name != 'pull_request' || secrets.CODECOV_TOKEN != '' }}
+          files: ./cobertura.xml
+          plugins: noop
+          disable_search: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload coverage failures
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-test-failures
+          path: ${{ runner.temp }}/package
+
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::lintr, local::.
+
+      - name: Lint
+        run: lintr::lint_package()
+        shell: Rscript {0}
+        env:
+          LINTR_ERROR_ON_LINT: true

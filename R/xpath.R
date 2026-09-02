@@ -213,7 +213,7 @@ stop_non_leading_scope <- function() {
 # ancestor, but the generic translator's only tool is XPath 1.0's
 # lang() function, which can express a prefix match but not an interior
 # wildcard, so it rejects such ranges rather than silently mismatching.
-stop_lang_non_trailing_wildcard <- function(range) {
+stop_lang_interior_wildcard <- function(range) {
     translation_stop(
         paste0("Only a bare '*' or a trailing '...-*' wildcard is ",
                "supported by the generic translator's :lang(); the range ",
@@ -1114,7 +1114,7 @@ GenericTranslator <- R6Class("GenericTranslator",
                     # XPath 1.0's lang() cannot express RFC 4647 extended
                     # filtering, and unlike the HTML translators there is
                     # no lang-attribute to walk, so reject it
-                    stop_lang_non_trailing_wildcard(value)
+                    stop_lang_interior_wildcard(value)
                 } else {
                     # Regular language tag
                     paste0("lang(", xpath_literal(value), ")")
