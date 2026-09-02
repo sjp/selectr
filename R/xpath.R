@@ -1320,11 +1320,18 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                 self$lower_case_attribute_names <- TRUE
             }
         },
+        # The form-state pseudo-classes cover the element set the HTML
+        # standard gives them: ':checked' the checkbox and radio inputs
+        # and the selected options, ':enabled'/':disabled' the elements
+        # that can be "actually disabled" (button, input, select,
+        # textarea, optgroup, option, fieldset). The obsolete <command>
+        # and <keygen> elements, and the hyperlinks that older drafts
+        # made ':enabled', are deliberately not matched - no browser
+        # matches 'a:enabled' either; ':link'/':any-link' select links
         xpath_checked_pseudo = function(xpath) {
             xpath$add_condition(
                 paste0("(@selected and name(.) = 'option') or ",
-                       "(@checked ",
-                       "and (name(.) = 'input' or name(.) = 'command')",
+                       "(@checked and name(.) = 'input' ",
                        "and (", fold_type, " = 'checkbox' or ",
                        fold_type, " = 'radio'))"),
                 is_or_group = TRUE)
@@ -1421,7 +1428,6 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                       "name(.) = 'button' or",
                       "name(.) = 'select' or",
                       "name(.) = 'textarea' or",
-                      "name(.) = 'command' or",
                       "name(.) = 'fieldset' or",
                       "name(.) = 'optgroup' or",
                       "name(.) = 'option'",
@@ -1447,15 +1453,12 @@ HTMLTranslator <- R6Class("HTMLTranslator",
         },
         xpath_enabled_pseudo = function(xpath) {
             xpath$add_condition(
-                paste("(@href and (name(.) = 'a' or name(.) = 'link' or name(.) = 'area'))",
-                      "or",
-                      "((name(.) = 'command' or name(.) = 'fieldset' or name(.) = 'optgroup') and not(@disabled))",
+                paste("((name(.) = 'fieldset' or name(.) = 'optgroup') and not(@disabled))",
                       "or",
                       paste0("(((", input_not_hidden, ")"),
                       "or name(.) = 'button'",
                       "or name(.) = 'select'",
-                      "or name(.) = 'textarea'",
-                      "or name(.) = 'keygen')",
+                      "or name(.) = 'textarea')",
                       paste0("and not (@disabled or ", disabled_by_fieldset, "))"),
                       "or (name(.) = 'option' and not(@disabled or ancestor::optgroup[@disabled]))"),
                 is_or_group = TRUE)

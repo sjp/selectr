@@ -127,6 +127,16 @@ css_to_xpath(selector,
   particular it qualifies the following pseudo selectors to apply only
   to relevant (X)HTML elements: \code{:checked}, \code{:disabled},
   \code{:enabled}, \code{:link}, \code{:optional} and \code{:required}.
+  \code{:enabled} and \code{:disabled} partition the elements HTML
+  allows to be \dQuote{actually disabled} - \code{button},
+  \code{input}, \code{select}, \code{textarea}, \code{optgroup},
+  \code{option} and \code{fieldset} - and match nothing outside that
+  set. In particular a hyperlink is not \code{:enabled}: an early
+  draft said otherwise, but no browser matches \code{a:enabled}, so
+  use \code{:link} or \code{:any-link} for links. \code{:checked}
+  matches checked \code{checkbox} and \code{radio} inputs and
+  selected \code{option}s. The obsolete \code{command} and
+  \code{keygen} elements are matched by none of the three.
   Because \code{type} is an HTML enumerated attribute, the
   form-state pseudo-classes match its keywords ASCII
   case-insensitively, so \code{<input type="RADIO">} is \code{:checked}

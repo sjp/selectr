@@ -171,7 +171,7 @@ test_that("selection works correctly on a large barrage of tests", {
     ## HTML-specific
     expect_that(pcss(':link', html_only = TRUE), equals(c('link-href', 'tag-anchor', 'nofollow-anchor', 'area-href')))
     expect_that(pcss(':visited', html_only = TRUE), equals(NULL))
-    expect_that(pcss(':enabled', html_only = TRUE), equals(c('link-href', 'tag-anchor', 'nofollow-anchor', 'checkbox-unchecked', 'text-checked', 'checkbox-checked', 'area-href')))
+    expect_that(pcss(':enabled', html_only = TRUE), equals(c('checkbox-unchecked', 'text-checked', 'checkbox-checked')))
     expect_that(pcss(':disabled', html_only = TRUE), equals(c('checkbox-disabled', 'checkbox-disabled-checked', 'fieldset', 'checkbox-fieldset-disabled')))
     expect_that(pcss(':checked', html_only = TRUE), equals(c('checkbox-checked', 'checkbox-disabled-checked')))
 })

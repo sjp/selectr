@@ -185,7 +185,7 @@ test_that("selection works correctly on a large barrage of tests", {
     ## HTML-specific
     expect_that(pcss(':link', html_only = TRUE), equals(c('link-href', 'tag-anchor', 'nofollow-anchor', 'area-href')))
     expect_that(pcss(':visited', html_only = TRUE), equals(NULL))
-    expect_that(pcss(':enabled', html_only = TRUE), equals(c('link-href', 'tag-anchor', 'nofollow-anchor', 'checkbox-unchecked', 'text-checked', 'checkbox-checked', 'area-href')))
+    expect_that(pcss(':enabled', html_only = TRUE), equals(c('checkbox-unchecked', 'text-checked', 'checkbox-checked')))
     expect_that(pcss(':disabled', html_only = TRUE), equals(c('checkbox-disabled', 'checkbox-disabled-checked', 'fieldset', 'checkbox-fieldset-disabled')))
     expect_that(pcss(':checked', html_only = TRUE), equals(c('checkbox-checked', 'checkbox-disabled-checked')))
 })
@@ -329,4 +329,62 @@ test_that(":disabled/:enabled partition options under a disabled optgroup", {
     # the optgroups themselves follow their own @disabled
     expect_that(ids('optgroup:disabled'), equals('off'))
     expect_that(ids('optgroup:enabled'), equals('on'))
+})
+
+test_that(":enabled/:disabled cover the form elements and nothing else", {
+    library(xml2)
+    # ':enabled' and ':disabled' partition the elements HTML allows to
+    # be "actually disabled" and match nothing outside that set: not
+    # hyperlinks (which an early draft made ':enabled', though no
+    # browser matches 'a:enabled'), and not the obsolete <command> and
+    # <keygen>, which ':checked' ignores as well
+    doc <- read_html(paste0(
+        '<body>',
+        '<a id="link" href="#x">a</a>',
+        '<form>',
+        '<button id="button-on"></button>',
+        '<button id="button-off" disabled="disabled"></button>',
+        '<input id="input-on" />',
+        '<input id="input-off" disabled="disabled" />',
+        '<input id="check-on" type="checkbox" checked="checked" />',
+        '<select id="select-on">',
+        '<optgroup id="optgroup-on"><option id="option-on">a</option></optgroup>',
+        '</select>',
+        '<select id="select-off" disabled="disabled">',
+        '<optgroup id="optgroup-off" disabled="disabled">',
+        '<option id="option-off">b</option></optgroup>',
+        '</select>',
+        '<textarea id="textarea-on"></textarea>',
+        '<textarea id="textarea-off" disabled="disabled"></textarea>',
+        '<fieldset id="fieldset-on"></fieldset>',
+        '<fieldset id="fieldset-off" disabled="disabled"></fieldset>',
+        '<keygen id="keygen-el" />',
+        '<command id="command-el" type="checkbox" checked="checked" />',
+        '</form>',
+        '</body>'))
+    ids <- function(css) {
+        xpath <- css_to_xpath(css, translator = "html")
+        result <- unlist(lapply(xml_find_all(doc, xpath), xml_attr, "id"))
+        if (is.null(result)) NULL else result
+    }
+
+    expect_that(ids(':enabled'),
+                equals(c('button-on', 'input-on', 'check-on', 'select-on',
+                         'optgroup-on', 'option-on', 'textarea-on',
+                         'fieldset-on')))
+    expect_that(ids(':disabled'),
+                equals(c('button-off', 'input-off', 'select-off',
+                         'optgroup-off', 'option-off', 'textarea-off',
+                         'fieldset-off')))
+
+    # a link is neither, and stays selectable as a link
+    expect_that(ids('a[href]:enabled'), equals(NULL))
+    expect_that(ids('a[href]:disabled'), equals(NULL))
+    expect_that(ids('a:link'), equals('link'))
+
+    # the obsolete elements are matched by none of the three
+    expect_that(ids('keygen:enabled'), equals(NULL))
+    expect_that(ids('command:enabled'), equals(NULL))
+    expect_that(ids('command:disabled'), equals(NULL))
+    expect_that(ids(':checked'), equals('check-on'))
 })
