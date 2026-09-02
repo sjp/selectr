@@ -459,6 +459,20 @@ GenericTranslator <- R6Class("GenericTranslator",
                 # parse() annotates a selectr_parse_error.
                 selectr_abort(conditionMessage(e), "selectr_translation_error",
                              feature = e$feature, selector = css)
+            },
+            error = function(e) {
+                # A selector that nests functional pseudo-classes very
+                # deeply (e.g. hundreds of :not()) overflows R's
+                # expression nesting limit. R >= 4.3 raises a dedicated
+                # `expressionStackOverflowError`; older R raises a plain
+                # error with the same message text, so fall back to
+                # matching that.
+                if (inherits(e, "expressionStackOverflowError") ||
+                    grepl("nested too deeply", conditionMessage(e), fixed = TRUE)) {
+                    selectr_abort("selector nests functional pseudo-classes too deeply",
+                                 "selectr_translation_error", selector = css)
+                }
+                stop(e)
             })
         },
         selector_to_xpath = function(selector, prefix = "descendant-or-self::") {
@@ -947,8 +961,10 @@ GenericTranslator <- R6Class("GenericTranslator",
             }
             # early-exit condition 2:
             # ~~~~~~~~~~~~~~~~~~~~~~~
-            # an+b-1 siblings with a<0 and (b-1)<0 is not possible
-            if (a < 0 && b_min_1 < 0) {
+            # an+b-1 siblings with a<=0 and (b-1)<0 is not possible: for
+            # a<0, an+b-1 only decreases from its already-negative value
+            # at n=0; for a==0 it is fixed at b-1, which is < 0
+            if (a <= 0 && b_min_1 < 0) {
                 xpath$add_condition("0")
 
                 # CSS Level 4: When selector list is provided, ensure current element matches

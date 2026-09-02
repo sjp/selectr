@@ -632,6 +632,15 @@ test_that(":nth-child() early-exit condition 2: a<0, b-1<0 (matches none)", {
     expect_true(grepl("\\[.*0.*\\]", xpath))
 })
 
+test_that(":nth-child(0) uses the same early-exit form as :nth-child(-n)", {
+    # a=0, b=0, b-1=-1<0: an impossible count, just like a<0/b-1<0. Both
+    # should produce the tidy "[0]" early exit rather than an always-false
+    # "count(...) = -1" comparison built from the literal b-1
+    expect_equal(css_to_xpath("li:nth-child(0)"), css_to_xpath("li:nth-child(-n)"))
+    expect_equal(length(querySelectorAll(xml2::read_xml(
+        "<root><li/><li/></root>"), "li:nth-child(0)")), 0)
+})
+
 test_that(":nth-child() early-exit condition 2 with selector list", {
     skip_if_not_installed("xml2")
     library(xml2)

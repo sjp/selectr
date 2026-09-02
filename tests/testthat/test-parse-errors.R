@@ -90,7 +90,7 @@ test_that("useful errors are returned", {
     expect_error(get_error("li:before a"),
                  "Got pseudo-element ::before not at the end of a selector")
     expect_error(get_error(":not(:before)"),
-                 "Got pseudo-element ::before inside :not\\(\\) at 13")
+                 "Got pseudo-element ::before inside :not\\(\\)")
     # A trailing comma is reported as the missing selector it is, not
     # as an unexpected ',' that was in fact expected
     expect_error(get_error(":not(a,)"),
@@ -102,9 +102,9 @@ test_that("useful errors are returned", {
     expect_error(get_error(":has(a,)"),
                  "Expected selector after ',', got <DELIM '\\)' at 8>")
     expect_error(get_error(":is(:before)"),
-                 "Got pseudo-element ::before inside :is\\(\\) at 12")
+                 "Got pseudo-element ::before inside :is\\(\\)")
     expect_error(get_error(":matches(:before)"),
-                 "Got pseudo-element ::before inside :matches\\(\\) at 17")
+                 "Got pseudo-element ::before inside :matches\\(\\)")
     # pseudo-elements are rejected anywhere in a complex argument
     expect_error(get_error(":is(a:before b)"),
                  "Got pseudo-element ::before inside :is\\(\\)")
@@ -287,7 +287,7 @@ test_that("an ID selector must be identifier-shaped", {
     # i.e. its name must start an identifier. Browsers throw a
     # SyntaxError for document.querySelector("#1").
     expect_error(css_to_xpath("#1"),
-                 "Invalid ID selector '#1' at position 1; an identifier ",
+                 "Invalid ID selector '#1'; an identifier ",
                  fixed = TRUE, class = "selectr_parse_error")
     expect_error(css_to_xpath("#-1"), "Escape it: '#-\\31 '",
                  fixed = TRUE, class = "selectr_parse_error")

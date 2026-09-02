@@ -158,8 +158,8 @@ test_that("querySelector methods handle invalid arguments", {
     ns_object_error <- "A namespace object must be either a named list or a named character vector."
     expect_error(querySelector(doc, "a", ns = 1), ns_object_error, fixed = TRUE)
     expect_error(querySelectorAll(doc, "a", ns = 1), ns_object_error, fixed = TRUE)
-    expect_error(querySelector(doc, "a", ns = list("x")), "The namespace object either missing some or all names", fixed = TRUE)
-    expect_error(querySelectorAll(doc, "a", ns = c("x")), "The namespace object either missing some or all names", fixed = TRUE)
+    expect_error(querySelector(doc, "a", ns = list("x")), "The namespace object must be a named list or character vector", fixed = TRUE)
+    expect_error(querySelectorAll(doc, "a", ns = c("x")), "The namespace object must be a named list or character vector", fixed = TRUE)
 
     namespace_error <- "A namespace must be provided"
     expect_error(querySelectorNS(doc, "a"), namespace_error, fixed = TRUE)

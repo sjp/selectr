@@ -104,9 +104,9 @@ test_that("css_to_xpath handles bad arguments", {
                  rep("descendant-or-self::a", 3))
 
     # errors anything not matching generic, html, xhtml
-    expect_error(css_to_xpath("a", translator = ""), "'arg' should be one of.*")
-    expect_error(css_to_xpath("a", translator = "a"), "'arg' should be one of.*")
-    expect_error(css_to_xpath("a", translator = c("generic", "a")), "'arg' should be one of.*")
+    expect_error(css_to_xpath("a", translator = ""), "'translator' must be one of.*")
+    expect_error(css_to_xpath("a", translator = "a"), "'translator' must be one of.*")
+    expect_error(css_to_xpath("a", translator = c("generic", "a")), "'translator' must be one of.*")
 })
 
 test_that("namespace handling works correctly", {
@@ -123,11 +123,11 @@ test_that("namespace handling works correctly", {
     expect_error(formatNS(1), "A namespace object must be.*")
     expect_error(formatNS(TRUE), "A namespace object must be.*")
 
-    expect_error(formatNS("a"), "The namespace object either missing some or all names.*")
-    expect_error(formatNS(c(a = "a", "b")), "The namespace object either missing some or all names.*")
+    expect_error(formatNS("a"), "The namespace object must be a named list or character vector.*")
+    expect_error(formatNS(c(a = "a", "b")), "The namespace object must be a named list or character vector.*")
     tmp <- letters
     names(tmp) <- letters[1:5]
-    expect_error(formatNS(tmp), "The namespace object either missing some or all names.*")
+    expect_error(formatNS(tmp), "The namespace object must be a named list or character vector.*")
     expect_error(formatNS(list(a = 1, b = 2)), "The values in the namespace object.*")
     # multi-element values would misalign every subsequent prefix after
     # unlist(), e.g. "u2" silently becoming namespace "b"

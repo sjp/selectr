@@ -69,12 +69,26 @@ css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator =
              paste0(zeroLengthArgs, collapse = ", "))
     }
 
-    translator <- tryCatch(
-        sapply(translator, function(tran) {
-            match.arg(tolower(tran), c("generic", "html", "xhtml"))
-        }),
-        error = function(e) argument_stop(conditionMessage(e))
-    )
+    # match.arg() does unambiguous-prefix matching (e.g. "x" ->
+    # "xhtml"), which is worth keeping; only its error wording is
+    # replaced, since "'arg' should be one of ..." names the wrong
+    # (internal) argument and doesn't say what the caller passed.
+    validTranslators <- c("generic", "html", "xhtml")
+    translator <- tolower(translator)
+    badTranslators <- character(0)
+    translator <- vapply(translator, function(tran) {
+        tryCatch(
+            match.arg(tran, validTranslators),
+            error = function(e) {
+                badTranslators <<- c(badTranslators, tran)
+                NA_character_
+            }
+        )
+    }, character(1), USE.NAMES = FALSE)
+    if (length(badTranslators))
+        argument_stop("'translator' must be one of \"",
+             paste0(validTranslators, collapse = "\", \""),
+             "\", not \"", paste0(unique(badTranslators), collapse = "\", \""), "\"")
 
     # Only length-1 arguments are broadcast: recycling a vector whose
     # length is a fraction of another's would silently turn a mistyped
@@ -367,7 +381,7 @@ formatNS <- function(ns) {
         return(character())
     nsNames <- names(ns)
     if (is.null(nsNames) || anyNA(nsNames) || !all(nzchar(nsNames)))
-        argument_stop("The namespace object either missing some or all names for each element in its collection.")
+        argument_stop("The namespace object must be a named list or character vector; every element needs a non-empty name.")
     if (is.list(ns) && any(lengths(ns) != 1))
         argument_stop("Each element in the namespace object must be a single character string.")
     ns <- unlist(ns)

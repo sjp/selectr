@@ -693,16 +693,25 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                         has_arg <- TRUE
                         ws_since_arg <- FALSE
 
-                        # Check if this is the 'of' keyword for nth-child/nth-last-child
+                        # Check if this is the 'of' keyword for an An+B
+                        # function. It is only meaningful for
+                        # nth-child()/nth-last-child(); for the
+                        # of-type variants it is left in `arguments` so
+                        # validate_series() below rejects it with its
+                        # precise message, instead of the selector
+                        # list that follows being parsed as (and
+                        # failing as) more An+B tokens.
                         if (nt$type == "IDENT" && tolower(nt$value) == "of" &&
-                            any(lident == c("nth-child", "nth-last-child"))) {
-                            # Remove 'of' from arguments - it's a keyword, not an argument
-                            arguments <- arguments[-length(arguments)]
+                            lident %in% anb_function_names) {
+                            if (any(lident == c("nth-child", "nth-last-child"))) {
+                                # Remove 'of' from arguments - it's a keyword, not an argument
+                                arguments <- arguments[-length(arguments)]
 
-                            # Parse the selector list that follows 'of'
-                            stream$skip_whitespace()
-                            selector_list <- parse_simple_selector_arguments(stream, ident,
-                                                                             inside_has = inside_has)
+                                # Parse the selector list that follows 'of'
+                                stream$skip_whitespace()
+                                selector_list <- parse_simple_selector_arguments(stream, ident,
+                                                                                 inside_has = inside_has)
+                            }
                             break
                         }
                     } else if (token_equality(nt, "DELIM", "*") && allow_commas) {
@@ -797,8 +806,7 @@ parse_simple_selector_arguments <- function(stream, function_name = NULL, # noli
         if (!is.null(pseudo_element)) {
             if (!is.null(function_name)) {
                 parse_stop("Got pseudo-element ::", pseudo_element,
-                           " inside :", function_name,
-                           "() at ", stream$peek()$pos,
+                           " inside :", function_name, "()",
                            pos = stream$peek()$pos)
             } else {
                 parse_stop("Got pseudo-element ::", pseudo_element,
@@ -1105,8 +1113,10 @@ parse_stop <- function(..., pos = NULL) {
 # `nchar(type = "width")`) so double-width CJK/emoji characters still
 # push the caret to the right column.
 format_parse_error <- function(message, css, pos) {
-    if (is.null(pos) || is.null(css) || grepl("[\r\n]", css))
+    if (is.null(pos))
         return(message)
+    if (is.null(css) || grepl("[\r\n]", css))
+        return(paste0(message, " at position ", pos))
     prefix <- substr(css, 1L, max(pos - 1L, 0L))
     chars <- strsplit(prefix, "", fixed = TRUE)[[1]]
     padding <- vapply(chars, function(ch) {
@@ -1303,8 +1313,8 @@ tokenize <- function(s) {
             # so that an escaped digit ('#\31 ' spells the id '1') stays
             # legal while the bare digit ('#1') does not.
             if (anyNA(match_ident_start(substring(value, 2))))
-                parse_stop("Invalid ID selector '", value, "' at position ",
-                           pos, "; ", hash_ident_hint(substring(value, 2)),
+                parse_stop("Invalid ID selector '", value, "'; ",
+                           hash_ident_hint(substring(value, 2)),
                            pos = pos)
             value <- decode_escapes(value)
             hash_id <- substring(value, 2)
@@ -1343,7 +1353,7 @@ tokenize <- function(s) {
             # by a raw newline is an error
             if (end_quote <= len_s &&
                 substring(s, end_quote, end_quote) != ch) {
-                parse_stop("Unclosed string at ", pos, pos = pos)
+                parse_stop("Unclosed string", pos = pos)
             }
             value <- substring(s, pos + 1, pos + content_end)
             value <- decode_escapes(value, newlines = TRUE)
@@ -1382,8 +1392,7 @@ tokenize <- function(s) {
         # the character cannot start any token
         parse_stop("Unexpected character '",
                    ch,
-                   "' found at position ",
-                   pos,
+                   "'",
                    pos = pos)
     }
     results[[i]] <- EOFToken(pos)

@@ -136,8 +136,11 @@ test_that("string tokens handle quotes, escapes, and unclosed strings", {
                  c("<STRING 'a'' at 1>", "<EOF at 5>"))
     # A raw newline may not appear in a string, and stops it short of
     # EOF, so it is not auto-closed
-    expect_error(tokenize("'a\nb'"), "Unclosed string at 1")
-    expect_error(tokenize("'a\n"), "Unclosed string at 1")
+    # tokenize() is called directly here, bypassing the position/gutter
+    # enrichment parse() applies at the css_to_xpath() boundary (see
+    # "position is reported once, at the parse() boundary" below)
+    expect_error(tokenize("'a\nb'"), "^Unclosed string$")
+    expect_error(tokenize("'a\n"), "^Unclosed string$")
 })
 
 test_that("tokens are unaffected by where the match window falls", {

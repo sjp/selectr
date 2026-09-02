@@ -130,7 +130,10 @@
       deeply: infinite recursion / options(expressions=)?" instead of
       producing a result. The arguments of functional pseudo-classes
       are still translated recursively, so their nesting remains
-      bounded by \code{options(expressions=)}.
+      bounded by \code{options(expressions=)}; a selector that nests
+      those too deeply (e.g. hundreds of \code{:not()}) now raises a
+      \code{selectr_translation_error} saying so, instead of the base R
+      "evaluation nested too deeply" error escaping untranslated.
 
       \item An unusually long selector is now translated without
       being cached, rather than failing with "variable names are
@@ -217,6 +220,37 @@
       now means "no namespaces" and skips the \code{xml_ns()} walk of
       the whole document, rather than being treated the same as
       \code{NULL} (which uses the document's own namespace map).
+
+      \item An invalid \code{translator} argument to \code{css_to_xpath()}
+      (e.g. \code{translator = "xml"}) now raises a message naming the
+      \code{translator} argument and the value that was passed, instead
+      of \code{match.arg()}'s "'arg' should be one of ...", which named
+      the wrong (internal) argument. Unambiguous abbreviations
+      (e.g. \code{"x"} for \code{"xhtml"}) are still accepted.
+
+      \item \code{p:nth-of-type(n of .a)} and other of-type
+      pseudo-classes now report the same "'of' is only allowed in
+      :nth-child() and :nth-last-child()" error that
+      \code{:nth-child()}/\code{:nth-last-child()} already gave for a
+      misplaced \code{of}, instead of a confusing "Expected an
+      argument, got <DELIM '.' ...>" pointing at the selector list that
+      follows it.
+
+      \item \code{:nth-child(0)} (and other An+B expressions with
+      \code{a == 0} and \code{b < 1}) now translates to the same tidy
+      \code{[0]} early-exit predicate as \code{:nth-child(-n)}, instead
+      of the equivalent but more roundabout
+      \code{[count(preceding-sibling::*) = -1]}.
+
+      \item A handful of parser and argument-validation messages have
+      been reworded for clarity: the namespace object error no longer
+      reads as though a word is missing, and several parse errors that
+      embedded a source position in their text
+      (e.g. "Unclosed string at 4") no longer duplicate the position
+      shown by the caret gutter that \code{css_to_xpath()} already
+      appends; where that gutter is suppressed (a selector spanning
+      more than one line), the position is still given, as
+      "at position N".
 
     }
   }

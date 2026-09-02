@@ -40,10 +40,10 @@ test_that("selectr_argument_error is a structured condition", {
                           error = function(e) "plain"),
                  "structured")
 
-    # a base-R error surfaced through match.arg() is still wrapped
+    # an invalid translator name is wrapped as a structured argument error
     e2 <- tryCatch(css_to_xpath("a", translator = "nope"), error = identity)
     expect_s3_class(e2, "selectr_argument_error")
-    expect_match(conditionMessage(e2), "'arg' should be one of")
+    expect_match(conditionMessage(e2), "'translator' must be one of")
 })
 
 test_that("selectr_parse_error is a selectr_error", {
