@@ -54,6 +54,16 @@
       text is unchanged, so code that matches error strings continues
       to work. No new package dependencies are introduced.
 
+      \item Parse errors are now signalled as a structured condition
+      of class \code{c("selectr_parse_error", "selectr_error",
+      "error", "condition")}, carrying the 1-based source position of
+      the failure in \code{$pos} (\code{NULL} when no meaningful
+      position is available) and the offending selector in
+      \code{$selector}. Previously the class and the position were
+      discarded at the \code{parse()} boundary and callers received a
+      plain \code{simpleError}. The message, including the
+      source-pointer block, is unchanged.
+
     }
   }
 }

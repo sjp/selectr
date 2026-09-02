@@ -183,3 +183,33 @@ test_that("parse errors include a caret-pointer gutter", {
     # message text is still the first line (existing assertions stay valid)
     expect_match(err("div > "), "^Expected selector, got <EOF at 7>")
 })
+
+test_that("parse errors are structured conditions", {
+    e <- tryCatch(css_to_xpath("div >"), error = identity)
+    expect_s3_class(e, "selectr_parse_error")
+    expect_s3_class(e, "selectr_error")
+    expect_s3_class(e, "error")
+    expect_equal(e$pos, 6)
+    expect_equal(e$selector, "div >")
+
+    # the class is catchable by a dedicated handler, not just error =
+    expect_equal(tryCatch(css_to_xpath("div >"),
+                          selectr_parse_error = function(e) "structured",
+                          error = function(e) "plain"),
+                 "structured")
+
+    # message text and the caret gutter are both preserved on the condition
+    expect_match(conditionMessage(e), "^Expected selector, got <EOF at 6>")
+    expect_match(conditionMessage(e), "\n  \\|\n  \\| div >\n  \\|      \\^",
+                 perl = TRUE)
+
+    # parse() itself signals the same structured condition
+    p <- tryCatch(parse("[foo=#]"), error = identity)
+    expect_s3_class(p, "selectr_parse_error")
+    expect_equal(p$pos, 6)
+    expect_equal(p$selector, "[foo=#]")
+
+    # positionless failures still carry the class, with a NULL pos
+    tok <- tryCatch(parse("\\"), error = identity)
+    expect_s3_class(tok, "selectr_parse_error")
+})

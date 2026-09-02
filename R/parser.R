@@ -532,8 +532,18 @@ parse <- function(css) {
             parse_selector_group(stream)
         },
         selectr_parse_error = function(e) {
-            stop(format_parse_error(conditionMessage(e), css, e$pos),
-                 call. = FALSE)
+            # Re-signal at the parse() boundary so the message gains the
+            # source-pointer gutter, but keep the condition class and the
+            # machine-readable fields so callers can handle it structurally.
+            stop(structure(
+                class = c("selectr_parse_error", "selectr_error",
+                          "error", "condition"),
+                list(message = format_parse_error(conditionMessage(e),
+                                                  css, e$pos),
+                     call = NULL,
+                     pos = e$pos,
+                     selector = css)
+            ))
         }
     )
 }
@@ -1038,7 +1048,8 @@ token_repr <- function(token) {
 # meaningful source position is available.
 parse_stop <- function(..., pos = NULL) {
     cond <- structure(
-        class = c("selectr_parse_error", "error", "condition"),
+        class = c("selectr_parse_error", "selectr_error",
+                  "error", "condition"),
         list(message = paste0(...), call = sys.call(-1), pos = pos)
     )
     stop(cond)
