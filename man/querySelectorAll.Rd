@@ -26,7 +26,7 @@ querySelectorAllNS(doc, selector, ns,
 }
 \arguments{
   \item{doc}{
-    The XML document or node to be evaluated against.
+    The XML document, node, or set of nodes to be evaluated against.
   }
   \item{selector}{
     A selector used to query \code{doc}. This must be a single character
@@ -59,6 +59,17 @@ querySelectorAllNS(doc, selector, ns,
   can be ignored for content lacking a namespace, which is usually the
   case when using \code{querySelector} or \code{querySelectorAll}.
 
+  Queries may be chained: as well as a document or a single node,
+  \code{doc} may be a set of nodes, i.e. an \pkg{xml2}
+  \code{xml_nodeset} or an \pkg{XML} \code{XMLNodeSet}, as returned
+  by \code{querySelectorAll}. The selector is then evaluated from each
+  node of the set in turn, so a relative selector such as \code{":scope
+  > a"} applies per node. A node that matches from more than one node
+  of the set is returned only once, at the position it first matched.
+  An \pkg{xml2} \code{xml_missing} (the result of a failed
+  \code{\link[xml2]{xml_find_first}}) is also accepted, and yields no
+  matches rather than an error.
+
   A selector starting with the \code{:scope} pseudo-class is anchored
   at the queried node itself: \code{querySelectorAll(node, ":scope >
   a")} returns only the \code{a} children of \code{node}, where
@@ -72,7 +83,10 @@ querySelectorAllNS(doc, selector, ns,
   found, \code{NULL} is returned.
 
   For \code{querySelectorAll}, the result is a list of XML nodes. This
-  list may be empty in the case that no match is found.
+  list may be empty in the case that no match is found. The list is of
+  the same type as the input document's package uses, so querying an
+  \code{xml_nodeset} gives an \code{xml_nodeset} and querying an
+  \code{XMLNodeSet} gives an \code{XMLNodeSet}.
 
   The \code{querySelectorNS} and \code{querySelectorAllNS} functions
   return the same type of content as their un-namespaced counterparts.
@@ -103,6 +117,10 @@ querySelectorAllNS(doc, selector, ns,
   querySelectorAll(exdoc, "b")    # A list of length one
   querySelector(exdoc, "d")       # No match
   querySelectorAll(exdoc, "d")    # No match
+
+  # Queries can be chained, the second search running from each node
+  # matched by the first
+  querySelectorAll(querySelectorAll(exdoc, "a"), "c")
 
   # Read in a document where two namespaces are being set:
   # SVG and MathML

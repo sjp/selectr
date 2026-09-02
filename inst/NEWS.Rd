@@ -3,6 +3,31 @@
 \encoding{UTF-8}
 
 \section{Changes in version 0.6-1}{
+  \subsection{NEW FEATURES}{
+    \itemize{
+
+      \item The \code{querySelector()} family of functions now accepts
+      a set of nodes, so queries can be chained:
+      \code{querySelectorAll(doc, "table")} can be followed by
+      \code{querySelectorAll(tables, "tr")}. Methods are registered
+      for the \pkg{xml2} \code{xml_nodeset} and \pkg{XML}
+      \code{XMLNodeSet} classes; previously these fell through to the
+      default method and raised "The object given to
+      querySelectorAll() is not an 'XML' or 'xml2' document or node."
+      The selector is evaluated from each node of the set in turn (so a
+      relative selector such as \code{":scope > a"} applies per node),
+      and a node matching from more than one node of the set is
+      returned once, at the position it first matched.
+
+      \item An \pkg{xml2} \code{xml_missing}, as returned by a failed
+      \code{xml_find_first()}, is now accepted by the
+      \code{querySelector()} family and yields no matches ---
+      \code{NULL} from \code{querySelector()} and an empty
+      \code{xml_nodeset} from \code{querySelectorAll()} --- rather
+      than an error.
+
+    }
+  }
   \subsection{MINOR CHANGES}{
     \itemize{
 

@@ -114,6 +114,7 @@ querySelectorAllNS.default <- function(doc, selector, ns,
     stop("The object given to querySelectorAllNS() is not an 'XML' or 'xml2' document or node.")
 }
 
+querySelector.XMLNodeSet          <-
 querySelector.XMLInternalNode     <-
 querySelector.XMLInternalDocument <- function(doc, selector, ns = NULL, ...) {
     validateSelector(selector)
@@ -141,6 +142,27 @@ querySelectorAll.XMLInternalDocument <- function(doc, selector, ns = NULL, ...) 
     querySelectorAll(doc, selector, ns, ...)
 }
 
+querySelectorAll.XMLNodeSet <- function(doc, selector, ns = NULL, ...) {
+    validateSelector(selector)
+    xpath <- css_to_xpath(selector, ...)
+    if (!is.null(ns))
+        ns <- formatNS(ns)
+    results <- lapply(doc, function(node) {
+        if (is.null(ns))
+            XML::getNodeSet(node, xpath)
+        else
+            XML::getNodeSet(node, xpath, ns)
+    })
+    results <- unlist(results, recursive = FALSE)
+    if (is.null(results))
+        results <- list()
+    # A node matched from more than one node in the set is returned
+    # once, at the position it was first matched. This mirrors what
+    # xml2 does when given a nodeset.
+    structure(unique(results), class = "XMLNodeSet")
+}
+
+querySelectorNS.XMLNodeSet          <-
 querySelectorNS.XMLInternalNode     <-
 querySelectorNS.XMLInternalDocument <- function(doc, selector, ns,
                                                 prefix = "descendant-or-self::", ...) {
@@ -152,6 +174,7 @@ querySelectorNS.XMLInternalDocument <- function(doc, selector, ns,
     querySelector(doc, selector, ns, prefix = prefix, ...)
 }
 
+querySelectorAllNS.XMLNodeSet          <-
 querySelectorAllNS.XMLInternalNode     <-
 querySelectorAllNS.XMLInternalDocument <- function(doc, selector, ns,
                                                    prefix = "descendant-or-self::", ...) {
@@ -187,6 +210,40 @@ querySelectorAll.xml_node <- function(doc, selector, ns = NULL, ...) {
     xml2::xml_find_all(doc, xpath, ns)
 }
 
+querySelector.xml_nodeset <- function(doc, selector, ns = NULL, ...) {
+    validateSelector(selector)
+    results <- querySelectorAll(doc, selector, ns, ...)
+    if (length(results))
+        results[[1]]
+    else
+        NULL
+}
+
+querySelectorAll.xml_nodeset <- function(doc, selector, ns = NULL, ...) {
+    validateSelector(selector)
+    if (is.null(ns))
+        ns <- xml2::xml_ns(doc)
+    else
+        ns <- formatNS(ns)
+    xpath <- css_to_xpath(selector, ...)
+    # xml2 evaluates the expression from each node in turn, so a
+    # relative selector (e.g. ":scope > a") applies per node, and a
+    # node matched more than once is returned only once.
+    xml2::xml_find_all(doc, xpath, ns)
+}
+
+querySelector.xml_missing <- function(doc, selector, ns = NULL, ...) {
+    validateSelector(selector)
+    NULL
+}
+
+querySelectorAll.xml_missing <- function(doc, selector, ns = NULL, ...) {
+    validateSelector(selector)
+    emptyNodeSet()
+}
+
+querySelectorNS.xml_missing <-
+querySelectorNS.xml_nodeset <-
 querySelectorNS.xml_node <- function(doc, selector, ns,
                                      prefix = "descendant-or-self::", ...) {
     validateSelector(selector)
@@ -197,6 +254,8 @@ querySelectorNS.xml_node <- function(doc, selector, ns,
     querySelector(doc, selector, ns, prefix = prefix, ...)
 }
 
+querySelectorAllNS.xml_missing <-
+querySelectorAllNS.xml_nodeset <-
 querySelectorAllNS.xml_node <- function(doc, selector, ns,
                                         prefix = "descendant-or-self::", ...) {
     validateSelector(selector)
@@ -205,6 +264,12 @@ querySelectorAllNS.xml_node <- function(doc, selector, ns,
     ns <- formatNS(ns)
     prefix <- formatNSPrefix(ns, prefix)
     querySelectorAll(doc, selector, ns, prefix = prefix, ...)
+}
+
+# xml2 does not export a constructor for an empty nodeset, but this
+# is the structure it uses for one.
+emptyNodeSet <- function() {
+    structure(list(), class = "xml_nodeset")
 }
 
 validateSelector <- function(selector) {
