@@ -74,7 +74,9 @@
 
       \item The minimum required version of R has been increased from
       \code{3.3} to \code{3.6}, required by \code{errorCondition()},
-      which the new error hierarchy above uses.
+      which the new error hierarchy above uses. CI now runs \code{R
+      CMD check} against R 3.6 itself, rather than only newer
+      releases, so the declared floor is verified rather than assumed.
 
       \item \code{css_to_xpath()} now signals an error when
       \code{selector}, \code{prefix} or \code{translator} have
