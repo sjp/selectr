@@ -108,4 +108,11 @@ test_that("parser creates correct specificity", {
     expect_equal(spec('[baz] [baz="4"]'), c(0, 2, 0))
     expect_equal(spec('[baz="4"] [baz^="4"]'), c(0, 2, 0))
     expect_equal(spec('[baz^="4"] #lipsum'), c(1, 1, 0))
+
+    # :nth-child(An+B of S) / :nth-last-child(An+B of S) add the most
+    # specific complex selector in S, per Selectors Level 4
+    expect_equal(spec("li:nth-child(2 of .a, #b)"), c(1, 1, 1))
+    expect_equal(spec(":nth-last-child(1 of #x)"), c(1, 1, 0))
+    expect_equal(spec(":nth-child(2 of .a)"), c(0, 2, 0))
+    expect_equal(spec("#id:nth-child(2 of .a)"), c(1, 2, 0))
 })

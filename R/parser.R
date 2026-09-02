@@ -115,6 +115,8 @@ Function <- R6Class("Function",
         specificity = function() {
             specs <- self$selector$specificity()
             specs[2] <- specs[2] + 1
+            if (!is.null(self$selector_list) && length(self$selector_list) > 0)
+                specs <- specs + max_specificity(self$selector_list)
             specs
         }
     )
