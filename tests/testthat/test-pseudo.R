@@ -224,3 +224,28 @@ test_that(":any-link matches the same elements as :link", {
     expect_equal(css_to_xpath("e:any-link"),
                  "descendant-or-self::e[0]")
 })
+
+test_that("pseudo-class names spelled with underscores are unknown", {
+    # Method dispatch maps '-' to '_', which must not let an
+    # underscore spelling alias the hyphenated pseudo-class
+    expect_error(css_to_xpath("a:first_child"), class = "selectr_translation_error")
+    expect_error(css_to_xpath("a:first_child"),
+                 "The pseudo-class :first_child is unknown", fixed = TRUE)
+    expect_error(css_to_xpath("a:nth_child(2)"), class = "selectr_translation_error")
+    expect_error(css_to_xpath("a:nth_child(2)"),
+                 "The pseudo-class :nth_child() is unknown", fixed = TRUE)
+    expect_error(css_to_xpath("a:nth-of_type(2)"),
+                 "The pseudo-class :nth-of_type() is unknown", fixed = TRUE)
+    expect_error(css_to_xpath("p:last_of_type"),
+                 "The pseudo-class :last_of_type is unknown", fixed = TRUE)
+    expect_error(css_to_xpath(":any_link", translator = "html"),
+                 "The pseudo-class :any_link is unknown", fixed = TRUE)
+
+    # The hyphenated spellings are unaffected
+    expect_equal(css_to_xpath("a:first-child"),
+                 "descendant-or-self::a[count(preceding-sibling::*) = 0]")
+    expect_equal(css_to_xpath("a:nth-child(2)"),
+                 "descendant-or-self::a[count(preceding-sibling::*) = 1]")
+    expect_equal(css_to_xpath(":any-link", translator = "html"),
+                 css_to_xpath(":link", translator = "html"))
+})

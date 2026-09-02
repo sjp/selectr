@@ -707,14 +707,21 @@ GenericTranslator <- R6Class("GenericTranslator",
 
             xpath
         },
+        # Look up the method implementing a (functional) pseudo-class,
+        # or NULL if there is none. CSS pseudo-class names are
+        # hyphenated; the method name replaces '-' with '_', so a name
+        # containing an underscore is rejected up front, otherwise
+        # ':first_child' would alias ':first-child' instead of being
+        # reported as unknown
+        pseudo_method = function(name, suffix) {
+            if (grepl("_", name, fixed = TRUE))
+                return(NULL)
+            self[[paste0("xpath_", gsub("-", "_", name), suffix)]]
+        },
         xpath_function = function(fn) {
-            method_name <- paste0(
-                "xpath_",
-                gsub("-", "_", fn$name),
-                "_function")
             xp <- self$xpath(fn$selector)
 
-            method <- self[[method_name]]
+            method <- self$pseudo_method(fn$name, "_function")
             if (is.null(method))
                 translation_stop(
                     paste0("The pseudo-class :", fn$name, "() is unknown"),
@@ -722,13 +729,9 @@ GenericTranslator <- R6Class("GenericTranslator",
             method(xp, fn)
         },
         xpath_pseudo = function(pseudo) {
-            method_name <- paste0(
-                "xpath_",
-                gsub("-", "_", pseudo$ident),
-                "_pseudo")
             xp <- self$xpath(pseudo$selector)
 
-            method <- self[[method_name]]
+            method <- self$pseudo_method(pseudo$ident, "_pseudo")
             if (is.null(method))
                 translation_stop(
                     paste0("The pseudo-class :", pseudo$ident, " is unknown"),
