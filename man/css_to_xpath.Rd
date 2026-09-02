@@ -78,12 +78,22 @@ css_to_xpath(selector,
   (\code{:lang(*-CH)}, \code{:lang(de-*-DE)}; quoted or not), the last of
   these being RFC 4647 extended filtering. The \code{html} and
   \code{xhtml} translators approximate a non-trailing wildcard from the
-  nearest \code{lang}-attributed ancestor (an element matches
+  nearest language-attributed ancestor (an element matches
   \code{:lang(*-CH)} when its language tag carries a \code{CH} subtag in
   any position). The generic translator has only XPath's \code{lang()}
   function, which cannot express extended filtering, so there a
   non-trailing wildcard is rejected with an error rather than silently
   mis-matching.
+
+  Which attribute supplies that language differs by translator: the
+  \code{html} translator reads \code{lang}, while the \code{xhtml}
+  translator reads \code{xml:lang} or \code{lang}, preferring
+  \code{xml:lang} where an element carries both, as the HTML language
+  determination does. The generic translator uses XPath's \code{lang()}
+  function, which is defined in terms of \code{xml:lang} alone. With
+  every translator the language comes from the nearest ancestor-or-self
+  that declares one, and an empty value there resets the language to
+  unknown.
 
   \code{:dir()} translates to a never-matching expression with every
   translator, including \code{html}: an element's resolved

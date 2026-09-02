@@ -118,3 +118,46 @@ test_that("css_to_xpath() still defaults to the generic translator", {
     expect_that(css_to_xpath("input:checked"),
                 equals(css_to_xpath("input:checked", translator = "generic")))
 })
+
+test_that("the xhtml translator reads xml:lang as well as lang", {
+    library(xml2)
+    doc <- read_xml(paste0(
+        '<html xmlns="http://www.w3.org/1999/xhtml"><body>',
+        '<p id="xmlonly" xml:lang="en">a</p>',
+        '<p id="langonly" lang="en">b</p>',
+        '<p id="both" xml:lang="de" lang="en">c</p>',
+        '<p id="region" xml:lang="EN-gb">d</p>',
+        '<div xml:lang="en"><p id="inherited">e</p>',
+        '<p id="reset" xml:lang="">f</p></div>',
+        '<p id="none">g</p>',
+        '</body></html>'))
+
+    pid <- function(selector)
+        xml_attr(querySelectorAll(doc, selector, translator = "xhtml"), "id")
+
+    # Both attributes are consulted, and an element with neither, or
+    # with an empty value, has an unknown language
+    expect_that(pid("*|p:lang(en)"),
+                equals(c("xmlonly", "langonly", "region", "inherited")))
+    expect_that(pid("*|p:lang(*)"),
+                equals(c("xmlonly", "langonly", "both", "region",
+                         "inherited")))
+
+    # xml:lang wins where both are present
+    expect_that(pid("*|p:lang(de)"), equals("both"))
+
+    # The shared language string also feeds the subtag, prefix and
+    # extended-filtering branches, and is matched case-insensitively
+    expect_that(pid("*|p:lang(en-GB)"), equals("region"))
+    expect_that(pid("*|p:lang(en-*)"),
+                equals(c("xmlonly", "langonly", "region", "inherited")))
+    expect_that(pid("*|p:lang(*-gb)"), equals("region"))
+})
+
+test_that("the html translator stays lang-only", {
+    library(xml2)
+    doc <- read_html(paste0('<html><body><p id="x" xml:lang="en">a</p>',
+                            '<p id="y" lang="en">b</p></body></html>'))
+    expect_that(xml_attr(querySelectorAll(doc, "p:lang(en)"), "id"),
+                equals("y"))
+})

@@ -188,10 +188,10 @@ stop_non_leading_scope <- function() {
 
 # A wildcard in non-trailing position (e.g. :lang(*-CH) or :lang(de-*-DE),
 # quoted or not) is a valid RFC 4647 extended-filtering range. The HTML
-# translators approximate it from the nearest lang-attributed ancestor,
-# but the generic translator's only tool is XPath 1.0's lang() function,
-# which can express a prefix match but not an interior wildcard, so it
-# rejects such ranges rather than silently mismatching.
+# translators approximate it from the nearest language-attributed
+# ancestor, but the generic translator's only tool is XPath 1.0's
+# lang() function, which can express a prefix match but not an interior
+# wildcard, so it rejects such ranges rather than silently mismatching.
 stop_lang_non_trailing_wildcard <- function(range) {
     stop("Only a bare '*' or a trailing '...-*' wildcard is supported by ",
          "the generic translator's :lang(); the range ", range, " has a ",
@@ -265,19 +265,47 @@ extract_lang_values <- function(fn) {
     ranges
 }
 
+# The language string declared on an element, and the step selecting
+# the nearest ancestor-or-self that declares one. HTML reads @lang;
+# XHTML documents conventionally carry @xml:lang, often alongside
+# @lang, and the HTML language determination gives @xml:lang precedence
+# when both are present. XPath 1.0 has no conditional, so the
+# preference is arithmetic: string-length(@lang) is multiplied by
+# not(@xml:lang), truncating @lang to nothing whenever @xml:lang is
+# there.
+lang_attr_value <- function(xhtml) {
+    if (xhtml)
+        paste0("concat(@xml:lang, substring(@lang, 1, ",
+               "string-length(@lang) * not(@xml:lang)))")
+    else
+        "@lang"
+}
+
+lang_attr_ancestor <- function(xhtml) {
+    paste0("ancestor-or-self::*[",
+           if (xhtml) "@xml:lang or @lang" else "@lang",
+           "][1]")
+}
+
+# The same string lowercased, for the ASCII case-insensitive matching
+# that language ranges use
+lang_attr_value_lc <- function(xhtml) {
+    paste0("translate(", lang_attr_value(xhtml),
+           ", 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
+           "'abcdefghijklmnopqrstuvwxyz')")
+}
+
 # The HTML :lang() translation of an RFC 4647 extended-filtering range
 # (one with a wildcard in non-trailing position, e.g. "*-CH" or
-# "de-*-DE"). It tests the nearest lang-attributed ancestor, dash-
-# bracketing the lowercased attribute as "-<lang>-" so that each subtag
-# is delimited, then walks the range's subtags left to right: a literal
-# first subtag must start the tag, a literal subtag after a '*' may
-# appear anywhere further along (contains), and substring-after threads
-# the remaining tail so later subtags must follow earlier ones in order.
-lang_extended_html_condition <- function(value, lang_attribute) {
-    lc <- paste0("translate(@", lang_attribute,
-                 ", 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
-                 "'abcdefghijklmnopqrstuvwxyz')")
-    cursor <- paste0("concat('-', ", lc, ", '-')")
+# "de-*-DE"). It tests the nearest language-attributed ancestor,
+# dash-bracketing the lowercased language string as "-<lang>-" so that
+# each subtag is delimited, then walks the range's subtags left to
+# right: a literal first subtag must start the tag, a literal subtag
+# after a '*' may appear anywhere further along (contains), and
+# substring-after threads the remaining tail so later subtags must
+# follow earlier ones in order.
+lang_extended_html_condition <- function(value, xhtml) {
+    cursor <- paste0("concat('-', ", lang_attr_value_lc(xhtml), ", '-')")
     subtags <- strsplit(tolower(value), "-", fixed = TRUE)[[1]]
     conditions <- character(0)
     anywhere <- FALSE  # may the next literal subtag be preceded by others?
@@ -302,7 +330,7 @@ lang_extended_html_condition <- function(value, lang_attribute) {
         anywhere <- FALSE
         anchored <- TRUE
     }
-    paste0("ancestor-or-self::*[@", lang_attribute, "][1][",
+    paste0(lang_attr_ancestor(xhtml), "[",
            paste(conditions, collapse = " and "), "]")
 }
 
@@ -1290,9 +1318,9 @@ HTMLTranslator <- R6Class("HTMLTranslator",
     public = list(
         xhtml = FALSE,
         # The generic :lang() translation uses the XPath lang()
-        # function, which is defined in terms of xml:lang; only the
-        # HTML translation reads the language from an attribute
-        lang_attribute = "lang",
+        # function, which is defined in terms of xml:lang; the HTML
+        # translation reads the language from the attributes directly
+        # (see lang_attr_value())
         initialize = function(xhtml = FALSE) {
             self$xhtml <- xhtml
             if (!xhtml) {
@@ -1342,40 +1370,30 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                 kind <- lang_range_kind(value)
                 if (kind == "any") {
                     # Wildcard * matches any element whose language is
-                    # known. Only the nearest lang-attributed
+                    # known. Only the nearest language-attributed
                     # ancestor-or-self counts, and an empty value there
                     # resets the language to unknown
-                    paste0("ancestor-or-self::*[@", self$lang_attribute,
-                           "][1][string-length(@", self$lang_attribute,
+                    paste0(lang_attr_ancestor(self$xhtml),
+                           "[string-length(", lang_attr_value(self$xhtml),
                            ") > 0]")
-                } else if (kind == "prefix") {
-                    # Wildcard suffix like "en-*" - match any language starting with prefix
-                    prefix <- sub("\\*$", "", value)  # Remove trailing *
-                    # Don't add '-' if prefix already ends with it
-                    search_prefix <- if (grepl("-$", prefix)) tolower(prefix) else paste0(tolower(prefix), "-")
-                    paste0(
-                        "ancestor-or-self::*[@", self$lang_attribute, "][1][starts-with(concat(",
-                        "translate(@",
-                        self$lang_attribute,
-                        ", 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
-                        "'abcdefghijklmnopqrstuvwxyz'), '-'), ",
-                        xpath_literal(search_prefix),
-                        ")]")
                 } else if (kind == "extended") {
                     # A wildcard in non-trailing position (e.g. "*-CH" or
                     # "de-*-DE"): RFC 4647 extended filtering, approximated
-                    # from the nearest lang-attributed ancestor
-                    lang_extended_html_condition(value, self$lang_attribute)
+                    # from the nearest language-attributed ancestor
+                    lang_extended_html_condition(value, self$xhtml)
                 } else {
-                    # Regular language tag
+                    # An exact tag ("en", "en-GB") or a trailing-wildcard
+                    # prefix range ("en-*"), both of which match the
+                    # language and any of its subtags: dash-terminate
+                    # both sides and test for a prefix
+                    prefix <- tolower(sub("\\*$", "", value))
+                    # Don't add '-' if the range already ends with it
+                    if (!grepl("-$", prefix))
+                        prefix <- paste0(prefix, "-")
                     paste0(
-                        "ancestor-or-self::*[@", self$lang_attribute, "][1][starts-with(concat(",
-                        "translate(@",
-                        self$lang_attribute,
-                        ", 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
-                        "'abcdefghijklmnopqrstuvwxyz'), '-'), ",
-                        xpath_literal(paste0(tolower(value), "-")),
-                        ")]")
+                        lang_attr_ancestor(self$xhtml),
+                        "[starts-with(concat(", lang_attr_value_lc(self$xhtml),
+                        ", '-'), ", xpath_literal(prefix), ")]")
                 }
             }, character(1), USE.NAMES = FALSE)
 
