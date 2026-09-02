@@ -213,12 +213,14 @@ test_that("fast-path parses agree with the full parser", {
     selectors <- c(
         # element fast path (h1 previously missed it: letters only)
         "div", "h1", " div ", "x-tag", "a_b",
-        # id fast path, including the digit-led ids the tokenizer allows
-        "#bar", "foo#bar", "#123", "h1#a-1", " #x ",
+        # id fast path; ids may lead with '_' or '-' but not a digit
+        "#bar", "foo#bar", "#_x", "#-x", "#--x", "h1#a-1", " #x ",
         # class fast path (dead before: indexed out of bounds)
         ".foo", "foo.bar", "h2.a_b", " .foo ",
         # near misses that must fall through to the full parser
-        "*", "a b", "a.b.c", "a:hover", "é", ".é", "-x", "#a.b")
+        "*", "a b", "a.b.c", "a:hover", "é", ".é", "-x", "#a.b",
+        # an escaped digit is a legal id, but only via the full parser
+        "#\\31 23")
     for (css in selectors) {
         expect_that(reprs(parse(css)), equals(reprs(full_parse(css))),
                     info = css)

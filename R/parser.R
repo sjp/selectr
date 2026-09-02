@@ -503,14 +503,16 @@ combinator_spine <- function(selector) {
 # tokenizer's identifier grammar (match_ident, sans escapes and
 # non-ASCII) and hash grammar (match_hash).
 fast_ident <- "[a-zA-Z][a-zA-Z0-9_-]*"
-fast_name <- "[a-zA-Z0-9_-]+"
+# An ID must be identifier-shaped, so it cannot start with a digit nor
+# with '-' followed by a digit (see match_ident_start)
+fast_id <- "[a-zA-Z_][a-zA-Z0-9_-]*|-[a-zA-Z_-][a-zA-Z0-9_-]*"
 
 # foo
 el_re <- paste0("^[ \t\r\n\f]*(", fast_ident, ")[ \t\r\n\f]*$")
 
 # foo#bar or #bar
 id_re <- paste0("^[ \t\r\n\f]*(", fast_ident, ")?",
-                "#(", fast_name, ")[ \t\r\n\f]*$")
+                "#(", fast_id, ")[ \t\r\n\f]*$")
 
 # foo.bar or .bar
 class_re <- paste0("^[ \t\r\n\f]*(", fast_ident, ")?",
@@ -1082,6 +1084,18 @@ format_parse_error <- function(message, css, pos) {
     paste0(message, "\n  |\n  | ", css, "\n  | ", caret)
 }
 
+# Explain why `name` (the text after '#') is not identifier-shaped, and
+# spell the intended id where there is one. The only ways match_hash can
+# match a non-ident name are a leading digit, a '-' before a digit, and a
+# lone '-', so the two branches below are exhaustive.
+hash_ident_hint <- function(name) {
+    m <- regmatches(name, regexec("^(-?)([0-9])(.*)$", name))[[1]]
+    if (!length(m))
+        return("an ID cannot be '-' alone")
+    paste0("an identifier cannot start with a digit. Escape it: '#",
+           m[2], "\\3", m[3], " ", m[4], "'")
+}
+
 token_is_delim <- function(token, values) {
     token$type == "DELIM" && token$value %in% values
 }
@@ -1104,6 +1118,12 @@ match_number <- compile_("^[+-]?(?:[0-9]*\\.[0-9]+|[0-9]+)")
 # The escape alternative covers both unicode escapes (e.g. '\31 ') and
 # simple escapes of any non-hex character, which includes all delimiters
 match_hash <- compile_(paste0("^#([_a-zA-Z0-9-]|", nonascii, "|", escape, ")+"))
+# css-syntax-3 "would start an identifier": a name-start code point, or a
+# leading '-' followed by a name-start code point, another '-' or an
+# escape. Only a hash whose name starts an identifier is a hash of type
+# "id", i.e. an ID selector; '#1' is not one.
+match_ident_start <- compile_(paste0("^(--|-?([_a-zA-Z]|", nonascii,
+                                     "|(?:", escape, ")))"))
 match_ident <- compile_(paste0("^([_a-zA-Z0-9-]|", nonascii, "|", escape, ")+"))
 # String content: any character except a newline, backslash, or the
 # quote character, or an escape sequence. Anchored so the match end
@@ -1189,6 +1209,13 @@ tokenize <- function(s) {
             match_start <- match[1]
             match_end <- max(match[1], match[2])
             value <- substring(ss, match_start, match_end)
+            # The check is on the source text, not the decoded name,
+            # so that an escaped digit ('#\31 ' spells the id '1') stays
+            # legal while the bare digit ('#1') does not.
+            if (anyNA(match_ident_start(substring(value, 2))))
+                parse_stop("Invalid ID selector '", value, "' at position ",
+                           pos, "; ", hash_ident_hint(substring(value, 2)),
+                           pos = pos)
             value <- decode_escapes(value)
             hash_id <- substring(value, 2)
             results[[i]] <- Token("HASH", hash_id, pos)

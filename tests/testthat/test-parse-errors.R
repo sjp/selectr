@@ -213,3 +213,26 @@ test_that("parse errors are structured conditions", {
     tok <- tryCatch(parse("\\"), error = identity)
     expect_s3_class(tok, "selectr_parse_error")
 })
+
+test_that("an ID selector must be identifier-shaped", {
+    # Selectors requires the hash of an ID selector to be of type "id",
+    # i.e. its name must start an identifier. Browsers throw a
+    # SyntaxError for document.querySelector("#1").
+    expect_error(css_to_xpath("#1"),
+                 "Invalid ID selector '#1' at position 1; an identifier ",
+                 fixed = TRUE, class = "selectr_parse_error")
+    expect_error(css_to_xpath("#-1"), "Escape it: '#-\\31 '",
+                 fixed = TRUE, class = "selectr_parse_error")
+    expect_error(css_to_xpath("#-"), "an ID cannot be '-' alone",
+                 fixed = TRUE, class = "selectr_parse_error")
+    # the caret points at the '#', not at the offending digit's position
+    expect_equal(tryCatch(css_to_xpath("div #1"), error = identity)$pos, 5)
+
+    # names that do start an identifier stay legal, on both the fast
+    # path (#-x) and through the tokenizer (#\31 )
+    expect_equal(css_to_xpath("#-x", prefix = ""), "*[@id = '-x']")
+    expect_equal(css_to_xpath("#_x", prefix = ""), "*[@id = '_x']")
+    expect_equal(css_to_xpath("#--a", prefix = ""), "*[@id = '--a']")
+    expect_equal(css_to_xpath("#\\31 ", prefix = ""), "*[@id = '1']")
+    expect_equal(css_to_xpath("#\\31 23", prefix = ""), "*[@id = '123']")
+})
