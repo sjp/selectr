@@ -95,15 +95,27 @@ css_to_xpath(selector,
   \code{:lang()} ranges are matched as RFC 4647 language ranges, so a
   wildcard may appear as a whole range (\code{:lang(*)}), as a trailing
   subtag (\code{:lang(en-*)}), or in a non-trailing position
-  (\code{:lang(*-CH)}, \code{:lang(de-*-DE)}; quoted or not), the last of
-  these being RFC 4647 extended filtering. The \code{html} and
-  \code{xhtml} translators approximate a non-trailing wildcard from the
-  nearest language-attributed ancestor (an element matches
-  \code{:lang(*-CH)} when its language tag carries a \code{CH} subtag in
-  any position). The generic translator has only XPath's \code{lang()}
-  function, which cannot express extended filtering, so there a
-  non-trailing wildcard is rejected with an error rather than silently
-  mis-matching.
+  (\code{:lang(*-CH)}, \code{:lang(de-*-DE)}; quoted or not). The
+  \code{html} and \code{xhtml} translators implement RFC 4647 extended
+  filtering for any range naming more than one subtag, approximated
+  from the nearest language-attributed ancestor: a wildcard, explicit
+  or not, may skip any subtag, so \code{:lang(*-CH)} matches an element
+  whose language tag carries a \code{CH} subtag in any position, and
+  \code{:lang(de-DE)} - with no wildcard at all - matches
+  \code{lang="de-Latn-DE"} the same way. A single-subtag range
+  (\code{:lang(en)}, \code{:lang(en-*)}) is a plain prefix test, as
+  before. The generic translator has only XPath's \code{lang()}
+  function, which does Selectors 3 \code{|=}-style prefix matching and
+  cannot express extended filtering: a non-trailing wildcard is
+  rejected there with an error rather than silently mis-matching, and a
+  multi-subtag range with no wildcard (e.g. \code{:lang(de-DE)}) is
+  matched as a prefix only - it does \emph{not} skip subtags the way
+  the \code{html}/\code{xhtml} translators do.
+
+  \code{:lang("")} matches an element whose content language is not
+  tagged at all: no \code{lang}/\code{xml:lang} (as applicable to the
+  translator) anywhere in its ancestor-or-self chain, or only an empty
+  one. This holds for every translator.
 
   Which attribute supplies that language differs by translator: the
   \code{html} translator reads \code{lang}, while the \code{xhtml}

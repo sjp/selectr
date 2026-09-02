@@ -37,7 +37,15 @@ test_that("Generic translator validates language arguments", {
 test_that("HTML translator validates language arguments", {
     translator <- HTMLTranslator$new()
     expect_equal(translator$css_to_xpath("html:lang(en)"), "descendant-or-self::html[ancestor-or-self::*[@lang][1][starts-with(concat(translate(@lang, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '-'), 'en-')]]")
-    expect_equal(translator$css_to_xpath("html:lang(en-nz)"), "descendant-or-self::html[ancestor-or-self::*[@lang][1][starts-with(concat(translate(@lang, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '-'), 'en-nz-')]]")
+    # "en-nz" names two subtags, so RFC 4647 extended filtering applies
+    # (see the "extended-filtering exact ranges" test below) rather than
+    # the single-subtag prefix test used for "en" above
+    expect_equal(translator$css_to_xpath("html:lang(en-nz)"),
+                 paste0("descendant-or-self::html[ancestor-or-self::*[@lang][1][",
+                        "starts-with(concat('-', translate(@lang, ",
+                        "'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '-'), '-en-') and ",
+                        "contains(substring-after(concat('-', translate(@lang, ",
+                        "'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '-'), '-en'), '-nz-')]]"))
 
     expect_error(translator$css_to_xpath("html:lang()"), "Expected at least one argument.*")
     expect_error(translator$css_to_xpath("html:lang(1)"), "Expected string, ident, or \\* arguments.*")
@@ -234,6 +242,62 @@ test_that("HTML :lang() extended wildcards match the right elements", {
     expect_equal(ids(":lang(de-*-DE)"), "e,f")
     # case-insensitive: the wildcard subtag is matched in lower case
     expect_equal(ids(":lang(*-ch)"), "a,b,d,f,g")
+})
+
+test_that("HTML :lang() applies extended filtering to exact multi-subtag ranges", {
+    skip_if_not_installed("xml2")
+    library(xml2)
+    # A range with no literal '*' but more than one subtag is still RFC
+    # 4647 extended filtering, not a plain prefix test: any subtag may
+    # be skipped between the ones named.
+    doc <- read_xml('<a lang="de-Latn-DE">x</a>')
+    xp <- css_to_xpath("*:lang(de-DE)", translator = "html")
+    expect_equal(xml_name(xml_find_all(doc, xp)), "a")
+
+    # A single subtag (with or without a trailing wildcard) is
+    # unaffected: still a plain prefix test, so both translate to the
+    # same "de-" prefix condition
+    expect_equal(
+        HTMLTranslator$new()$css_to_xpath("*:lang(de)"),
+        HTMLTranslator$new()$css_to_xpath("*:lang(de-*)"))
+})
+
+test_that("generic translator's :lang() stays Selectors 3 prefix matching", {
+    skip_if_not_installed("xml2")
+    library(xml2)
+    # Unlike the html/xhtml translators, the generic translator has no
+    # lang-attribute to walk by hand, so a multi-subtag exact range
+    # still does a plain |=-style prefix match: it does not skip
+    # subtags the way RFC 4647 extended filtering requires.
+    doc <- read_xml('<a xml:lang="de-Latn-DE">x</a>')
+    xp <- css_to_xpath("*:lang(de-DE)")
+    expect_length(xml_find_all(doc, xp), 0)
+})
+
+test_that(':lang("") matches elements with no tagged language', {
+    skip_if_not_installed("xml2")
+    library(xml2)
+    # The document element itself carries no lang/xml:lang either, so
+    # it counts as "not tagged" too, along with <a> (explicitly reset)
+    # and <b> (never had one); <c> and its child <c1> both inherit a
+    # real language and must not match.
+    doc <- read_xml(paste0(
+        '<r>',
+        '<a lang="">untagged-by-reset</a>',
+        '<b>never-tagged</b>',
+        '<c lang="en"><c1/></c>',            # inherits a real language
+        '</r>'))
+    xp <- css_to_xpath('*:lang("")', translator = "html")
+    expect_equal(xml_name(xml_find_all(doc, xp)), c("r", "a", "b"))
+
+    generic <- read_xml(paste0(
+        '<r>',
+        '<a xml:lang="">untagged-by-reset</a>',
+        '<b>never-tagged</b>',
+        '<c xml:lang="en"><c1/></c>',
+        '</r>'))
+    xp2 <- css_to_xpath('*:lang("")')
+    expect_equal(xml_name(xml_find_all(generic, xp2)), c("r", "a", "b"))
 })
 
 test_that("generic translator rejects :lang() non-trailing wildcards", {

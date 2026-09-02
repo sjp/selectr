@@ -250,6 +250,24 @@
       more than one line), the position is still given, as
       "at position N".
 
+      \item The \code{html} and \code{xhtml} translators' \code{:lang()}
+      now implements Selectors 4 / RFC 4647 extended filtering for a
+      range naming more than one subtag, e.g. \code{:lang(de-DE)} now
+      matches \code{lang="de-Latn-DE"} (any subtag may be skipped
+      between the ones named), where it previously only matched a
+      literal \code{de-DE} prefix. A single-subtag range
+      (\code{:lang(en)}, \code{:lang(en-*)}) is unaffected. The
+      \code{generic} translator still does Selectors 3 \code{|=}-style
+      prefix matching for multi-subtag ranges, since XPath 1.0's
+      \code{lang()} has no way to express the skipped-subtag case and
+      there is no attribute to walk by hand; the two translators'
+      \code{:lang()} therefore differ in this one respect. Separately,
+      \code{:lang("")} - previously accepted but translated to a test
+      matching only a literal \code{lang=""}/\code{xml:lang=""} - now
+      matches per spec: an element whose content language is not tagged
+      at all, i.e. one with no \code{lang}/\code{xml:lang} anywhere in
+      its ancestor-or-self chain (or only an empty one).
+
     }
   }
 }

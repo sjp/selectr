@@ -240,6 +240,16 @@ lang_range_kind <- function(value) {
     }
 }
 
+# Whether an "exact" or "prefix" range (see lang_range_kind()) names
+# more than one subtag once any trailing wildcard is stripped, e.g.
+# "en-GB" and "en-GB-*" are multi-subtag but "en" and "en-*" are not.
+# A range with more than one subtag needs RFC 4647 extended filtering
+# to match correctly (subtags may be skipped between the ones named),
+# not a plain prefix test - see lang_extended_html_condition().
+lang_range_multi_subtag <- function(value) {
+    grepl("-", sub("-\\*$", "", value), fixed = TRUE)
+}
+
 # Validate that all arguments of :lang() are STRING, IDENT, or * (DELIM).
 # A lone '-' lexes as an IDENT but is not a valid <ident> per
 # css-syntax, so reject it too.
@@ -1175,15 +1185,22 @@ GenericTranslator <- R6Class("GenericTranslator",
 
             # Build conditions for each language range
             conditions <- vapply(lang_values, function(value) {
+                # Wildcard * matches any element whose language is
+                # known, i.e. one that inherits a non-empty xml:lang
+                # from its nearest xml:lang-bearing ancestor-or-self
+                # (xml:lang="" resets the language to unknown). The
+                # "xml" prefix is bound in every XPath context, so the
+                # attribute can be walked directly
+                known <- "ancestor-or-self::*[@xml:lang][1][string-length(@xml:lang) > 0]"
                 kind <- lang_range_kind(value)
                 if (kind == "any") {
-                    # Wildcard * matches any element whose language is
-                    # known, i.e. one that inherits a non-empty xml:lang
-                    # from its nearest xml:lang-bearing ancestor-or-self
-                    # (xml:lang="" resets the language to unknown). The
-                    # "xml" prefix is bound in every XPath context, so
-                    # the attribute can be walked directly
-                    "ancestor-or-self::*[@xml:lang][1][string-length(@xml:lang) > 0]"
+                    known
+                } else if (value == "") {
+                    # Selectors 4 defines :lang("") as matching elements
+                    # whose content language is *not* tagged at all - the
+                    # negation of "any" above, not a literal xml:lang=""
+                    # comparison (which lang() would otherwise produce)
+                    paste0("not(", known, ")")
                 } else if (kind == "prefix") {
                     # Wildcard suffix like "en-*" - match any language starting with prefix
                     # Use XPath's lang() function which does prefix matching.
@@ -1475,19 +1492,30 @@ HTMLTranslator <- R6Class("HTMLTranslator",
 
             # Build conditions for each language range
             conditions <- vapply(lang_values, function(value) {
+                # Wildcard * matches any element whose language is
+                # known. Only the nearest language-attributed
+                # ancestor-or-self counts, and an empty value there
+                # resets the language to unknown
+                known <- paste0(lang_attr_ancestor(self$xhtml),
+                                "[string-length(", lang_attr_value(self$xhtml),
+                                ") > 0]")
                 kind <- lang_range_kind(value)
                 if (kind == "any") {
-                    # Wildcard * matches any element whose language is
-                    # known. Only the nearest language-attributed
-                    # ancestor-or-self counts, and an empty value there
-                    # resets the language to unknown
-                    paste0(lang_attr_ancestor(self$xhtml),
-                           "[string-length(", lang_attr_value(self$xhtml),
-                           ") > 0]")
-                } else if (kind == "extended") {
+                    known
+                } else if (value == "") {
+                    # Selectors 4 defines :lang("") as matching elements
+                    # whose content language is *not* tagged at all - the
+                    # negation of "any" above (no language-attributed
+                    # ancestor-or-self has a non-empty value), not a
+                    # literal lang="" comparison
+                    paste0("not(", known, ")")
+                } else if (kind == "extended" || lang_range_multi_subtag(value)) {
                     # A wildcard in non-trailing position (e.g. "*-CH" or
-                    # "de-*-DE"): RFC 4647 extended filtering, approximated
-                    # from the nearest language-attributed ancestor
+                    # "de-*-DE"), or more than one subtag named without a
+                    # wildcard (e.g. "de-DE"): RFC 4647 extended filtering,
+                    # approximated from the nearest language-attributed
+                    # ancestor. A single-subtag range needs no walk - the
+                    # plain prefix test below is equivalent and cheaper
                     lang_extended_html_condition(value, self$xhtml)
                 } else {
                     # An exact tag ("en", "en-GB") or a trailing-wildcard
