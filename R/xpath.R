@@ -1424,6 +1424,13 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                       "name(.) = 'textarea'",
                       ")",
                       "and", disabled_by_fieldset,
+                      ") or (",
+                      # an option under a disabled optgroup is
+                      # "actually disabled" even without its own
+                      # @disabled; ancestor:: matches ':enabled' and is
+                      # equivalent to the spec's parent:: because
+                      # optgroups cannot nest
+                      "name(.) = 'option' and ancestor::optgroup[@disabled]",
                       ")"),
                 is_or_group = TRUE)
             xpath

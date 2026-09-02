@@ -302,3 +302,31 @@ test_that(":disabled/:enabled honour the disabled-fieldset legend carve-out", {
                 equals(c('in-body', 'second-legend', 'nested-in-body')))
     expect_that(ids('input:enabled'), equals('in-legend'))
 })
+
+test_that(":disabled/:enabled partition options under a disabled optgroup", {
+    library(xml2)
+    # An <option> is "actually disabled" when its own @disabled is set or
+    # when its <optgroup> parent is disabled, so the two pseudo-classes
+    # must partition the options
+    doc <- read_html(paste0(
+        '<select>',
+        '<optgroup id="off" disabled="disabled">',
+        '<option id="in-off">a</option>',
+        '</optgroup>',
+        '<optgroup id="on">',
+        '<option id="own-disabled" disabled="disabled">b</option>',
+        '<option id="plain">c</option>',
+        '</optgroup>',
+        '</select>'))
+    ids <- function(css) {
+        xpath <- css_to_xpath(css, translator = "html")
+        result <- unlist(lapply(xml_find_all(doc, xpath), xml_attr, "id"))
+        if (is.null(result)) NULL else result
+    }
+
+    expect_that(ids('option:disabled'), equals(c('in-off', 'own-disabled')))
+    expect_that(ids('option:enabled'), equals('plain'))
+    # the optgroups themselves follow their own @disabled
+    expect_that(ids('optgroup:disabled'), equals('off'))
+    expect_that(ids('optgroup:enabled'), equals('on'))
+})
