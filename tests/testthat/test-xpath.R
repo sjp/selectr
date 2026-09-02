@@ -71,8 +71,10 @@ test_that("Generic translator handles :lang() wildcards and comma lists", {
     # Simple languages still work
     expect_that(translator$css_to_xpath("div:lang(en)"), equals("descendant-or-self::div[lang('en')]"))
 
-    # Wildcard * matches everything
-    expect_that(translator$css_to_xpath('div:lang(*)'), equals("descendant-or-self::div[true()]"))
+    # Wildcard * matches any element with a known (non-empty) language
+    expect_that(translator$css_to_xpath('div:lang(*)'),
+                equals(paste0("descendant-or-self::div[ancestor-or-self::*",
+                              "[@xml:lang][1][string-length(@xml:lang) > 0]]")))
 
     # Wildcard suffix like en-* for prefix matching; the trailing "-*" is
     # stripped because XPath's lang() already matches at '-' boundaries
@@ -86,14 +88,19 @@ test_that("Generic translator handles :lang() wildcards and comma lists", {
 
     # Mixed wildcards and regular languages
     expect_that(translator$css_to_xpath('div:lang(en-*, fr)'), equals("descendant-or-self::div[lang('en') or lang('fr')]"))
-    expect_that(translator$css_to_xpath('div:lang(*, de)'), equals("descendant-or-self::div[true() or lang('de')]"))
+    expect_that(translator$css_to_xpath('div:lang(*, de)'),
+                equals(paste0("descendant-or-self::div[ancestor-or-self::*",
+                              "[@xml:lang][1][string-length(@xml:lang) > 0]",
+                              " or lang('de')]")))
 })
 
 test_that("HTML translator handles :lang() wildcards and comma lists", {
     translator <- HTMLTranslator$new()
 
-    # Wildcard * matches any element with lang attribute
-    expect_that(translator$css_to_xpath('div:lang(*)'), equals("descendant-or-self::div[ancestor-or-self::*[@lang]]"))
+    # Wildcard * matches any element with a known (non-empty) language
+    expect_that(translator$css_to_xpath('div:lang(*)'),
+                equals(paste0("descendant-or-self::div[ancestor-or-self::*",
+                              "[@lang][1][string-length(@lang) > 0]]")))
 
     # Wildcard suffix for prefix matching
     expect_that(translator$css_to_xpath('div:lang(en-*)'),
@@ -241,6 +248,36 @@ test_that("generic translator rejects :lang() non-trailing wildcards", {
     expect_error(translator$css_to_xpath('div:lang("en-*")'), NA)
     expect_error(translator$css_to_xpath(":lang(en-*, fr)"), NA)
     expect_error(translator$css_to_xpath(":lang(*, de)"), NA)
+})
+
+test_that(":lang(*) only matches elements with a known language", {
+    library(xml2)
+    # The bare wildcard means "the language is known", not "always
+    # true": an element with no language in its ancestry, or one whose
+    # nearest declaration resets the language to unknown with an empty
+    # value, must not match.
+    generic <- read_xml(paste0(
+        "<r>",
+        "<a/>",                                    # no language at all
+        "<b xml:lang='en'><b1/></b>",              # declared, inherited
+        "<c xml:lang=''/>",                        # reset to unknown
+        "<d xml:lang='en'><d1 xml:lang=''/></d>",  # d1's nearest resets
+        "</r>"))
+    expect_equal(
+        xml_name(xml_find_all(generic, css_to_xpath(":lang(*)"))),
+        c("b", "b1", "d"))
+
+    html <- read_xml(paste0(
+        "<html>",
+        "<a/>",
+        "<b lang='en'><b1/></b>",
+        "<c lang=''/>",
+        "<d lang='en'><d1 lang=''/></d>",          # d1's nearest resets
+        "</html>"))
+    expect_equal(
+        xml_name(xml_find_all(
+            html, css_to_xpath(":lang(*)", translator = "html"))),
+        c("b", "b1", "d"))
 })
 
 test_that("HTMLTranslator rejects unknown construction arguments", {

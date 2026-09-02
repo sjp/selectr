@@ -1032,8 +1032,13 @@ GenericTranslator <- R6Class("GenericTranslator",
             conditions <- vapply(lang_values, function(value) {
                 kind <- lang_range_kind(value)
                 if (kind == "any") {
-                    # Wildcard * matches everything - use a condition that's always true
-                    "true()"
+                    # Wildcard * matches any element whose language is
+                    # known, i.e. one that inherits a non-empty xml:lang
+                    # from its nearest xml:lang-bearing ancestor-or-self
+                    # (xml:lang="" resets the language to unknown). The
+                    # "xml" prefix is bound in every XPath context, so
+                    # the attribute can be walked directly
+                    "ancestor-or-self::*[@xml:lang][1][string-length(@xml:lang) > 0]"
                 } else if (kind == "prefix") {
                     # Wildcard suffix like "en-*" - match any language starting with prefix
                     # Use XPath's lang() function which does prefix matching.
@@ -1336,9 +1341,13 @@ HTMLTranslator <- R6Class("HTMLTranslator",
             conditions <- vapply(lang_values, function(value) {
                 kind <- lang_range_kind(value)
                 if (kind == "any") {
-                    # Wildcard * matches any element with a lang attribute
-                    # Check for any ancestor-or-self with @lang attribute
-                    paste0("ancestor-or-self::*[@", self$lang_attribute, "]")
+                    # Wildcard * matches any element whose language is
+                    # known. Only the nearest lang-attributed
+                    # ancestor-or-self counts, and an empty value there
+                    # resets the language to unknown
+                    paste0("ancestor-or-self::*[@", self$lang_attribute,
+                           "][1][string-length(@", self$lang_attribute,
+                           ") > 0]")
                 } else if (kind == "prefix") {
                     # Wildcard suffix like "en-*" - match any language starting with prefix
                     prefix <- sub("\\*$", "", value)  # Remove trailing *
