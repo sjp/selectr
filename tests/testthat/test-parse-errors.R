@@ -203,6 +203,30 @@ test_that("parse errors include a caret-pointer gutter", {
     expect_match(err("div > "), "^Expected selector, got <EOF at 7>")
 })
 
+test_that("the caret gutter accounts for tabs and wide characters", {
+    # A tab is echoed as a tab in the padding (rather than a single
+    # space) so the terminal applies the same tab stops to the source
+    # line and the caret line, keeping the two aligned regardless of
+    # the tab's rendered width.
+    err <- tryCatch(parse("\tdiv >"), error = identity)
+    expect_equal(err$pos, 7)
+    expect_match(conditionMessage(err),
+                 "\n  \\|\n  \\| \tdiv >\n  \\| \t     \\^",
+                 perl = TRUE)
+
+    # CJK characters render as double-width; the padding uses two spaces
+    # per such character so the caret still lands under the offending
+    # column instead of one column short of it.
+    css <- "日本語 >"
+    err2 <- tryCatch(parse(css), error = identity)
+    expect_equal(err2$pos, 6)
+    lines <- strsplit(conditionMessage(err2), "\n", fixed = TRUE)[[1]]
+    caret_line <- sub("^  \\| ", "", lines[4])
+    padding <- sub("\\^$", "", caret_line)
+    expect_equal(nchar(padding, type = "width"),
+                 nchar(substr(css, 1, err2$pos - 1L), type = "width"))
+})
+
 test_that("parse errors are structured conditions", {
     e <- tryCatch(css_to_xpath("div >"), error = identity)
     expect_s3_class(e, "selectr_parse_error")

@@ -1156,10 +1156,25 @@ parse_stop <- function(..., pos = NULL) {
 # character `pos` (1-based) within `css`. Returns `message` unchanged when
 # `pos` or `css` is NULL, or when `css` contains a newline (multi-line
 # selectors are vanishingly rare, but alignment would be wrong).
+#
+# The padding is built from the source text itself rather than a run of
+# `pos - 1` spaces: a tab is echoed as a tab so the terminal applies the
+# same tab stops to both the source line and the caret line, and any
+# other character is replaced by spaces sized to its display width (via
+# `nchar(type = "width")`) so double-width CJK/emoji characters still
+# push the caret to the right column.
 format_parse_error <- function(message, css, pos) {
     if (is.null(pos) || is.null(css) || grepl("[\r\n]", css))
         return(message)
-    caret <- paste0(strrep(" ", max(pos - 1L, 0L)), "^")
+    prefix <- substr(css, 1L, max(pos - 1L, 0L))
+    chars <- strsplit(prefix, "", fixed = TRUE)[[1]]
+    padding <- vapply(chars, function(ch) {
+        if (identical(ch, "\t"))
+            return("\t")
+        width <- nchar(ch, type = "width")
+        strrep(" ", if (is.na(width)) 1L else max(width, 1L))
+    }, character(1))
+    caret <- paste0(paste(padding, collapse = ""), "^")
     paste0(message, "\n  |\n  | ", css, "\n  | ", caret)
 }
 
