@@ -51,6 +51,38 @@ test_that("unicode escapes are decoded in idents, hashes, and strings", {
                 equals(c("<HASH 'a[b' at 1>", "<EOF at 6>")))
 })
 
+test_that("invalid unicode escapes decode to U+FFFD", {
+    reprs <- function(css) {
+        unlist(lapply(tokenize(css), token_repr))
+    }
+    repl <- "\uFFFD"
+
+    # css-syntax-3: null, surrogate and out-of-range code points all
+    # decode to the replacement character rather than failing
+    for (esc in c("\\0", "\\000000", "\\D800", "\\d800", "\\DFFF",
+                  "\\110000", "\\FFFFFF")) {
+        expect_that(reprs(esc),
+                    equals(c(paste0("<IDENT '", repl, "' at 1>"),
+                             paste0("<EOF at ", nchar(esc) + 1, ">"))))
+    }
+    # ... and in the middle of a token, in each token type
+    expect_that(reprs("a\\0 b"),
+                equals(c(paste0("<IDENT 'a", repl, "b' at 1>"), "<EOF at 6>")))
+    # (the terminating space keeps 'b' out of the escape's hex digits)
+    expect_that(reprs("#a\\D800 b"),
+                equals(c(paste0("<HASH 'a", repl, "b' at 1>"), "<EOF at 10>")))
+    expect_that(reprs("'a\\110000b'"),
+                equals(c(paste0("<STRING 'a", repl, "b' at 1>"), "<EOF at 12>")))
+    # The last code point that is not a surrogate, and the first after
+    # them, are still decoded normally
+    expect_that(reprs("\\D7FF"),
+                equals(c("<IDENT '\uD7FF' at 1>", "<EOF at 6>")))
+    expect_that(reprs("\\E000"),
+                equals(c("<IDENT '\uE000' at 1>", "<EOF at 6>")))
+    expect_that(reprs("\\10FFFF"),
+                equals(c("<IDENT '\U0010FFFF' at 1>", "<EOF at 8>")))
+})
+
 test_that("string tokens handle quotes, escapes, and unclosed strings", {
     reprs <- function(css) {
         unlist(lapply(tokenize(css), token_repr))

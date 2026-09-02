@@ -255,3 +255,36 @@ test_that("translation from parsed objects to XPath works", {
     expect_that(xpath('[h\\]ref]'),
                 equals("*[attribute::*[name() = 'h]ref']]"))
 })
+
+test_that("invalid unicode escapes translate to U+FFFD", {
+    gt <- GenericTranslator$new()
+    xpath <- function(css) {
+        gt$css_to_xpath(css, prefix = "")
+    }
+    repl <- "\uFFFD"
+
+    # Null, surrogate and out-of-range escapes are replacement
+    # characters, not errors (css-syntax-3)
+    for (esc in c("\\0", "\\D800", "\\DFFF", "\\110000", "\\FFFFFF")) {
+        expect_that(xpath(esc),
+                    equals(paste0("*[name() = '", repl, "']")))
+        expect_that(xpath(paste0("#", esc)),
+                    equals(paste0("*[@id = '", repl, "']")))
+        expect_that(xpath(paste0("[x=\"", esc, "\"]")),
+                    equals(paste0("*[@x = '", repl, "']")))
+        expect_that(xpath(paste0(".", esc)),
+                    equals(paste0("*[@class and contains(concat(' ', ",
+                                  "normalize-space(@class), ' '), ' ",
+                                  repl, " ')]")))
+    }
+
+    # No escape whatsoever throws anything but a parse error
+    for (hex in c("0", "1", "D7FF", "D800", "DC00", "DFFF", "E000",
+                  "10FFFF", "110000", "FFFFFF", "ffffff")) {
+        for (css in c(paste0("\\", hex), paste0("a.\\", hex),
+                      paste0("[x=\"\\", hex, "\"]"))) {
+            expect_true(is.character(tryCatch(xpath(css),
+                                              selectr_parse_error = function(e) "")))
+        }
+    }
+})

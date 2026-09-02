@@ -1107,7 +1107,14 @@ decode_escapes <- function(x, newlines = FALSE) {
         out[grepl("^[\n\r\f]", out)] <- ""    # line continuation: nothing
         if (any(is_hex)) {
             hex <- sub("(?:\r\n|[ \n\r\t\f])$", "", out[is_hex], perl = TRUE)
-            out[is_hex] <- intToUtf8(strtoi(hex, base = 16L), multiple = TRUE)
+            # css-syntax-3: a null, surrogate or out-of-range code point
+            # decodes to U+FFFD. intToUtf8() would give NA (or "" for 0)
+            # for these, so replace them before decoding.
+            cp <- strtoi(hex, base = 16L)
+            bad <- is.na(cp) | cp == 0L |
+                (cp >= 0xD800L & cp <= 0xDFFFL) | cp > 0x10FFFFL
+            cp[bad] <- 0xFFFDL
+            out[is_hex] <- intToUtf8(cp, multiple = TRUE)
         }
         out
     })
