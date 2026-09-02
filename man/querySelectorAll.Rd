@@ -52,6 +52,11 @@ querySelectorAllNS(doc, selector, ns,
   filter out all content that does not belong within the given
   namespaces. Note that when searching for particular elements in a
   selector, they must have a namespace prefix, e.g. \code{"svg|g"}.
+  The filter is relative to \code{doc}, so like the un-namespaced
+  functions these search a node's own subtree rather than the whole
+  document. A selector starting with \code{:scope} replaces the filter
+  altogether (see below); such a selector is namespaced by its own
+  prefixes, e.g. \code{":scope > svg|g"}.
 
   The namespace argument, \code{ns}, is simply passed on to
   \code{\link[XML]{getNodeSet}} or \code{\link[xml2]{xml_find_all}} if

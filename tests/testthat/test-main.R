@@ -114,9 +114,14 @@ test_that("namespace handling works correctly", {
     expect_error(formatNS(list(a = character(0), b = "u3")),
                  "Each element in the namespace object must be a single character string.")
 
-    # formatNSPrefix must return a pipe separated string of namespace prefixes
-    expect_that(formatNSPrefix(c(svg = "svg"), ""), equals("(//svg:*)/"))
-    expect_that(formatNSPrefix(c(svg = "svg"), "asd"), equals("(//svg:*)/asd"))
-    expect_that(formatNSPrefix(c(svg = "svg", math = "mathml"), ""), equals("(//svg:*|//math:*)/"))
-    expect_that(formatNSPrefix(c(svg = "svg", math = "mathml"), "asd"), equals("(//svg:*|//math:*)/asd"))
+    # formatNSPrefix must return a pipe separated string of namespace
+    # prefixes, relative to the node the query starts from
+    expect_that(formatNSPrefix(c(svg = "svg"), ""),
+                equals("(descendant-or-self::svg:*)/"))
+    expect_that(formatNSPrefix(c(svg = "svg"), "asd"),
+                equals("(descendant-or-self::svg:*)/asd"))
+    expect_that(formatNSPrefix(c(svg = "svg", math = "mathml"), ""),
+                equals("(descendant-or-self::svg:*|descendant-or-self::math:*)/"))
+    expect_that(formatNSPrefix(c(svg = "svg", math = "mathml"), "asd"),
+                equals("(descendant-or-self::svg:*|descendant-or-self::math:*)/asd"))
 })

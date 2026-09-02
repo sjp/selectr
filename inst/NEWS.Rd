@@ -66,6 +66,39 @@
 
     }
   }
+  \subsection{BUG FIXES}{
+    \itemize{
+
+      \item \code{querySelectorNS()} and \code{querySelectorAllNS()}
+      now search only within the node they are given, as their
+      un-namespaced counterparts do. The namespace filter was built as
+      an absolute location path (\code{//svg:*}), which is evaluated
+      from the document root whatever the context node, so a query
+      starting from a node also returned matches outside that node's
+      subtree. It is now relative
+      (\code{descendant-or-self::svg:*}); queries starting from a
+      document are unaffected. A selector starting with \code{:scope}
+      replaces the filter altogether and is namespaced by its own
+      prefixes, e.g. \code{":scope > svg|g"}.
+
+      \item A selector with a long chain of combinators
+      (e.g. \code{"a > a > ... > a"}) is now translated, and its
+      specificity and representation computed, by walking the parse
+      tree in a loop rather than recursively. Beyond a few hundred
+      combinators these previously failed with "evaluation nested too
+      deeply: infinite recursion / options(expressions=)?" instead of
+      producing a result. The arguments of functional pseudo-classes
+      are still translated recursively, so their nesting remains
+      bounded by \code{options(expressions=)}.
+
+      \item An unusually long selector is now translated without
+      being cached, rather than failing with "variable names are
+      limited to 10000 bytes". \code{css_to_xpath()} caches
+      translations in an environment, whose keys are subject to R's
+      limit on the length of a symbol.
+
+    }
+  }
 }
 
 \section{Changes in version 0.6-0}{

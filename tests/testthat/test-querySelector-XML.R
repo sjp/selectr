@@ -71,13 +71,11 @@ test_that("querySelector handles namespaces", {
     expect_that(p(querySelector(doc, "svg|circle", ns = c(svg = "http://www.w3.org/2000/svg"))),
                 equals(p(getNodeSet(doc, "//svg:circle", namespaces = c(svg = "http://www.w3.org/2000/svg"))[[1]])))
 
-    # now with querySelectorNS; XML warns that the unprefixed query
-    # cannot match the document's default namespace, which is exactly
-    # the behaviour under test
-    expect_warning(
-        expect_that(querySelectorNS(doc, "circle", c(svg = "http://www.w3.org/2000/svg")),
-                    equals(NULL)),
-        "query has no namespace")
+    # now with querySelectorNS; the unprefixed query cannot match the
+    # document's default namespace, which is exactly the behaviour
+    # under test
+    expect_that(querySelectorNS(doc, "circle", c(svg = "http://www.w3.org/2000/svg")),
+                equals(NULL))
     expect_that(p(querySelectorNS(doc, "svg|circle", c(svg = "http://www.w3.org/2000/svg"))),
                 equals(p(getNodeSet(doc, "//svg:circle", namespaces = c(svg = "http://www.w3.org/2000/svg"))[[1]])))
 })
@@ -96,15 +94,41 @@ test_that("querySelectorAll handles namespaces", {
     expect_that(p(querySelectorAll(doc, "svg|circle", ns = c(svg = "http://www.w3.org/2000/svg"))),
                 equals(p(getNodeSet(doc, "//svg:circle", namespaces = c(svg = "http://www.w3.org/2000/svg")))))
 
-    # now with querySelectorAllNS; XML warns that the unprefixed query
-    # cannot match the document's default namespace, which is exactly
-    # the behaviour under test
-    expect_warning(
-        expect_that(p(querySelectorAllNS(doc, "circle", c(svg = "http://www.w3.org/2000/svg"))),
-                    equals(suppressWarnings(p(getNodeSet(doc, "//circle", namespaces = c(svg = "http://www.w3.org/2000/svg")))))),
-        "query has no namespace")
+    # now with querySelectorAllNS; the unprefixed query cannot match
+    # the document's default namespace, which is exactly the behaviour
+    # under test
+    expect_that(p(querySelectorAllNS(doc, "circle", c(svg = "http://www.w3.org/2000/svg"))),
+                equals(suppressWarnings(p(getNodeSet(doc, "//circle", namespaces = c(svg = "http://www.w3.org/2000/svg"))))))
     expect_that(p(querySelectorAllNS(doc, "svg|circle", c(svg = "http://www.w3.org/2000/svg"))),
                 equals(p(getNodeSet(doc, "//svg:circle", namespaces = c(svg = "http://www.w3.org/2000/svg")))))
+})
+
+test_that("the namespaced queries are scoped to the node given", {
+    library(XML)
+    doc <- xmlParse(paste0('<root xmlns:s="urn:s"><s:a id="outer"/>',
+                           '<wrap><s:a id="inner"/></wrap></root>'))
+    ns <- c(s = "urn:s")
+    ids <- function(x) as.character(sapply(x, xmlGetAttr, "id"))
+    wrap <- getNodeSet(doc, "//wrap")[[1]]
+
+    # the namespace filter must not escape the queried node: the
+    # 'outer' element is not inside <wrap>
+    expect_that(ids(querySelectorAllNS(wrap, "s|a", ns)), equals("inner"))
+    expect_that(xmlGetAttr(querySelectorNS(wrap, "s|a", ns), "id"),
+                equals("inner"))
+    # which is what the plain query with a namespace already does
+    expect_that(ids(querySelectorAll(wrap, "s|a", ns = ns)), equals("inner"))
+
+    # a node set is scoped the same way, node by node
+    expect_that(ids(querySelectorAllNS(getNodeSet(doc, "//wrap"), "s|a", ns)),
+                equals("inner"))
+
+    # from the document (or its root) both are still found: the
+    # 'descendant-or-self' axis from the document node includes the root
+    expect_that(ids(querySelectorAllNS(doc, "s|a", ns)),
+                equals(c("outer", "inner")))
+    expect_that(ids(querySelectorAllNS(xmlRoot(doc), "s|a", ns)),
+                equals(c("outer", "inner")))
 })
 
 test_that("querySelector methods handle invalid arguments", {

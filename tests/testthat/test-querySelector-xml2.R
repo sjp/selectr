@@ -102,6 +102,34 @@ test_that("querySelectorAll honours attribute case-sensitivity flags", {
     expect_that(rels('a[rel*="FOLL" i]'), equals(c("NoFollow", "nofollow")))
 })
 
+test_that("the namespaced queries are scoped to the node given", {
+    library(xml2)
+    doc <- read_xml(paste0('<root xmlns:s="urn:s"><s:a id="outer"/>',
+                           '<wrap><s:a id="inner"/></wrap></root>'))
+    ns <- c(s = "urn:s")
+    wrap <- xml_find_first(doc, "//wrap")
+
+    # the namespace filter must not escape the queried node: the
+    # 'outer' element is not inside <wrap>
+    expect_that(xml_attr(querySelectorAllNS(wrap, "s|a", ns), "id"),
+                equals("inner"))
+    expect_that(xml_attr(querySelectorNS(wrap, "s|a", ns), "id"),
+                equals("inner"))
+    # which is what the plain query with a namespace already does
+    expect_that(xml_attr(querySelectorAll(wrap, "s|a", ns = ns), "id"),
+                equals("inner"))
+
+    # a node set is scoped the same way, node by node
+    expect_that(xml_attr(querySelectorAllNS(xml_find_all(doc, "//wrap"),
+                                            "s|a", ns), "id"),
+                equals("inner"))
+
+    # from the document both are still found: the 'descendant-or-self'
+    # axis from the document node includes the root
+    expect_that(xml_attr(querySelectorAllNS(doc, "s|a", ns), "id"),
+                equals(c("outer", "inner")))
+})
+
 test_that("querySelector methods handle invalid arguments", {
     library(xml2)
     doc <- read_xml('<a><b id="#test"/><c class="ex"/><c class="xmp"/></a>')

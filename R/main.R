@@ -344,8 +344,11 @@ formatNS <- function(ns) {
     ns
 }
 
+# The namespace filter is relative to the queried node, so that a query
+# starting from a node searches that node's subtree rather than the whole
+# document.
 formatNSPrefix <- function(ns, prefix) {
-    filters <- paste0("//", names(ns), ":*", collapse = "|")
+    filters <- paste0("descendant-or-self::", names(ns), ":*", collapse = "|")
     prefix <- paste0("(", filters, ")/", prefix)
     prefix
 }
