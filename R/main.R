@@ -222,26 +222,22 @@ querySelectorNS.XMLNodeSet          <-
 querySelectorNS.XMLInternalNode     <-
 querySelectorNS.XMLInternalDocument <- function(doc, selector, ns,
                                                 prefix = "descendant-or-self::", ...) {
-    validateSelector(selector)
-    if (missing(ns) || !length(ns))
-        stop("A namespace must be provided.")
-    ns <- formatNS(ns)
-    prefix <- formatNSPrefix(ns, prefix)
-    querySelector(doc, selector, ns, prefix = prefix, ...)
+    ns_dispatch(querySelector, doc, selector, ns, prefix, ...)
 }
 
 querySelectorAllNS.XMLNodeSet          <-
 querySelectorAllNS.XMLInternalNode     <-
 querySelectorAllNS.XMLInternalDocument <- function(doc, selector, ns,
                                                    prefix = "descendant-or-self::", ...) {
-    validateSelector(selector)
-    if (missing(ns) || !length(ns))
-        stop("A namespace must be provided.")
-    ns <- formatNS(ns)
-    prefix <- formatNSPrefix(ns, prefix)
-    querySelectorAll(doc, selector, ns, prefix = prefix, ...)
+    ns_dispatch(querySelectorAll, doc, selector, ns, prefix, ...)
 }
 
+# Unlike querySelector.XMLInternalNode/Document above, this does not
+# delegate to querySelectorAll(): xml2::xml_find_first() is cheaper
+# than xml2::xml_find_all()[[1]] (it can stop at the first match), so
+# the query is translated and run directly instead. The XML package
+# has no first-match equivalent, so its methods have no such shortcut
+# available and materialise the full node set regardless.
 querySelector.xml_node <- function(doc, selector, ns = NULL,
                                    translator = NULL, ...) {
     validateSelector(selector)
@@ -307,24 +303,14 @@ querySelectorNS.xml_missing <-
 querySelectorNS.xml_nodeset <-
 querySelectorNS.xml_node <- function(doc, selector, ns,
                                      prefix = "descendant-or-self::", ...) {
-    validateSelector(selector)
-    if (missing(ns) || is.null(ns) || !length(ns))
-        stop("A namespace must be provided.")
-    ns <- formatNS(ns)
-    prefix <- formatNSPrefix(ns, prefix)
-    querySelector(doc, selector, ns, prefix = prefix, ...)
+    ns_dispatch(querySelector, doc, selector, ns, prefix, ...)
 }
 
 querySelectorAllNS.xml_missing <-
 querySelectorAllNS.xml_nodeset <-
 querySelectorAllNS.xml_node <- function(doc, selector, ns,
                                         prefix = "descendant-or-self::", ...) {
-    validateSelector(selector)
-    if (missing(ns) || is.null(ns) || !length(ns))
-        stop("A namespace must be provided.")
-    ns <- formatNS(ns)
-    prefix <- formatNSPrefix(ns, prefix)
-    querySelectorAll(doc, selector, ns, prefix = prefix, ...)
+    ns_dispatch(querySelectorAll, doc, selector, ns, prefix, ...)
 }
 
 # The translator for a query on the xml2 object 'doc' that did not
@@ -382,6 +368,20 @@ formatNS <- function(ns) {
         stop("The values in the namespace object must be non-missing, non-empty strings.")
     names(ns) <- nsNames
     ns
+}
+
+# Shared body of the four querySelectorNS()/querySelectorAllNS()
+# methods: validate that a namespace was supplied, then delegate to
+# 'query_fun' (querySelector() or querySelectorAll()) with 'prefix'
+# expanded to scope the query to namespaced descendants.
+ns_dispatch <- function(query_fun, doc, selector, ns,
+                        prefix = "descendant-or-self::", ...) {
+    validateSelector(selector)
+    if (missing(ns) || !length(ns))
+        stop("A namespace must be provided.")
+    ns <- formatNS(ns)
+    prefix <- formatNSPrefix(ns, prefix)
+    query_fun(doc, selector, ns, prefix = prefix, ...)
 }
 
 # The namespace filter is relative to the queried node, so that a query

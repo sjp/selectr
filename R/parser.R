@@ -11,7 +11,26 @@ TokenMacros <- list(escape = escape,
                     string_escape = paste0("\\\\(?:\n|\r\n|\r|\f)|", escape),
                     nonascii = nonascii)
 
+# Base class for every parse-tree node below. Only repr() is
+# type-specific; show() and the "ClassName[...]" wrapping that most
+# repr() implementations use are common enough to live here once.
+Node <- R6Class("Node",
+    public = list(
+        # Wraps 'content' as "ClassName[content]", the shape used by
+        # every repr() below except Selector's (which has no brackets)
+        # and CombinedSelector's (which wraps once per spine node, not
+        # just 'self').
+        repr_wrap = function(content) {
+            paste0(first_class_name(self), "[", content, "]")
+        },
+        show = function() { # nocov start
+            cat(self$repr(), "\n")
+        } # nocov end
+    )
+)
+
 Selector <- R6Class("Selector",
+    inherit = Node,
     public = list(
         parsed_tree = NULL,
         pseudo_element = NULL,
@@ -31,14 +50,12 @@ Selector <- R6Class("Selector",
             if (!is.null(self$pseudo_element))
                 specs[3] <- specs[3] + 1
             specs
-        },
-        show = function() { # nocov start
-            cat(self$repr(), "\n")
-        } # nocov end
+        }
     )
 )
 
 ClassSelector <- R6Class("ClassSelector",
+    inherit = Node,
     public = list(
         selector = NULL,
         class_name = NULL,
@@ -47,26 +64,18 @@ ClassSelector <- R6Class("ClassSelector",
             self$class_name <- class_name
         },
         repr = function() {
-            paste0(
-                first_class_name(self),
-                "[",
-                self$selector$repr(),
-                ".",
-                self$class_name,
-                "]")
+            self$repr_wrap(paste0(self$selector$repr(), ".", self$class_name))
         },
         specificity = function() {
             specs <- self$selector$specificity()
             specs[2] <- specs[2] + 1
             specs
-        },
-        show = function() { # nocov start
-            cat(self$repr(), "\n")
-        } # nocov end
+        }
     )
 )
 
 Function <- R6Class("Function",
+    inherit = Node,
     public = list(
         selector = NULL,
         name = NULL,
@@ -90,16 +99,14 @@ Function <- R6Class("Function",
                     paste0(sapply(self$selector_list, function(s) s$repr()), collapse = ", ")
                 )
             }
-            paste0(
-                first_class_name(self),
-                "[",
+            self$repr_wrap(paste0(
                 self$selector$repr(),
                 ":",
                 self$name,
                 "(",
                 token_values,
                 selector_list_repr,
-                ")]")
+                ")"))
         },
         argument_types = function() {
             token_types <- lapply(self$arguments, function(token) token$type)
@@ -109,14 +116,12 @@ Function <- R6Class("Function",
             specs <- self$selector$specificity()
             specs[2] <- specs[2] + 1
             specs
-        },
-        show = function() { # nocov start
-            cat(self$repr(), "\n")
-        } # nocov end
+        }
     )
 )
 
 Pseudo <- R6Class("Pseudo",
+    inherit = Node,
     public = list(
         selector = NULL,
         ident = NULL,
@@ -125,22 +130,13 @@ Pseudo <- R6Class("Pseudo",
             self$ident <- tolower(ident)
         },
         repr = function() {
-            paste0(
-                first_class_name(self),
-                "[",
-                self$selector$repr(),
-                ":",
-                self$ident,
-                "]")
+            self$repr_wrap(paste0(self$selector$repr(), ":", self$ident))
         },
         specificity = function() {
             specs <- self$selector$specificity()
             specs[2] <- specs[2] + 1
             specs
-        },
-        show = function() { # nocov start
-            cat(self$repr(), "\n")
-        } # nocov end
+        }
     )
 )
 
@@ -154,7 +150,23 @@ max_specificity <- function(selector_list) {
     specs[, order(-specs[1, ], -specs[2, ], -specs[3, ])[1]]
 }
 
+# Specificity for the selector-list pseudo-classes (:not(), :is(),
+# :where(), :has()): the base selector's specificity plus that of the
+# list's most specific member. 'ignore_list' is for :where(), which by
+# spec always contributes zero specificity from its argument list;
+# otherwise an empty list (possible only for :is(), via ':is()')
+# contributes nothing rather than being passed to max_specificity(),
+# which requires at least one selector.
+selector_list_specificity <- function(selector, selector_list,
+                                      ignore_list = FALSE) {
+    base_specs <- selector$specificity()
+    if (ignore_list || length(selector_list) == 0)
+        return(base_specs)
+    base_specs + max_specificity(selector_list)
+}
+
 Negation <- R6Class("Negation",
+    inherit = Node,
     public = list(
         selector = NULL,
         selector_list = NULL,
@@ -163,28 +175,23 @@ Negation <- R6Class("Negation",
             self$selector_list <- selector_list
         },
         repr = function() {
-            paste0(
-                first_class_name(self),
-                "[",
+            self$repr_wrap(paste0(
                 self$selector$repr(),
                 ":not(",
                 paste0(
                     sapply(self$selector_list, function(s) s$repr()),
                     collapse = ", "
                 ),
-                ")]")
+                ")"))
         },
         specificity = function() {
-            # :not() always has at least one argument
-            self$selector$specificity() + max_specificity(self$selector_list)
-        },
-        show = function() { # nocov start
-            cat(self$repr(), "\n")
-        } # nocov end
+            selector_list_specificity(self$selector, self$selector_list)
+        }
     )
 )
 
 Matching <- R6Class("Matching",
+    inherit = Node,
     public = list(
         selector = NULL,
         selector_list = NULL,
@@ -193,34 +200,23 @@ Matching <- R6Class("Matching",
             self$selector_list <- selector_list
         },
         repr = function() {
-            paste0(
-                first_class_name(self),
-                "[",
+            self$repr_wrap(paste0(
                 self$selector$repr(),
                 ":is(",
                 paste0(
                     sapply(self$selector_list, function(s) s$repr()),
                     collapse = ", "
                 ),
-                ")]"
-            )
+                ")"))
         },
         specificity = function() {
-            # :is() takes the specificity of its most specific argument,
-            # added to the base selector; an empty argument list
-            # contributes nothing
-            base_specs <- self$selector$specificity()
-            if (length(self$selector_list) == 0)
-                return(base_specs)
-            base_specs + max_specificity(self$selector_list)
-        },
-        show = function() { # nocov start
-            cat(self$repr(), "\n")
-        } # nocov end
+            selector_list_specificity(self$selector, self$selector_list)
+        }
     )
 )
 
 Where <- R6Class("Where",
+    inherit = Node,
     public = list(
         selector = NULL,
         selector_list = NULL,
@@ -229,25 +225,19 @@ Where <- R6Class("Where",
             self$selector_list <- selector_list
         },
         repr = function() {
-            paste0(
-                first_class_name(self),
-                "[",
+            self$repr_wrap(paste0(
                 self$selector$repr(),
                 ":where(",
                 paste0(
                     sapply(self$selector_list, function(s) s$repr()),
                     collapse = ", "
                 ),
-                ")]"
-            )
+                ")"))
         },
         specificity = function() {
-            # :where() always has zero specificity
-            self$selector$specificity()
-        },
-        show = function() { # nocov start
-            cat(self$repr(), "\n")
-        } # nocov end
+            selector_list_specificity(self$selector, self$selector_list,
+                                      ignore_list = TRUE)
+        }
     )
 )
 
@@ -256,6 +246,7 @@ Where <- R6Class("Where",
 # Arguments with the omitted (implied descendant) combinator are stored
 # unwrapped in Has$selector_list.
 RelativeSelector <- R6Class("RelativeSelector",
+    inherit = Node,
     public = list(
         combinator = NULL,
         selector = NULL,
@@ -264,26 +255,17 @@ RelativeSelector <- R6Class("RelativeSelector",
             self$selector <- selector
         },
         repr = function() {
-            paste0(
-                first_class_name(self),
-                "[",
-                self$combinator,
-                " ",
-                self$selector$repr(),
-                "]"
-            )
+            self$repr_wrap(paste0(self$combinator, " ", self$selector$repr()))
         },
         specificity = function() {
             # The leading combinator contributes no specificity
             self$selector$specificity()
-        },
-        show = function() { # nocov start
-            cat(self$repr(), "\n")
-        } # nocov end
+        }
     )
 )
 
 Has <- R6Class("Has",
+    inherit = Node,
     public = list(
         selector = NULL,
         selector_list = NULL,
@@ -292,31 +274,23 @@ Has <- R6Class("Has",
             self$selector_list <- selector_list
         },
         repr = function() {
-            paste0(
-                first_class_name(self),
-                "[",
+            self$repr_wrap(paste0(
                 self$selector$repr(),
                 ":has(",
                 paste0(
                     sapply(self$selector_list, function(s) s$repr()),
                     collapse = ", "
                 ),
-                ")]"
-            )
+                ")"))
         },
         specificity = function() {
-            # :has() takes the specificity of its most specific argument,
-            # added to the base selector
-            base_specs <- self$selector$specificity()
-            base_specs + max_specificity(self$selector_list)
-        },
-        show = function() { # nocov start
-            cat(self$repr(), "\n")
-        } # nocov end
+            selector_list_specificity(self$selector, self$selector_list)
+        }
     )
 )
 
 Attrib <- R6Class("Attrib",
+    inherit = Node,
     public = list(
         selector = NULL,
         namespace = NULL,
@@ -339,41 +313,30 @@ Attrib <- R6Class("Attrib",
                     paste0(self$namespace, "|", self$attrib)
                 else
                     self$attrib
-            if (self$operator == "exists")
-                paste0(
-                    first_class_name(self),
-                    "[",
-                    self$selector$repr(),
-                    "[",
-                    attr,
-                    "]]")
-            else
-                paste0(
-                    first_class_name(self),
-                    "[",
-                    self$selector$repr(),
-                    "[",
-                    attr,
-                    " ",
-                    self$operator,
-                    " '",
-                    self$value,
-                    "'",
-                    if (!is.null(self$flag)) paste0(" ", self$flag) else "",
-                    "]]")
+            inner <-
+                if (self$operator == "exists")
+                    attr
+                else
+                    paste0(
+                        attr,
+                        " ",
+                        self$operator,
+                        " '",
+                        self$value,
+                        "'",
+                        if (!is.null(self$flag)) paste0(" ", self$flag) else "")
+            self$repr_wrap(paste0(self$selector$repr(), "[", inner, "]"))
         },
         specificity = function() {
             specs <- self$selector$specificity()
             specs[2] <- specs[2] + 1
             specs
-        },
-        show = function() { # nocov start
-            cat(self$repr(), "\n")
-        } # nocov end
+        }
     )
 )
 
 Element <- R6Class("Element",
+    inherit = Node,
     public = list(
         namespace = NULL,
         element = NULL,
@@ -387,19 +350,17 @@ Element <- R6Class("Element",
                 else "*"
             if (!is.null(self$namespace))
                 el <- paste0(self$namespace, "|", el)
-            paste0(first_class_name(self), "[", el, "]")
+            self$repr_wrap(el)
         },
         specificity = function() {
             if (!is.null(self$element)) c(0, 0, 1)
             else rep(0, 3)
-        },
-        show = function() { # nocov start
-            cat(self$repr(), "\n")
-        } # nocov end
+        }
     )
 )
 
 Hash <- R6Class("Hash",
+    inherit = Node,
     public = list(
         selector = NULL,
         id = NULL,
@@ -408,26 +369,18 @@ Hash <- R6Class("Hash",
             self$id <- id
         },
         repr = function() {
-            paste0(
-                first_class_name(self),
-                "[",
-                self$selector$repr(),
-                "#",
-                self$id,
-                "]")
+            self$repr_wrap(paste0(self$selector$repr(), "#", self$id))
         },
         specificity = function() {
             specs <- self$selector$specificity()
             specs[1] <- specs[1] + 1
             specs
-        },
-        show = function() { # nocov start
-            cat(self$repr(), "\n")
-        } # nocov end
+        }
     )
 )
 
 CombinedSelector <- R6Class("CombinedSelector",
+    inherit = Node,
     public = list(
         selector = NULL,
         combinator = NULL,
@@ -446,8 +399,8 @@ CombinedSelector <- R6Class("CombinedSelector",
                 comb <-
                     if (node$combinator == " ") "<followed>"
                     else node$combinator
-                out <- paste0(first_class_name(node), "[", out, " ", comb,
-                              " ", node$subselector$repr(), "]")
+                out <- node$repr_wrap(paste0(out, " ", comb, " ",
+                                             node$subselector$repr()))
             }
             out
         },
@@ -457,10 +410,7 @@ CombinedSelector <- R6Class("CombinedSelector",
             for (node in spine$nodes)
                 specs <- specs + node$subselector$specificity()
             specs
-        },
-        show = function() { # nocov start
-            cat(self$repr(), "\n")
-        } # nocov end
+        }
     )
 )
 
@@ -571,6 +521,17 @@ parse_selector_group <- function(stream) {
     results
 }
 
+# Rejects a pseudo-element parsed before this point: a legacy or '::'
+# pseudo-element is only valid as the final component of a selector.
+reject_pseudo_element_not_last <- function(pseudo_element, pos) {
+    if (!is.null(pseudo_element)) {
+        parse_stop("Got pseudo-element ::",
+                   pseudo_element,
+                   " not at the end of a selector",
+                   pos = pos)
+    }
+}
+
 token_equality <- function(token, t, val) {
     if (token$type != t)
         return(FALSE)
@@ -593,12 +554,7 @@ parse_selector <- function(stream) {
             token_equality(peek, "DELIM", ",")) {
             break
         }
-        if (!is.null(pseudo_element) && nzchar(pseudo_element)) {
-          parse_stop("Got pseudo-element ::",
-                     pseudo_element,
-                     " not at the end of a selector",
-                     pos = peek$pos)
-        }
+        reject_pseudo_element_not_last(pseudo_element, peek$pos)
         if (token_is_delim(peek, c("+", ">", "~"))) {
             # A combinator
             combinator <- stream$nxt()$value
@@ -660,12 +616,7 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
             (inside_arguments && token_equality(peek, "DELIM", ")"))) {
             break
         }
-        if (!is.null(pseudo_element)) {
-            parse_stop("Got pseudo-element ::",
-                       pseudo_element,
-                       " not at the end of a selector",
-                       pos = peek$pos)
-        }
+        reject_pseudo_element_not_last(pseudo_element, peek$pos)
         if (peek$type == "HASH") {
             result <- Hash$new(result, stream$nxt()$value)
         } else if (token_equality(peek, "DELIM", ".")) {

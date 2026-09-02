@@ -166,6 +166,17 @@ of_type_nodetest <- function(xpath) {
         nodetest
 }
 
+# of_type_nodetest(), raising the shared "not implemented" error for
+# an of-type pseudo-class whose subject is the universal selector.
+# 'name' is the pseudo-class as it should appear in the message, e.g.
+# "nth-of-type()" or "first-of-type".
+of_type_nodetest_or_stop <- function(xpath, name) {
+    nodetest <- of_type_nodetest(xpath)
+    if (is.null(nodetest))
+        stop("*:", name, " is not implemented")
+    nodetest
+}
+
 # Shared translation for pseudo-classes that can never match in a
 # static document
 pseudo_never_matches <- function(xpath) {
@@ -1035,15 +1046,11 @@ GenericTranslator <- R6Class("GenericTranslator",
             self$xpath_nth_child_function(xpath, fn, last = TRUE)
         },
         xpath_nth_of_type_function = function(xpath, fn) {
-            if (is.null(of_type_nodetest(xpath))) {
-                stop("*:nth-of-type() is not implemented")
-            }
+            of_type_nodetest_or_stop(xpath, "nth-of-type()")
             self$xpath_nth_child_function(xpath, fn, add_name_test = FALSE)
         },
         xpath_nth_last_of_type_function = function(xpath, fn) {
-            if (is.null(of_type_nodetest(xpath))) {
-                stop("*:nth-last-of-type() is not implemented")
-            }
+            of_type_nodetest_or_stop(xpath, "nth-last-of-type()")
             self$xpath_nth_child_function(xpath, fn, last = TRUE,
                                           add_name_test = FALSE)
         },
@@ -1142,19 +1149,13 @@ GenericTranslator <- R6Class("GenericTranslator",
             xpath
         },
         xpath_first_of_type_pseudo = function(xpath) {
-            nodetest <- of_type_nodetest(xpath)
-            if (is.null(nodetest)) {
-                stop("*:first-of-type is not implemented")
-            }
+            nodetest <- of_type_nodetest_or_stop(xpath, "first-of-type")
             xpath$add_condition(paste0(
                 "count(preceding-sibling::", nodetest, ") = 0"))
             xpath
         },
         xpath_last_of_type_pseudo = function(xpath) {
-            nodetest <- of_type_nodetest(xpath)
-            if (is.null(nodetest)) {
-                stop("*:last-of-type is not implemented")
-            }
+            nodetest <- of_type_nodetest_or_stop(xpath, "last-of-type")
             xpath$add_condition(paste0(
                 "count(following-sibling::", nodetest, ") = 0"))
             xpath
@@ -1170,10 +1171,7 @@ GenericTranslator <- R6Class("GenericTranslator",
             xpath
         },
         xpath_only_of_type_pseudo = function(xpath) {
-            nodetest <- of_type_nodetest(xpath)
-            if (is.null(nodetest)) {
-                stop("*:only-of-type is not implemented")
-            }
+            nodetest <- of_type_nodetest_or_stop(xpath, "only-of-type")
             xpath$add_condition(paste0(
                 "count(preceding-sibling::", nodetest, ") = 0 and ",
                 "count(following-sibling::", nodetest, ") = 0"))
