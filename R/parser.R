@@ -16,6 +16,13 @@ TokenMacros <- list(escape = escape,
 # repr() implementations use are common enough to live here once.
 Node <- R6Class("Node",
     public = list(
+        # The name first_class_name() reports for this node, in place
+        # of its R6 class name. NULL for every class except
+        # ClassSelector, whose class is named to avoid an R.oo clash
+        # (fixed in 0.4-1 by renaming the R6 class) even though its
+        # repr() - matching the Python cssselect output - still needs
+        # to read "Class".
+        repr_name = NULL,
         # Wraps 'content' as "ClassName[content]", the shape used by
         # every repr() below except Selector's (which has no brackets)
         # and CombinedSelector's (which wraps once per spine node, not
@@ -57,6 +64,7 @@ Selector <- R6Class("Selector",
 ClassSelector <- R6Class("ClassSelector",
     inherit = Node,
     public = list(
+        repr_name = "Class",
         selector = NULL,
         class_name = NULL,
         initialize = function(selector, class_name) {
@@ -81,11 +89,17 @@ Function <- R6Class("Function",
         name = NULL,
         arguments = NULL,
         selector_list = NULL,
-        initialize = function(selector, name, arguments, selector_list = NULL) {
+        # The (a, b) pair for an An+B (nth-*()) function, already
+        # validated and parsed by validate_series() at parse time; NULL
+        # for every other function
+        series = NULL,
+        initialize = function(selector, name, arguments, selector_list = NULL,
+                              series = NULL) {
             self$selector <- selector
             self$name <- tolower(name)
             self$arguments <- arguments
             self$selector_list <- selector_list
+            self$series <- series
         },
         repr = function() {
             token_values <- lapply(self$arguments,
@@ -167,69 +181,30 @@ selector_list_specificity <- function(selector, selector_list,
     base_specs + max_specificity(selector_list)
 }
 
-Negation <- R6Class("Negation",
+# Base class for the four selector-list pseudo-classes (:not(), :is(),
+# :where(), :has()), which differ only in the pseudo-class name printed
+# by repr() and, for :where(), zero specificity from the argument list.
+# Thin subclasses below exist only so the translator's first_class_name()
+# dispatch (xpath_negation(), xpath_matching(), xpath_where(),
+# xpath_has()) still sees one method name per pseudo-class.
+SelectorListPseudo <- R6Class("SelectorListPseudo",
     inherit = Node,
     public = list(
         selector = NULL,
         selector_list = NULL,
-        initialize = function(selector, selector_list) {
+        pseudo_name = NULL,
+        zero_specificity = FALSE,
+        initialize = function(selector, selector_list, pseudo_name,
+                              zero_specificity = FALSE) {
             self$selector <- selector
             self$selector_list <- selector_list
+            self$pseudo_name <- pseudo_name
+            self$zero_specificity <- zero_specificity
         },
         repr = function() {
             self$repr_wrap(paste0(
                 self$selector$repr(),
-                ":not(",
-                paste0(
-                    sapply(self$selector_list, function(s) s$repr()),
-                    collapse = ", "
-                ),
-                ")"))
-        },
-        specificity = function() {
-            selector_list_specificity(self$selector, self$selector_list)
-        }
-    )
-)
-
-Matching <- R6Class("Matching",
-    inherit = Node,
-    public = list(
-        selector = NULL,
-        selector_list = NULL,
-        initialize = function(selector, selector_list) {
-            self$selector <- selector
-            self$selector_list <- selector_list
-        },
-        repr = function() {
-            self$repr_wrap(paste0(
-                self$selector$repr(),
-                ":is(",
-                paste0(
-                    sapply(self$selector_list, function(s) s$repr()),
-                    collapse = ", "
-                ),
-                ")"))
-        },
-        specificity = function() {
-            selector_list_specificity(self$selector, self$selector_list)
-        }
-    )
-)
-
-Where <- R6Class("Where",
-    inherit = Node,
-    public = list(
-        selector = NULL,
-        selector_list = NULL,
-        initialize = function(selector, selector_list) {
-            self$selector <- selector
-            self$selector_list <- selector_list
-        },
-        repr = function() {
-            self$repr_wrap(paste0(
-                self$selector$repr(),
-                ":where(",
+                ":", self$pseudo_name, "(",
                 paste0(
                     sapply(self$selector_list, function(s) s$repr()),
                     collapse = ", "
@@ -238,7 +213,35 @@ Where <- R6Class("Where",
         },
         specificity = function() {
             selector_list_specificity(self$selector, self$selector_list,
-                                      ignore_list = TRUE)
+                                      ignore_list = self$zero_specificity)
+        }
+    )
+)
+
+Negation <- R6Class("Negation",
+    inherit = SelectorListPseudo,
+    public = list(
+        initialize = function(selector, selector_list) {
+            super$initialize(selector, selector_list, "not")
+        }
+    )
+)
+
+Matching <- R6Class("Matching",
+    inherit = SelectorListPseudo,
+    public = list(
+        initialize = function(selector, selector_list) {
+            super$initialize(selector, selector_list, "is")
+        }
+    )
+)
+
+Where <- R6Class("Where",
+    inherit = SelectorListPseudo,
+    public = list(
+        initialize = function(selector, selector_list) {
+            super$initialize(selector, selector_list, "where",
+                             zero_specificity = TRUE)
         }
     )
 )
@@ -267,26 +270,10 @@ RelativeSelector <- R6Class("RelativeSelector",
 )
 
 Has <- R6Class("Has",
-    inherit = Node,
+    inherit = SelectorListPseudo,
     public = list(
-        selector = NULL,
-        selector_list = NULL,
         initialize = function(selector, selector_list) {
-            self$selector <- selector
-            self$selector_list <- selector_list
-        },
-        repr = function() {
-            self$repr_wrap(paste0(
-                self$selector$repr(),
-                ":has(",
-                paste0(
-                    sapply(self$selector_list, function(s) s$repr()),
-                    collapse = ", "
-                ),
-                ")"))
-        },
-        specificity = function() {
-            selector_list_specificity(self$selector, self$selector_list)
+            super$initialize(selector, selector_list, "has")
         }
     )
 )
@@ -389,7 +376,7 @@ CombinedSelector <- R6Class("CombinedSelector",
         subselector = NULL,
         initialize = function(selector, combinator, subselector) {
             if (is.null(selector))
-                stop("'selector' cannot be NULL")
+                internal_stop("'selector' cannot be NULL")
             self$selector <- selector
             self$combinator <- combinator
             self$subselector <- subselector
@@ -630,7 +617,8 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                 stream$nxt()
             }
             ident <- stream$next_ident()
-            if (tolower(ident) %in% c(
+            lident <- tolower(ident)
+            if (lident %in% c(
                 "first-line", "first-letter", "before", "after")) {
                 # Special case: CSS 2.1 pseudo-elements can have a single ':'
                 # Any new pseudo-element must have two.
@@ -643,25 +631,25 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
             }
             stream$nxt()
             stream$skip_whitespace()
-            if (tolower(ident) == "not") {
+            if (lident == "not") {
                 # Selectors Level 4 places no nesting restriction on
                 # :not(), so :not(:not(a)), :is(:not(a)), etc. are valid.
                 selectors <- parse_simple_selector_arguments(stream, "not",
                                                              inside_has = inside_has)
                 result <- Negation$new(result, selectors)
-            } else if (any(tolower(ident) == c("matches", "is"))) {
+            } else if (any(lident == c("matches", "is"))) {
                 # :is()/:matches() take a <forgiving-selector-list>, so
                 # an empty argument list is valid (it matches nothing)
-                selectors <- parse_simple_selector_arguments(stream, tolower(ident),
+                selectors <- parse_simple_selector_arguments(stream, lident,
                                                              inside_has = inside_has,
                                                              forgiving = TRUE)
                 result <- Matching$new(result, selectors)
-            } else if (tolower(ident) == "where") {
+            } else if (lident == "where") {
                 selectors <- parse_simple_selector_arguments(stream, "where",
                                                              inside_has = inside_has,
                                                              forgiving = TRUE)
                 result <- Where$new(result, selectors)
-            } else if (tolower(ident) == "has") {
+            } else if (lident == "has") {
                 # The :has() argument grammar excludes :has() at any
                 # depth (selectors-4): "nesting :has() is not allowed"
                 if (inside_has) {
@@ -679,7 +667,7 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                 # Parse the function arguments (e.g., "2n+1" for nth-child)
                 # :lang() can accept a comma-separated list; :dir() takes
                 # exactly one identifier (CSS Selectors Level 4)
-                allow_commas <- tolower(ident) == "lang"
+                allow_commas <- lident == "lang"
                 # has_arg/ws_since_arg track, within the current
                 # comma-delimited :lang() value, whether an argument
                 # token has been seen and whether whitespace followed
@@ -707,7 +695,7 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
 
                         # Check if this is the 'of' keyword for nth-child/nth-last-child
                         if (nt$type == "IDENT" && tolower(nt$value) == "of" &&
-                            any(tolower(ident) == c("nth-child", "nth-last-child"))) {
+                            any(lident == c("nth-child", "nth-last-child"))) {
                             # Remove 'of' from arguments - it's a keyword, not an argument
                             arguments <- arguments[-length(arguments)]
 
@@ -732,7 +720,7 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                         # functions so parse_series() can validate
                         # whitespace placement; other functions simply
                         # skip whitespace.
-                        if (startsWith(tolower(ident), "nth-")) {
+                        if (startsWith(lident, "nth-")) {
                             arguments[[i]] <- nt
                             i <- i + 1
                         }
@@ -760,10 +748,18 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                                token_repr(nt), pos = nt$pos)
                 }
 
-                if (tolower(ident) %in% anb_function_names)
-                    validate_series(arguments, ident)
+                series <- NULL
+                if (lident %in% anb_function_names) {
+                    series <- validate_series(arguments, ident)
+                    # Whitespace tokens were only retained so
+                    # validate_series() could check An+B spacing; the
+                    # parsed (a, b) pair is now stored on the Function
+                    # node instead, so drop them before display
+                    arguments <- Filter(function(a) a$type != "S", arguments)
+                }
 
-                result <- Function$new(result, ident, arguments, selector_list)
+                result <- Function$new(result, ident, arguments, selector_list,
+                                       series = series)
             }
         } else {
             parse_stop("Expected selector, got ", token_repr(stream$peek()),
@@ -1027,11 +1023,11 @@ validate_series <- function(tokens, function_name) {
     invisible(ab)
 }
 
+# An internal helper of validate_series(): tokens reaching here have
+# already passed its STRING-token and grammar checks, so this just
+# extracts the (a, b) pair (or NA components if either is too large for
+# an R integer). Also exercised directly by tests, with valid input only.
 parse_series <- function(tokens) {
-    for (token in tokens) {
-        if (token$type == "STRING")
-            stop("String tokens not allowed in series.")
-    }
     s <- series_text(tokens)
     if (!grepl(anb_re, s))
         return(NULL)

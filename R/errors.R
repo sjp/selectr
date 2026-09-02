@@ -12,3 +12,12 @@ selectr_abort <- function(message, class, ...) {
     stop(errorCondition(message, class = c(class, "selectr_error"), ...,
                         call = NULL))
 }
+
+# A "cannot happen" internal invariant, e.g. an unrecognised combinator
+# or node type reachable only from a hand-built (not parser-produced)
+# selector tree. Not user-facing, so a bare stop() would do, but the
+# prefix makes any escape immediately recognisable in a bug report as
+# an internal error rather than bad user input.
+internal_stop <- function(...) {
+    stop("internal error, please report: ", ...)
+}

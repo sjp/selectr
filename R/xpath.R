@@ -360,14 +360,7 @@ lang_extended_html_condition <- function(value, xhtml) {
 }
 
 first_class_name <- function(obj) {
-    result <- class(obj)[1]
-
-    # HACK!
-    # R.oo clashes with our preferred use of 'Class' for the name of the
-    # ClassSelector class, even though it is hidden in our package.
-    # Because the name of the class is used in places, perform a
-    # special case rename from ClassSelector to Class.
-    if (result == "ClassSelector") "Class" else result
+    if (!is.null(obj$repr_name)) obj$repr_name else class(obj)[1]
 }
 
 # 'type' is an HTML enumerated attribute whose keywords match ASCII
@@ -401,7 +394,7 @@ disabled_by_fieldset <- paste0(
 
 xpath_literal <- function(literal) {
     if (!is.character(literal) || length(literal) != 1) {
-        stop("literal must be a single character string")
+        internal_stop("literal must be a single character string")
     }
 
     if (!nzchar(literal)) {
@@ -442,7 +435,6 @@ GenericTranslator <- R6Class("GenericTranslator",
         id_attribute = "id",
         lower_case_element_names = FALSE,
         lower_case_attribute_names = FALSE,
-        lower_case_attribute_values = FALSE,
         css_to_xpath = function(css, prefix = "descendant-or-self::") {
             tryCatch({
                 selectors <- parse(css)
@@ -473,7 +465,7 @@ GenericTranslator <- R6Class("GenericTranslator",
             tree <- selector$parsed_tree
             xpath <- self$xpath(tree)
             if (!inherits(xpath, "XPathExpr"))
-                stop("'xpath' is not an instance of 'XPathExpr'")
+                internal_stop("'xpath' is not an instance of 'XPathExpr'")
             # A selector starting with ':scope' is anchored at the
             # query's scoping root - the context node the expression is
             # evaluated from - so the self axis replaces the supplied
@@ -488,7 +480,7 @@ GenericTranslator <- R6Class("GenericTranslator",
             type_name <- first_class_name(parsed_selector)
             method <- self[[paste0("xpath_", tolower(type_name))]]
             if (is.null(method))
-                stop("Unknown method name '", type_name, "'")
+                internal_stop("Unknown method name '", type_name, "'")
             method(parsed_selector)
         },
         xpath_combinedselector = function(combined) {
@@ -501,7 +493,7 @@ GenericTranslator <- R6Class("GenericTranslator",
                 combinator <- self$combinator_mapping[node$combinator]
                 method <- self[[paste0("xpath_", combinator, "_combinator")]]
                 if (is.null(method))
-                    stop("Unknown combinator '", combinator, "'")
+                    internal_stop("Unknown combinator '", combinator, "'")
                 right <- self$xpath(node$subselector)
                 if (right$scoped)
                     stop_non_leading_scope()
@@ -584,7 +576,7 @@ GenericTranslator <- R6Class("GenericTranslator",
                 else if (combinator == ">") "parent::*"
                 else if (combinator == "~") "preceding-sibling::*"
                 else if (combinator == "+") "preceding-sibling::*[1]"
-                else stop("Unknown combinator '", combinator, "'")
+                else internal_stop("Unknown combinator '", combinator, "'")
             if (inner == "true()") axis else paste0(axis, "[", inner, "]")
         },
         xpath_negation = function(negation) {
@@ -649,7 +641,8 @@ GenericTranslator <- R6Class("GenericTranslator",
                     else if (selector$combinator == ">") "/"
                     else if (any(selector$combinator == c("~", "+")))
                         "/following-sibling::"
-                    else stop("Unknown combinator '", selector$combinator, "'")
+                    else internal_stop("Unknown combinator '",
+                                       selector$combinator, "'")
                 rel_test <- paste0(left, joiner, sub_xpath$element)
                 if (selector$combinator == "+") {
                     rel_test <- paste0(rel_test, "[1]")
@@ -718,24 +711,28 @@ GenericTranslator <- R6Class("GenericTranslator",
                 return(NULL)
             self[[paste0("xpath_", gsub("-", "_", name), suffix)]]
         },
+        # pseudo_method(), erroring with the pseudo-class as it should
+        # appear in the message ('suffix' distinguishes a functional
+        # pseudo-class's trailing '()' from a plain one) when there is
+        # no such method
+        resolve_pseudo_method = function(name, suffix) {
+            method <- self$pseudo_method(name, suffix)
+            if (is.null(method)) {
+                label <- paste0(":", name,
+                                if (suffix == "_function") "()" else "")
+                translation_stop(
+                    paste0("The pseudo-class ", label, " is unknown"), label)
+            }
+            method
+        },
         xpath_function = function(fn) {
             xp <- self$xpath(fn$selector)
-
-            method <- self$pseudo_method(fn$name, "_function")
-            if (is.null(method))
-                translation_stop(
-                    paste0("The pseudo-class :", fn$name, "() is unknown"),
-                    paste0(":", fn$name, "()"))
+            method <- self$resolve_pseudo_method(fn$name, "_function")
             method(xp, fn)
         },
         xpath_pseudo = function(pseudo) {
             xp <- self$xpath(pseudo$selector)
-
-            method <- self$pseudo_method(pseudo$ident, "_pseudo")
-            if (is.null(method))
-                translation_stop(
-                    paste0("The pseudo-class :", pseudo$ident, " is unknown"),
-                    paste0(":", pseudo$ident))
+            method <- self$resolve_pseudo_method(pseudo$ident, "_pseudo")
             method(xp)
         },
         xpath_attrib = function(selector) {
@@ -766,21 +763,16 @@ GenericTranslator <- R6Class("GenericTranslator",
                         "attribute::*[name() = ", xpath_literal(name), "]")
                 }
             }
-            if (self$lower_case_attribute_values &&
-                !identical(selector$flag, "s")) {
-                # An explicit 's' flag opts out of any implicit
-                # case-insensitivity
-                value <- tolower(selector$value)
-            } else {
-                value <- selector$value
-            }
+            value <- selector$value
 
             xp <- self$xpath(selector$selector)
             if (identical(selector$flag, "i") &&
                 !is.null(value) && nzchar(value)) {
                 # '[attr="value" i]': match the value ASCII
                 # case-insensitively, so compare the ASCII-lowercased
-                # attribute against the ASCII-lowercased value.
+                # attribute against the ASCII-lowercased value. (An
+                # explicit 's' flag, the default anyway, opts out of
+                # this and leaves the comparison case-sensitive.)
                 # An empty value needs no lowercasing, and skipping it
                 # keeps the existence tests (e.g. 'not(@attr)') exact.
                 value <- chartr("ABCDEFGHIJKLMNOPQRSTUVWXYZ",
@@ -793,7 +785,7 @@ GenericTranslator <- R6Class("GenericTranslator",
             }
             method <- self[[method_name]]
             if (is.null(method))
-                stop("Unknown attribute operator '", operator, "'")
+                internal_stop("Unknown attribute operator '", operator, "'")
             method(xp, attrib, value)
         },
         # .foo is defined as [class~=foo] in the spec
@@ -891,17 +883,8 @@ GenericTranslator <- R6Class("GenericTranslator",
         },
         xpath_nth_child_function = function(xpath, fn, last = FALSE,
                                             add_name_test = TRUE) {
-            ab <- parse_series(fn$arguments)
-
-            # validate_series() has already rejected every malformed
-            # series at parse time, with a position and the pseudo-class
-            # name; this only catches a hand-built selector tree
-            if (is.null(ab) || length(ab) != 2 || anyNA(ab)) {
-                stop("Invalid An+B expression in :", fn$name, "()")
-            }
-
-            a <- ab[1]
-            b <- ab[2]
+            a <- fn$series[1]
+            b <- fn$series[2]
 
             # From https://www.w3.org/TR/selectors-4/#structural-pseudos:
             #
