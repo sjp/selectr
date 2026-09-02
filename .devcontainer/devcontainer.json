@@ -6,8 +6,7 @@
 		"ghcr.io/devcontainers/features/node:2": {
 			"version": "26"
 		},
-		"ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {},
-		"ghcr.io/devcontainers/features/rust:1": {}
+		"ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
 	},
 	"customizations": {
 		"vscode": {
