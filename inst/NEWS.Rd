@@ -50,17 +50,44 @@
 
       \item Parse errors now include a source-pointer block showing
       the offending CSS selector with a caret (\code{^}) positioned
-      beneath the character that triggered the error.
+      beneath the character that triggered the error. The caret now
+      also lines up correctly when the selector text contains tabs or
+      wide (double-width) characters.
 
-      \item Parse errors are now signalled as a structured condition
-      of class \code{c("selectr_parse_error", "selectr_error",
-      "error", "condition")}, carrying the 1-based source position of
-      the failure in \code{$pos} (\code{NULL} when no meaningful
-      position is available) and the offending selector in
-      \code{$selector}. Previously the class and the position were
-      discarded at the \code{parse()} boundary and callers received a
-      plain \code{simpleError}. The message, including the
+      \item Parse, translation and argument errors are now signalled
+      as structured conditions inheriting a common
+      \code{selectr_error} class, so callers can catch the family
+      without matching on message text, or narrow to a specific
+      shape: \code{selectr_parse_error} for malformed CSS (fields
+      \code{$selector} and \code{$pos}, the 1-based source position of
+      the failure, \code{NULL} when no meaningful position is
+      available), \code{selectr_translation_error} for CSS that is
+      syntactically valid but cannot be translated (fields
+      \code{$selector} and \code{$feature}), and
+      \code{selectr_argument_error} for a bad R-level argument to
+      \code{css_to_xpath()} or the \code{querySelector()} family.
+      Every one of these also inherits \code{c("selectr_error",
+      "error", "condition")}. Previously only parse errors carried a
+      distinct class and position; translation and argument failures
+      were plain \code{simpleError}s. Message text, including the
       source-pointer block, is unchanged.
+
+      \item The minimum required version of R has been increased from
+      \code{3.3} to \code{3.6}, required by \code{errorCondition()},
+      which the new error hierarchy above uses.
+
+      \item \code{css_to_xpath()} now signals an error when
+      \code{selector}, \code{prefix} or \code{translator} have
+      lengths that are not all 1 or the common (maximum) length,
+      instead of recycling as base R does: a length that is merely a
+      multiple or a fraction of the common length previously produced
+      a plausible-looking but silently mispaired result.
+
+      \item The tokenizer now matches against a bounded window of the
+      remaining input instead of re-slicing it on every token, and
+      translator instances are now cached and reused; together these
+      give a measurable speed-up when translating long selectors. The
+      test suite has also been migrated to testthat edition 3.
 
     }
   }
@@ -116,6 +143,78 @@
       becomes the replacement character U+FFFD, and inside a
       still-open string it is simply dropped, with the string then
       auto-closed as usual.
+
+      \item A unicode escape decoding to a null, surrogate, or
+      out-of-range code point (e.g. \code{"\\0"}, \code{"\\D800"},
+      \code{"\\110000"}) now decodes to the replacement character
+      U+FFFD, as css-syntax requires, instead of producing \code{NA}
+      or an empty string.
+
+      \item \code{An+B} expressions (the arguments of
+      \code{:nth-child()} and similar pseudo-classes) are now
+      validated while parsing the selector, so a malformed value is
+      reported with a source position and names the pseudo-class it
+      occurred in, rather than surfacing later as a generic
+      translation failure.
+
+      \item An ID selector's hash must now be identifier-shaped:
+      \code{"#1"} and other hashes starting with a digit, or with
+      \code{-} followed by a digit, are rejected with a hint showing
+      how to escape the leading digit; a lone \code{"#-"} is rejected
+      as well. Previously these were accepted and silently
+      mistranslated.
+
+      \item An empty \code{:is()} or \code{:where()} argument list
+      (e.g. \code{":is()"}) is now accepted, per its
+      \code{<forgiving-selector-list>} grammar, and matches nothing,
+      instead of raising a parse error.
+
+      \item \code{:lang()} language ranges must now be separated by a
+      comma; whitespace alone (e.g. \code{":lang(en fr)"}) is no
+      longer accepted as a separator. A wildcard range spanning
+      several tokens with no whitespace between them (e.g. the
+      \code{"*-CH"} of \code{":lang(*-CH)"}) is unaffected.
+
+      \item \code{:lang(*)} now matches only elements whose language
+      is known (i.e. that inherit a non-empty \code{lang} or
+      \code{xml:lang} from the nearest ancestor-or-self that declares
+      one), instead of matching every element.
+
+      \item The \code{xhtml} translator's \code{:lang()} now also
+      reads the \code{xml:lang} attribute, preferring it over
+      \code{lang} when both are present on the nearest declaring
+      ancestor-or-self, matching HTML's language-determination rules.
+      Previously only \code{lang} was consulted.
+
+      \item An \code{<option>} inside a disabled \code{<optgroup>} is
+      now \code{:disabled} under the \code{html} and \code{xhtml}
+      translators, even without a \code{disabled} attribute of its
+      own, matching how a browser determines an option's disabled
+      state.
+
+      \item The of-type pseudo-classes (\code{:first-of-type},
+      \code{:last-of-type}, \code{:only-of-type},
+      \code{:nth-of-type()}, \code{:nth-last-of-type()}) now reject a
+      namespaced wildcard subject (e.g. \code{"svg|*:first-of-type"})
+      with a translation error, instead of silently counting siblings
+      by namespace rather than by expanded name.
+
+      \item An attribute selector with a namespace prefix that is not
+      a valid XPath \code{NCName} (e.g. \code{"[\\31 ns|href]"}) now
+      folds the whole name into a \code{name()} comparison, as the
+      equivalent element name test already did, instead of emitting
+      an XPath QName that fails to compile.
+
+      \item \code{NA} and empty-string values in the \code{ns}
+      argument of the \code{querySelectorNS()} family are now
+      rejected with an error, instead of being used as a namespace
+      URI.
+
+      \item A zero-length \code{ns} argument (\code{character(0)} or
+      \code{list()}) to the \pkg{xml2} \code{querySelector()} family
+      now means "no namespaces" and skips the \code{xml_ns()} walk of
+      the whole document, rather than being treated the same as
+      \code{NULL} (which uses the document's own namespace map).
 
     }
   }
