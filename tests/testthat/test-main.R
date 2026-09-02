@@ -109,6 +109,26 @@ test_that("css_to_xpath handles bad arguments", {
     expect_error(css_to_xpath("a", translator = c("generic", "a")), "'translator' must be one of.*")
 })
 
+test_that("css_to_xpath rejects invalid bytes as a selectr_error", {
+    skip_if_not(l10n_info()[["UTF-8"]])
+
+    bad <- "a\xff"
+    err <- tryCatch(css_to_xpath(bad), error = function(e) e)
+    expect_s3_class(err, "selectr_argument_error")
+    expect_match(conditionMessage(err), "invalid or non-convertible bytes")
+
+    err <- tryCatch(css_to_xpath("a", prefix = bad), error = function(e) e)
+    expect_s3_class(err, "selectr_argument_error")
+    expect_match(conditionMessage(err), "invalid or non-convertible bytes")
+
+    # a validly-marked non-UTF-8 string is still accepted and
+    # transcoded to UTF-8 output
+    x <- iconv("é", "UTF-8", "latin1")
+    expect_equal(Encoding(x), "latin1")
+    result <- css_to_xpath(x)
+    expect_equal(Encoding(result), "UTF-8")
+})
+
 test_that("namespace handling works correctly", {
     # formatNS must return a NULL or a named vector
     expect_equal(formatNS(NULL), NULL)

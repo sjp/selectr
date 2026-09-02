@@ -53,6 +53,16 @@ css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator =
     if (anyNA(translator))
         argument_stop("NA values are not allowed in the 'translator' argument")
 
+    # Bytes that are invalid in their declared (or native) encoding
+    # would otherwise reach nchar() in tokenize() and raise a base R
+    # "invalid multibyte string" error, breaking the selectr_error
+    # contract. enc2utf8() also transcodes valid non-UTF-8 input (e.g.
+    # a latin1-marked string) so it passes validUTF8() untouched.
+    if (!all(validUTF8(enc2utf8(selector))))
+        argument_stop("The 'selector' argument contains invalid or non-convertible bytes")
+    if (!all(validUTF8(enc2utf8(prefix))))
+        argument_stop("The 'prefix' argument contains invalid or non-convertible bytes")
+
     zeroLengthArgs <- character(0)
     if (!length(selector))
         zeroLengthArgs <- c(zeroLengthArgs, "selector")
