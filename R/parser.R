@@ -640,7 +640,7 @@ parse_selector <- function(stream) {
 parse_simple_selector <- function(stream, inside_arguments = FALSE,
                                   inside_has = FALSE) {
     stream$skip_whitespace()
-    selector_start <- length(stream$used)
+    selector_start <- stream$consumed
     peek <- stream$peek()
     if (peek$type == "IDENT" || token_equality(peek, "DELIM", "*") ||
         token_equality(peek, "DELIM", "|")) {
@@ -846,7 +846,7 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                        pos = stream$peek()$pos)
         }
     }
-    if (length(stream$used) == selector_start) {
+    if (stream$consumed == selector_start) {
         parse_stop("Expected selector, got ", token_repr(stream$peek()),
                    pos = stream$peek()$pos)
     }
@@ -1261,6 +1261,12 @@ match_string_by_quote <- list("'" = compile_(paste0("^([^\n\r\f\\\\']|", TokenMa
 # tail of an escaped backslash '\\') is never re-read as the start of
 # another, as sequential substitution passes would do.
 decode_escapes <- function(x, newlines = FALSE) {
+    # Every alternative below starts with a backslash, so a token
+    # without one -- the overwhelming majority -- needs no work. The
+    # test is far cheaper than the gregexpr()/regmatches() pass it
+    # skips, which the tokenizer would otherwise run on every ident.
+    if (!any(grepl("\\", x, fixed = TRUE)))
+        return(x)
     pattern <- paste0("\\\\[0-9a-fA-F]{1,6}(?:\r\n|[ \n\r\t\f])?",
                       if (newlines) "|\\\\(?:\r\n|[\n\r\f])",
                       "|\\\\.",
@@ -1296,14 +1302,50 @@ decode_escapes <- function(x, newlines = FALSE) {
     x
 }
 
+# Anchored matchers only see the text they are handed, so slicing off the
+# whole remaining input at every position (`substring(s, pos, len_s)`)
+# copies O(n^2) characters over a long selector. Match against a bounded
+# window instead, widening it only when the window might be cutting a
+# token in half.
+token_window <- 64L
+
+# Run `matcher` (an anchored matcher built by compile_()) at `pos`,
+# returning its match bounds relative to `pos` exactly as if it had been
+# handed the whole remaining input.
+#
+# A match is known to be untruncated once it ends at least two characters
+# short of the window: every matcher consumes greedily one character (or
+# one escape sequence) at a time, so a match cut off by the window's end
+# reaches that end -- except in a number, where a window ending just
+# after the '.' of '1.5' loses the fractional alternative and falls back
+# to the shorter integer one, stopping one character short. Both cases
+# are covered by the slack.
+#
+# A failure to match is genuine as soon as the window is three characters
+# wide: every matcher decides on the character at `pos`, apart from a
+# number, which may need a sign and a '.' before its first digit.
+match_window <- function(matcher, s, pos, len_s) {
+    width <- token_window
+    repeat {
+        last <- min(pos + width - 1L, len_s)
+        m <- matcher(substring(s, pos, last))
+        if (last >= len_s ||
+            (if (anyNA(m)) width >= 3L else m[2] < last - pos))
+            return(m)
+        width <- width * 2L
+    }
+}
+
 tokenize <- function(s) {
     pos <- 1
     i <- 1
     len_s <- nchar(s)
-    results <- list()
+    # Every token consumes at least one character, so this is an upper
+    # bound (plus the trailing EOF); growing the list one element at a
+    # time would copy it on each append
+    results <- vector("list", len_s + 1L)
     while (pos <= len_s) {
-        ss <- substring(s, pos, len_s)
-        match <- match_whitespace(ss)
+        match <- match_window(match_whitespace, s, pos, len_s)
         if (!anyNA(match) && match[1] == 1) {
             results[[i]] <- Token("S", " ", pos)
             match_end <- match[2]
@@ -1311,32 +1353,29 @@ tokenize <- function(s) {
             i <- i + 1
             next
         }
-        match <- match_number(ss)
+        match <- match_window(match_number, s, pos, len_s)
         if (!anyNA(match) && match[1] == 1) {
-            match_start <- match[1]
             match_end <- max(match[1], match[2])
-            value <- substring(ss, match_start, match_end)
+            value <- substring(s, pos, pos + match_end - 1)
             results[[i]] <- Token("NUMBER", value, pos)
             pos <- pos + match_end
             i <- i + 1
             next
         }
-        match <- match_ident(ss)
+        match <- match_window(match_ident, s, pos, len_s)
         if (!anyNA(match) && match[1] == 1) {
-            match_start <- match[1]
             match_end <- max(match[1], match[2])
-            value <- substring(ss, match_start, match_end)
+            value <- substring(s, pos, pos + match_end - 1)
             value <- decode_escapes(value)
             results[[i]] <- Token("IDENT", value, pos)
             pos <- pos + match_end
             i <- i + 1
             next
         }
-        match <- match_hash(ss)
+        match <- match_window(match_hash, s, pos, len_s)
         if (!anyNA(match) && match[1] == 1) {
-            match_start <- match[1]
             match_end <- max(match[1], match[2])
-            value <- substring(ss, match_start, match_end)
+            value <- substring(s, pos, pos + match_end - 1)
             # The check is on the source text, not the decoded name,
             # so that an escaped digit ('#\31 ' spells the id '1') stays
             # legal while the bare digit ('#1') does not.
@@ -1371,7 +1410,7 @@ tokenize <- function(s) {
         if (ch %in% c("'", '"')) {
             # Match the string content after the opening quote; the
             # closing quote must follow immediately
-            match <- match_string_by_quote[[ch]](substring(s, pos + 1, len_s))
+            match <- match_window(match_string_by_quote[[ch]], s, pos + 1, len_s)
             content_end <- if (anyNA(match)) 0 else match[2]
             end_quote <- pos + 1 + content_end
             # A string still open at EOF (content consumed to the end
@@ -1394,7 +1433,20 @@ tokenize <- function(s) {
         }
         # Remove comments
         if (two_ch == "/*") {
-            rel_pos <- regexpr("*/", ss, fixed = TRUE)
+            # Widening windows again: an unterminated '/*' at the start
+            # of a long selector would otherwise copy the whole tail
+            width <- token_window
+            repeat {
+                last <- min(pos + width - 1L, len_s)
+                # as.integer() strips regexpr()'s match.length and
+                # friends, which would otherwise ride along on `pos`
+                # and end up attached to every later token's position
+                rel_pos <- as.integer(regexpr("*/", substring(s, pos, last),
+                                              fixed = TRUE))
+                if (rel_pos != -1L || last >= len_s)
+                    break
+                width <- width * 2L
+            }
             pos <-
                 if (rel_pos == -1L) {
                     len_s + 1
@@ -1412,6 +1464,7 @@ tokenize <- function(s) {
                    pos = pos)
     }
     results[[i]] <- EOFToken(pos)
+    length(results) <- i
     results
 }
 
@@ -1420,7 +1473,13 @@ TokenStream <- R6Class("TokenStream",
         pos = 1,
         tokens = NULL,
         ntokens = 0,
-        used = list(),
+        # Index of the token most recently returned by nxt(). Positions
+        # are consumed in order, so this doubles as a count of consumed
+        # tokens: parse_simple_selector() only compares it against an
+        # earlier reading to ask whether anything was consumed in
+        # between. The sticky EOF token (see next_token()) leaves pos --
+        # and so this -- alone once it has been consumed the first time.
+        consumed = 0,
         source_text = NULL,
         peeked = list(),
         peeking = FALSE,
@@ -1430,15 +1489,14 @@ TokenStream <- R6Class("TokenStream",
             self$source_text <- source_text
         },
         nxt = function() {
-            if (self$peeking) {
+            nt <- if (self$peeking) {
                 self$peeking <- FALSE
-                self$used[[self$pos]] <- self$peeked
                 self$peeked
             } else {
-                nt <- self$next_token()
-                self$used[[self$pos]] <- nt
-                nt
+                self$next_token()
             }
+            self$consumed <- self$pos
+            nt
         },
         next_token = function() {
             if (self$pos > self$ntokens) {

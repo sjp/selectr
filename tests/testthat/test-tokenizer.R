@@ -141,3 +141,78 @@ test_that("string tokens handle quotes, escapes, and unclosed strings", {
     expect_error(tokenize("'a\nb'"), "Unclosed string at 1")
     expect_error(tokenize("'a\n"), "Unclosed string at 1")
 })
+
+test_that("tokens are unaffected by where the match window falls", {
+    reprs <- function(css) {
+        unlist(lapply(tokenize(css), token_repr))
+    }
+
+    # tokenize() matches against a bounded window of the input rather
+    # than the whole remaining tail, so a token can straddle the
+    # window's end. Slide each construct across the boundary one
+    # character at a time -- behind a run of 'a's and a space, so the
+    # padding is always exactly two tokens -- and check that it still
+    # comes out whole.
+    cases <- list(
+        # tokens longer than the window itself
+        list("abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnop",
+             "IDENT 'abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnop'"),
+        list("1234567890123456789012345678901234567890",
+             "NUMBER '1234567890123456789012345678901234567890'"),
+        # numbers, whose fractional part is what a window can cut off
+        list("12345.6789", "NUMBER '12345.6789'"),
+        list(".5", "NUMBER '.5'"),
+        list("-.25", "NUMBER '-.25'"),
+        list("+7", "NUMBER '+7'"),
+        # multi-character escapes, which a window can split anywhere
+        list("\\41 z", "IDENT 'Az'"),
+        list("\\1F600 z", "IDENT '\U0001F600z'"),
+        list("\\\\z", "IDENT '\\z'"),
+        list("#\\31 abc", "HASH '1abc'"),
+        # strings scan for their own closing quote
+        list("'abcdefghijklmnopqrstuvwxyz0123456789'",
+             "STRING 'abcdefghijklmnopqrstuvwxyz0123456789'"),
+        list("'a\\'b'", "STRING 'a'b'"))
+
+    for (case in cases) {
+        for (pad in 1:80) {
+            css <- paste0(strrep("a", pad), " ", case[[1]])
+            expect_that(reprs(css),
+                        equals(c(paste0("<IDENT '", strrep("a", pad),
+                                        "' at 1>"),
+                                 paste0("<S ' ' at ", pad + 1, ">"),
+                                 paste0("<", case[[2]], " at ", pad + 2, ">"),
+                                 paste0("<EOF at ", nchar(css) + 1, ">"))))
+        }
+    }
+
+    # A comment is skipped wherever the window boundary lands in it,
+    # including when it runs unterminated to the end of the input
+    for (pad in 1:80) {
+        prefix <- paste0(strrep("a", pad), " ")
+        head <- c(paste0("<IDENT '", strrep("a", pad), "' at 1>"),
+                  paste0("<S ' ' at ", pad + 1, ">"))
+        expect_that(reprs(paste0(prefix, "/* comment body */b")),
+                    equals(c(head,
+                             paste0("<IDENT 'b' at ", pad + 20, ">"),
+                             paste0("<EOF at ", pad + 21, ">"))))
+        expect_that(reprs(paste0(prefix, "/* unterminated")),
+                    equals(c(head, paste0("<EOF at ", pad + 17, ">"))))
+    }
+})
+
+test_that("a very long selector tokenizes in linear time", {
+    # tokenize() used to slice off the whole remaining input at every
+    # position, which made it quadratic in the selector's length. This
+    # is a smoke test rather than a timing one: at 50 000 characters
+    # the old implementation took seconds, so a regression here is felt
+    # rather than asserted.
+    css <- paste(rep("a.b", 12500), collapse = " ")
+    expect_that(nchar(css), equals(49999))
+    tokens <- tokenize(css)
+    # IDENT '.' IDENT per repeat, an S between each pair, plus EOF
+    expect_that(length(tokens), equals(3 * 12500 + 12499 + 1))
+    expect_that(token_repr(tokens[[1]]), equals("<IDENT 'a' at 1>"))
+    expect_that(token_repr(tokens[[length(tokens)]]),
+                equals(paste0("<EOF at ", nchar(css) + 1, ">")))
+})
