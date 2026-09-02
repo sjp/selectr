@@ -116,6 +116,10 @@ test_that("namespace handling works correctly", {
     expect_that(formatNS(NULL), equals(NULL))
     expect_that(formatNS(list(a = "b")), equals(c(a = "b")))
     expect_that(formatNS(c(a = "b")), equals(c(a = "b")))
+    # a zero-length namespace object means "no namespaces", so it is
+    # not validated for names and passes straight through
+    expect_that(formatNS(character(0)), equals(character(0)))
+    expect_that(formatNS(list()), equals(character(0)))
 
     # bad input handling
     expect_error(formatNS(1), "A namespace object must be.*")

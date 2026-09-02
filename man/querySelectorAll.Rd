@@ -36,7 +36,8 @@ querySelectorAllNS(doc, selector, ns,
     The namespace that the query will be filtered to. This is a named
     list or vector which has as its name a namespace, and its value is
     the namespace URI. This can be ignored for the un-namespaced
-    functions.
+    functions, where a zero-length \code{ns} (\code{character(0)} or
+    \code{list()}) additionally means no namespaces at all.
   }
   \item{prefix}{
     The prefix to apply to the resulting XPath expression. The default
@@ -63,6 +64,16 @@ querySelectorAllNS(doc, selector, ns,
   it is necessary to use a namespace present within the document. This
   can be ignored for content lacking a namespace, which is usually the
   case when using \code{querySelector} or \code{querySelectorAll}.
+
+  For \code{querySelector} and \code{querySelectorAll}, leaving
+  \code{ns} as \code{NULL} on an \pkg{xml2} document means the
+  document's own namespace map is used, which \code{\link[xml2]{xml_ns}}
+  builds by walking the whole document on every query. Passing a
+  zero-length \code{ns}, \code{character(0)} or \code{list()}, skips
+  that lookup and queries with no namespaces, which is worth doing on a
+  large document known to be un-namespaced. It is an error for the
+  namespaced functions, which have nothing to filter to without a
+  namespace.
 
   A selector's bare element names match elements in no namespace,
   \code{":is(p)"} and \code{":has(p)"} exactly as \code{"p"} itself

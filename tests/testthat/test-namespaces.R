@@ -228,3 +228,44 @@ test_that("'|e' with an unsafe name does not match a default namespace", {
     expect_that(ids("|é"), equals("plain"))
     expect_that(ids("|é:first-of-type"), equals("plain"))
 })
+
+test_that("a zero-length 'ns' means no namespace map", {
+    skip_if_not_installed("xml2")
+    skip_if_not_installed("XML")
+
+    xmldoc <- '<r><b id="one"/><w><b id="two"/></w></r>'
+    ids <- function(doc, ns)
+        as.character(unlist(lapply(querySelectorAll(doc, "b", ns = ns),
+                                   function(node) {
+            if (inherits(node, "xml_node"))
+                xml2::xml_attr(node, "id")
+            else
+                XML::xmlGetAttr(node, "id")
+        })))
+
+    # xml2 defaults to the document's own namespace map, built by
+    # walking the whole document; character(0) says there is nothing to
+    # look up, and matches the same nodes in an un-namespaced document
+    doc <- xml2::read_xml(xmldoc)
+    expect_that(ids(doc, character(0)), equals(c("one", "two")))
+    expect_that(ids(doc, list()), equals(c("one", "two")))
+    expect_that(ids(doc, NULL), equals(c("one", "two")))
+    # and from a node or a node set, not just the document
+    root <- xml2::xml_root(doc)
+    expect_that(ids(root, character(0)), equals(c("one", "two")))
+    expect_that(ids(querySelectorAll(doc, "r, w"), character(0)),
+                equals(c("one", "two")))
+    expect_that(xml2::xml_attr(querySelector(doc, "b", ns = character(0)), "id"),
+                equals("one"))
+
+    # the XML package takes it the same way
+    xdoc <- XML::xmlParse(xmldoc)
+    expect_that(ids(xdoc, character(0)), equals(c("one", "two")))
+    expect_that(ids(XML::getNodeSet(xdoc, "//w"), character(0)), equals("two"))
+
+    # the namespaced functions still require a namespace to filter to
+    expect_error(querySelectorAllNS(doc, "b", character(0)),
+                 "A namespace must be provided.")
+    expect_error(querySelectorNS(doc, "b", list()),
+                 "A namespace must be provided.")
+})

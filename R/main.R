@@ -367,6 +367,9 @@ formatNS <- function(ns) {
         return(NULL)
     if (!is.list(ns) && !is.character(ns))
         stop("A namespace object must be either a named list or a named character vector.")
+    # A zero-length namespace object means "no namespaces"
+    if (!length(ns))
+        return(character())
     nsNames <- names(ns)
     if (is.null(nsNames) || anyNA(nsNames) || !all(nzchar(nsNames)))
         stop("The namespace object either missing some or all names for each element in its collection.")
