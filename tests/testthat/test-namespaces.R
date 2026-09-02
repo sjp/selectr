@@ -267,3 +267,24 @@ test_that("a zero-length 'ns' means no namespace map", {
     expect_error(querySelectorNS(doc, "b", list()),
                  "A namespace must be provided.")
 })
+
+test_that("namespace prefixes that are not valid XML names are rejected", {
+    skip_if_not_installed("xml2")
+    skip_if_not_installed("XML")
+
+    doc <- xml2::read_xml('<a xmlns:s="urn:s"><s:b/></a>')
+    xdoc <- XML::xmlParse('<a xmlns:s="urn:s"><s:b/></a>')
+
+    bad_names <- c("s p", "s:p", "1s")
+    for (bad in bad_names) {
+        ns <- setNames("urn:s", bad)
+        expect_error(querySelectorAllNS(doc, "s|b", ns),
+                     class = "selectr_argument_error")
+        expect_error(querySelectorNS(doc, "s|b", ns),
+                     class = "selectr_argument_error")
+        expect_error(querySelectorAllNS(xdoc, "s|b", ns),
+                     class = "selectr_argument_error")
+        expect_error(querySelectorNS(xdoc, "s|b", ns),
+                     class = "selectr_argument_error")
+    }
+})

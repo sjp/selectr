@@ -392,6 +392,10 @@ formatNS <- function(ns) {
     nsNames <- names(ns)
     if (is.null(nsNames) || anyNA(nsNames) || !all(nzchar(nsNames)))
         argument_stop("The namespace object must be a named list or character vector; every element needs a non-empty name.")
+    badNames <- nsNames[!vapply(nsNames, is_safe_name, logical(1))]
+    if (length(badNames))
+        argument_stop("Namespace prefixes must be valid XML names (e.g. 'svg', not '",
+                       badNames[1], "').")
     if (is.list(ns) && any(lengths(ns) != 1))
         argument_stop("Each element in the namespace object must be a single character string.")
     ns <- unlist(ns)
