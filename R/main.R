@@ -5,6 +5,30 @@ xpath_cache_key <- function(selector, prefix, translator) {
     paste0(translator, "\r", nchar(selector), "\r", selector, "\r", prefix)
 }
 
+# The three translators hold no per-call state (see GenericTranslator
+# and HTMLTranslator in xpath.R: neither ever assigns to a 'self$'
+# field outside 'initialize'), so one instance of each is created
+# lazily and reused rather than allocating a fresh R6 object -- and
+# its inheritance chain of fields -- on every css_to_xpath() call.
+# This is purely an internal reuse of otherwise-stateless objects and
+# is not a cache of translation results.
+.selectr_translators <- new.env(parent = emptyenv())
+
+get_translator <- function(trans) {
+    obj <- .selectr_translators[[trans]]
+    if (is.null(obj)) {
+        obj <- if (trans == "html") {
+            HTMLTranslator$new()
+        } else if (trans == "xhtml") {
+            HTMLTranslator$new(xhtml = TRUE)
+        } else {
+            GenericTranslator$new()
+        }
+        assign(trans, obj, envir = .selectr_translators)
+    }
+    obj
+}
+
 css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator = "generic") {
     if (missing(selector) || is.null(selector))
         stop("A valid selector (character vector) must be provided.")
@@ -84,15 +108,7 @@ css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator =
         cacheable <- nchar(key, type = "bytes") < 10000L
         cached <- if (cacheable) cache[[key]] else NULL
         if (is.null(cached)) {
-            tran <- if (trans == "html") {
-                HTMLTranslator$new()
-            } else if (trans == "xhtml") {
-                HTMLTranslator$new(xhtml = TRUE)
-            } else {
-                GenericTranslator$new()
-            }
-
-            cached <- tran$css_to_xpath(sel, pref)
+            cached <- get_translator(trans)$css_to_xpath(sel, pref)
             if (cacheable)
                 cache[[key]] <- cached
         }

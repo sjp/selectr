@@ -378,24 +378,22 @@ xpath_literal <- function(literal) {
         return("''")
     }
 
-    lenseq <- seq_len(nchar(literal))
-    split_chars <- substring(literal, lenseq, lenseq)
-
-    if (!any(split_chars == "'")) {
-        literal <- paste0("'", literal, "'")
-    } else if (!any(split_chars == '"')) {
-        literal <- paste0('"', literal, '"')
-    } else {
-        dq_inds <- which(split_chars == "'")
-        sq_inds <- which(split_chars != "'")
-        split_chars[dq_inds] <- paste0('"', split_chars[dq_inds], '"')
-        split_chars[sq_inds] <- paste0("'", split_chars[sq_inds], "'")
-
-        literal <- paste(split_chars, collapse = ",")
-        literal <- paste0("concat(", literal, ")")
+    if (!grepl("'", literal, fixed = TRUE)) {
+        return(paste0("'", literal, "'"))
+    }
+    if (!grepl('"', literal, fixed = TRUE)) {
+        return(paste0('"', literal, '"'))
     }
 
-    literal
+    # XPath 1.0 string literals have no escape mechanism, so a literal
+    # containing both quote characters must be split apart and
+    # rejoined with concat(): each maximal run of "'" is wrapped in
+    # double quotes, and each maximal run of everything else (which
+    # may itself contain '"') in single quotes.
+    runs <- regmatches(literal, gregexpr("'+|[^']+", literal))[[1]]
+    is_sq_run <- substring(runs, 1, 1) == "'"
+    parts <- ifelse(is_sq_run, paste0('"', runs, '"'), paste0("'", runs, "'"))
+    paste0("concat(", paste(parts, collapse = ","), ")")
 }
 
 GenericTranslator <- R6Class("GenericTranslator",
