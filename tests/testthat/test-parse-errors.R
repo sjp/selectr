@@ -143,10 +143,19 @@ test_that("constructs unclosed at EOF translate as their closed forms", {
     # attribute block: tokenizes as <IDENT 'di\'> <DELIM '['>
     # <IDENT 'v'> and auto-closes to an existence test
     eof("di\\\\[v", "di\\\\[v]")
+    # A trailing backslash at EOF, inside an unclosed string, does
+    # nothing (see "a trailing backslash at EOF decodes to U+FFFD" in
+    # test-tokenizer.R) and so closes the same as without it
+    eof('[foo="bar\\', '[foo="bar"]')
     # The unclosed string is auto-closed at parse time; the
     # pseudo-class is then rejected at translation time either way
     expect_error(css_to_xpath(':contains("foo'),
                  "The pseudo-class :contains\\(\\) is unknown")
+})
+
+test_that("a trailing backslash at EOF decodes to U+FFFD in a selector", {
+    expect_that(css_to_xpath("a\\", prefix = ""),
+                equals(paste0("*[name() = 'a", "\uFFFD", "']")))
 })
 
 test_that("unsupported column constructs are rejected by name", {
@@ -252,8 +261,10 @@ test_that("parse errors are structured conditions", {
     expect_equal(p$pos, 6)
     expect_equal(p$selector, "[foo=#]")
 
-    # positionless failures still carry the class, with a NULL pos
-    tok <- tryCatch(parse("\\"), error = identity)
+    # a tokenize-level failure carries the class too, not just a
+    # parser-level one (a trailing backslash no longer qualifies: see
+    # "a trailing backslash decodes to U+FFFD" below)
+    tok <- tryCatch(parse("html/body/a"), error = identity)
     expect_s3_class(tok, "selectr_parse_error")
 })
 

@@ -97,6 +97,14 @@
       translations in an environment, whose keys are subject to R's
       limit on the length of a symbol.
 
+      \item A backslash immediately followed by the end of a
+      selector's source text is now decoded per css-syntax, instead
+      of raising "Unexpected character" (or, inside a string,
+      "Unclosed string"): within an identifier or a hash name it
+      becomes the replacement character U+FFFD, and inside a
+      still-open string it is simply dropped, with the string then
+      auto-closed as usual.
+
     }
   }
 }

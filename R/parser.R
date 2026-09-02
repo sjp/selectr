@@ -1,5 +1,10 @@
 escape <- paste0("\\\\([0-9a-fA-F]{1,6})(\r\n|[ \n\r\t\f])?",
-                 "|\\\\[^\n\r\f0-9a-fA-F]")
+                 "|\\\\[^\n\r\f0-9a-fA-F]",
+                 # css-syntax-3: a backslash immediately followed by EOF is
+                 # still a valid escape (only a following newline is not);
+                 # \z (not $) so a backslash before a final trailing
+                 # newline isn't mistaken for one at true end of input
+                 "|\\\\\\z")
 nonascii <- "[^\1-\177]"
 
 TokenMacros <- list(escape = escape,
@@ -1237,13 +1242,20 @@ match_string_by_quote <- list("'" = compile_(paste0("^([^\n\r\f\\\\']|", TokenMa
 decode_escapes <- function(x, newlines = FALSE) {
     pattern <- paste0("\\\\[0-9a-fA-F]{1,6}(?:\r\n|[ \n\r\t\f])?",
                       if (newlines) "|\\\\(?:\r\n|[\n\r\f])",
-                      "|\\\\.")
+                      "|\\\\.",
+                      # a trailing backslash at true EOF (see `escape`
+                      # above): css-syntax-3 decodes it to U+FFFD for an
+                      # ident/hash, but drops it (does nothing) inside a
+                      # string -- the same distinction `newlines` already
+                      # marks
+                      "|\\\\\\z")
     m <- gregexpr(pattern, x, perl = TRUE)
     regmatches(x, m) <- lapply(regmatches(x, m), function(esc) {
         if (length(esc) == 0) {
             return(esc)
         }
         is_hex <- grepl("^\\\\[0-9a-fA-F]", esc)
+        is_eof <- esc == "\\"
         out <- substring(esc, 2)              # simple escape: the character
         out[grepl("^[\n\r\f]", out)] <- ""    # line continuation: nothing
         if (any(is_hex)) {
@@ -1257,6 +1269,7 @@ decode_escapes <- function(x, newlines = FALSE) {
             cp[bad] <- 0xFFFDL
             out[is_hex] <- intToUtf8(cp, multiple = TRUE)
         }
+        out[is_eof] <- if (newlines) "" else intToUtf8(0xFFFDL)
         out
     })
     x
@@ -1341,10 +1354,10 @@ tokenize <- function(s) {
             content_end <- if (anyNA(match)) 0 else match[2]
             end_quote <- pos + 1 + content_end
             # A string still open at EOF (content consumed to the end
-            # of the input) is auto-closed with the consumed value, as
+            # of the input, including a lone trailing backslash -- see
+            # `escape`) is auto-closed with the consumed value, as
             # css-syntax requires; only a string stopped short of EOF
-            # (by a raw newline or a lone trailing backslash) is an
-            # error
+            # by a raw newline is an error
             if (end_quote <= len_s &&
                 substring(s, end_quote, end_quote) != ch) {
                 parse_stop("Unclosed string at ", pos, pos = pos)

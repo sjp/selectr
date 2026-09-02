@@ -83,6 +83,29 @@ test_that("invalid unicode escapes decode to U+FFFD", {
                 equals(c("<IDENT '\U0010FFFF' at 1>", "<EOF at 8>")))
 })
 
+test_that("a trailing backslash at EOF decodes to U+FFFD", {
+    reprs <- function(css) {
+        unlist(lapply(tokenize(css), token_repr))
+    }
+    repl <- "\uFFFD"
+
+    # css-syntax-3 "consume an escaped code point": EOF right after the
+    # backslash is still a valid escape, decoding to U+FFFD, in an
+    # ident or a hash name
+    expect_that(reprs("\\"),
+                equals(c(paste0("<IDENT '", repl, "' at 1>"), "<EOF at 2>")))
+    expect_that(reprs("a\\"),
+                equals(c(paste0("<IDENT 'a", repl, "' at 1>"), "<EOF at 3>")))
+    expect_that(reprs("#a\\"),
+                equals(c(paste0("<HASH 'a", repl, "' at 1>"), "<EOF at 4>")))
+
+    # "consume a string token" special-cases this instead: a backslash
+    # with nothing after it does nothing, so it is simply dropped, and
+    # the still-open string is auto-closed as usual
+    expect_that(reprs("'a\\"),
+                equals(c("<STRING 'a' at 1>", "<EOF at 4>")))
+})
+
 test_that("string tokens handle quotes, escapes, and unclosed strings", {
     reprs <- function(css) {
         unlist(lapply(tokenize(css), token_repr))
