@@ -7,7 +7,7 @@ test_that(":has() generates correct XPath", {
 
     # Simple :has() with element
     expect_that(xpath("div:has(p)"),
-                equals("div[.//*[name() = 'p']]"))
+                equals("div[.//p]"))
 
     # :has() with class selector
     expect_that(xpath("div:has(.foo)"),
@@ -23,47 +23,47 @@ test_that(":has() generates correct XPath", {
 
     # :has() with multiple selectors (OR logic)
     expect_that(xpath("div:has(p, span)"),
-                equals("div[.//*[name() = 'p'] | .//*[name() = 'span']]"))
+                equals("div[.//p | .//span]"))
 
     # Multiple :has() selectors
     expect_that(xpath("div:has(p):has(span)"),
-                equals("div[.//*[name() = 'p'] and .//*[name() = 'span']]"))
+                equals("div[.//p and .//span]"))
 
     # :has() on universal selector
     expect_that(xpath("*:has(img)"),
-                equals("*[.//*[name() = 'img']]"))
+                equals("*[.//img]"))
 
     # Complex: :has() with class on descendant
     expect_that(xpath("section:has(div.content)"),
-                equals("section[.//*[@class and contains(concat(' ', normalize-space(@class), ' '), ' content ') and name() = 'div']]"))
+                equals("section[.//div[@class and contains(concat(' ', normalize-space(@class), ' '), ' content ')]]"))
 
     # Leading combinators (selectors-4 relative selectors)
     expect_that(xpath("e:has(> img)"),
-                equals("e[child::*[name() = 'img']]"))
+                equals("e[child::img]"))
     expect_that(xpath("e:has(~ p)"),
-                equals("e[following-sibling::*[name() = 'p']]"))
+                equals("e[following-sibling::p]"))
     expect_that(xpath("e:has(+ p)"),
-                equals("e[following-sibling::*[1][name() = 'p']]"))
+                equals("e[following-sibling::*[1][self::p]]"))
     expect_that(xpath("e:has(> a, ~ p)"),
-                equals("e[child::*[name() = 'a'] | following-sibling::*[name() = 'p']]"))
+                equals("e[child::a | following-sibling::p]"))
     expect_that(xpath("e:has(> .foo)"),
                 equals("e[child::*[@class and contains(concat(' ', normalize-space(@class), ' '), ' foo ')]]"))
     expect_that(xpath("e:has(+ p.foo)"),
-                equals("e[following-sibling::*[1][@class and contains(concat(' ', normalize-space(@class), ' '), ' foo ') and name() = 'p']]"))
+                equals("e[following-sibling::*[1][@class and contains(concat(' ', normalize-space(@class), ' '), ' foo ') and self::p]]"))
 
     # Complex relative selectors (selectors-4): forward axes step by step
     expect_that(xpath("e:has(a b)"),
-                equals("e[.//*[name() = 'a']//*[name() = 'b']]"))
+                equals("e[.//a//b]"))
     expect_that(xpath("e:has(a > b)"),
-                equals("e[.//*[name() = 'a']/*[name() = 'b']]"))
+                equals("e[.//a/b]"))
     expect_that(xpath("e:has(a + b)"),
-                equals("e[.//*[name() = 'a']/following-sibling::*[1][name() = 'b']]"))
+                equals("e[.//a/following-sibling::*[1][self::b]]"))
     expect_that(xpath("e:has(a ~ b)"),
-                equals("e[.//*[name() = 'a']/following-sibling::*[name() = 'b']]"))
+                equals("e[.//a/following-sibling::b]"))
     expect_that(xpath("e:has(> a b)"),
-                equals("e[child::*[name() = 'a']//*[name() = 'b']]"))
+                equals("e[child::a//b]"))
     expect_that(xpath("e:has(~ a > b)"),
-                equals("e[following-sibling::*[name() = 'a']/*[name() = 'b']]"))
+                equals("e[following-sibling::a/b]"))
 })
 
 test_that(":has() with complex arguments matches correctly", {

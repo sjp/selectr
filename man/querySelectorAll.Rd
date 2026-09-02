@@ -64,6 +64,14 @@ querySelectorAllNS(doc, selector, ns,
   can be ignored for content lacking a namespace, which is usually the
   case when using \code{querySelector} or \code{querySelectorAll}.
 
+  A selector's bare element names match elements in no namespace,
+  \code{":is(p)"} and \code{":has(p)"} exactly as \code{"p"} itself
+  does, so an element in a default namespace has to be reached through
+  a prefix. With \pkg{xml2} the document's own prefixes are used when
+  \code{ns} is not given, and \code{\link[xml2]{xml_ns}} names a
+  default namespace \code{d1}, making \code{"d1|p"} the selector for
+  those elements.
+
   Queries may be chained: as well as a document or a single node,
   \code{doc} may be a set of nodes, i.e. an \pkg{xml2}
   \code{xml_nodeset} or an \pkg{XML} \code{XMLNodeSet}, as returned

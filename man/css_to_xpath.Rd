@@ -56,6 +56,20 @@ css_to_xpath(selector,
   functional pseudo-class such as \code{:is()} or \code{:has()}) cannot
   be expressed in XPath 1.0 and is an error.
 
+  A type selector carrying no namespace prefix, such as \code{"p"},
+  becomes an XPath name test and so matches elements in no namespace
+  only. That is true wherever the name appears in the selector, so
+  \code{":is(p)"}, \code{":not(p)"} and \code{":has(p)"} match
+  exactly the elements \code{"p"} itself does. An element that is in a
+  namespace, a default namespace declared with \code{xmlns} included,
+  has to be selected through a prefix, as in \code{"d|p"}: prefixes are
+  resolved through the namespace map supplied when the expression is
+  evaluated (the \code{ns} argument of
+  \code{\link[xml2]{xml_find_all}} or \code{\link[XML]{getNodeSet}}),
+  not through the prefix spelled in the document. Two forms need no
+  such map: \code{"*|p"} matches \code{p} in any namespace, and
+  \code{"|p"} is the explicit spelling of \code{p} in no namespace.
+
   The of-type pseudo-classes (\code{:first-of-type},
   \code{:last-of-type}, \code{:only-of-type}, \code{:nth-of-type()} and
   \code{:nth-last-of-type()}) are only supported when their compound

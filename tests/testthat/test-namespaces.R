@@ -139,24 +139,47 @@ test_that("namespaced pseudo-class arguments match by URI, not prefix", {
                 equals("r"))
 })
 
-test_that("unprefixed pseudo-class argument names match default namespaces", {
+test_that("unprefixed names match no namespace wherever they appear", {
     skip_if_not_installed("xml2")
 
-    # An unprefixed name inside a pseudo-class argument compares
-    # against name(), so it also matches an unprefixed element in a
-    # default namespace - unlike a top-level bare name, whose XPath
-    # name test matches in no namespace only
+    # An unprefixed name is an XPath name test wherever it sits in the
+    # selector, so it matches in no namespace only: an element in a
+    # *default* namespace needs an explicit prefix, inside a functional
+    # pseudo-class argument exactly as at the top level
     doc <- xml2::read_xml(paste0(
-        '<r id="root"><p id="plain"/>',
-        '<x xmlns="http://d" id="wrapper"><p id="defaulted"/></x></r>'))
+        '<r id="root"><p id="plain"/><span id="plain-sib"/>',
+        '<x xmlns="http://d" id="wrapper">',
+        '<p id="defaulted"/><span id="defaulted-sib"/></x></r>'))
     ids <- function(sel) {
-        nodes <- xml2::xml_find_all(doc, css_to_xpath(sel, prefix = "//"))
+        nodes <- xml2::xml_find_all(doc, css_to_xpath(sel, prefix = "//"),
+                                    c(d = "http://d"))
         xml2::xml_attr(nodes, "id")
     }
 
+    # top level and pseudo-class argument agree
     expect_that(ids("p"), equals("plain"))
-    expect_that(ids(":is(p)"), equals(c("plain", "defaulted")))
-    expect_that(ids(":has(p)"), equals(c("root", "wrapper")))
+    expect_that(ids(":is(p)"), equals("plain"))
+    expect_that(ids(":where(p)"), equals("plain"))
+    expect_that(ids("*:not(p)"),
+                equals(c("root", "plain-sib", "wrapper",
+                         "defaulted", "defaulted-sib")))
+
+    # so do the combinators, on either side and in either direction
+    expect_that(ids("r > p"), equals("plain"))
+    expect_that(ids(":is(r > p)"), equals("plain"))
+    expect_that(ids("p + span"), equals("plain-sib"))
+    expect_that(ids(":is(p + span)"), equals("plain-sib"))
+    expect_that(ids("p ~ span"), equals("plain-sib"))
+    expect_that(ids(":is(p ~ span)"), equals("plain-sib"))
+    expect_that(ids(":has(p)"), equals("root"))
+    expect_that(ids(":has(> p)"), equals("root"))
+    expect_that(ids(":has(+ span)"), equals("plain"))
+
+    # a prefix bound to the default namespace reaches the rest,
+    # again in both positions
+    expect_that(ids("d|p"), equals("defaulted"))
+    expect_that(ids(":is(d|p)"), equals("defaulted"))
+    expect_that(ids(":has(d|p)"), equals(c("root", "wrapper")))
 })
 
 test_that("'+' matches type selectors by namespace like '~'", {

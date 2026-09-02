@@ -82,32 +82,32 @@ XPathExpr <- R6Class("XPathExpr",
         add_name_test = function(as_predicate = FALSE) {
             if (self$element == "*")
                 return()
-            if (as_predicate) {
-                # Any name still held in 'element' is a safe node test
-                # (one that cannot be written as a node test was folded
-                # into a condition on '*' when the element was
-                # translated), so it can be matched on the self axis.
-                # That gives it the same semantics as the bare name
-                # test in a path step: an unprefixed name matches the
-                # null namespace only, and a prefix resolves through
-                # the namespace map supplied at evaluation time.
-                self$add_predicate(paste0("self::", self$element))
-                self$name_test <- self$element
-            } else if (is_prefixed_nodetest(self$element)) {
-                # A prefixed safe name stays an XPath name test on the
-                # self axis, so the prefix keeps resolving through the
-                # namespace map supplied at evaluation time (URI-based),
-                # exactly as the same name is matched at the top level
-                # of a selector. A name() comparison would instead
-                # match the document's literal prefix.
-                self$add_condition(paste0("self::", self$element))
+            if (is_safe_nodetest(self$element)) {
+                # A name that can be written as an XPath name test is
+                # matched on the self axis, giving it exactly the
+                # semantics of the bare name test in a path step: an
+                # unprefixed name matches the null namespace only, and
+                # a prefix resolves through the namespace map supplied
+                # at evaluation time. Comparing name() instead would
+                # make the same name mean different things depending on
+                # where it sits in the selector - matching a *default*
+                # namespace too, so that ':is(p)' selected elements a
+                # top-level 'p' does not, and testing a prefixed name
+                # against the document's literal prefix, not its URI.
+                test <- paste0("self::", self$element)
+                if (as_predicate)
+                    self$add_predicate(test)
+                else
+                    self$add_condition(test)
                 self$name_test <- self$element
             } else {
-                # An unprefixed name is compared against name(): unlike
-                # the node test self::<name>, which only matches a name
-                # in no namespace, this also matches the name in a
-                # default namespace - the same policy already applied
-                # to names that cannot be written as a node test.
+                # A name XPath cannot express as a name test (e.g. one
+                # starting with a digit) has to be compared against
+                # name(), which - having no namespace map to consult -
+                # also matches the name in a default namespace. This
+                # branch is only reached from the element translation
+                # itself, so the looser match applies wherever such a
+                # name appears, top level included.
                 self$add_condition(paste0("name() = ",
                                           xpath_literal(self$element)))
                 self$name_test <- paste0("*[name() = ",
@@ -146,13 +146,6 @@ is_safe_nodetest <- function(name) {
     (n == 1 || n == 2) &&
         (parts[n] == "*" || is_safe_name(parts[n])) &&
         (n == 1 || is_safe_name(parts[1]))
-}
-
-# A safe node test with a namespace prefix (e.g. 'svg:g'): the only
-# names kept as XPath name tests when an element name is matched as a
-# condition, so the prefix resolves through the namespace map
-is_prefixed_nodetest <- function(name) {
-    is_safe_nodetest(name) && grepl(":", name, fixed = TRUE)
 }
 
 # The XPath node test matching the same elements as the subject of an
@@ -604,13 +597,11 @@ GenericTranslator <- R6Class("GenericTranslator",
                 sub_xpath <- self$xpath(selector$subselector)
                 if (sub_xpath$scoped)
                     stop_non_leading_scope()
-                # A prefixed safe name stays the node test of the path
-                # step itself (e.g. '//svg:g'); other names are folded
-                # into the predicate. Under '+' the position predicate
-                # [1] must come before the name test, so the name
-                # always moves into the predicate there.
-                if (selector$combinator == "+" ||
-                    !is_prefixed_nodetest(sub_xpath$element))
+                # The name stays the node test of the path step itself
+                # (e.g. '//svg:g'), except under '+', where the
+                # position predicate [1] must come before the name test
+                # and so the name has to move into the predicate.
+                if (selector$combinator == "+")
                     sub_xpath$add_name_test()
                 joiner <-
                     if (selector$combinator == " ") "//"
@@ -630,11 +621,9 @@ GenericTranslator <- R6Class("GenericTranslator",
                 sub_xpath <- self$xpath(selector)
                 if (sub_xpath$scoped)
                     stop_non_leading_scope()
-                # As above: keep a prefixed safe name as the node test
-                # of the axis step, except under '+' where [1] must
-                # precede the name test
-                if (combinator == "+" ||
-                    !is_prefixed_nodetest(sub_xpath$element))
+                # As above: the name is the node test of the axis
+                # step, except under '+' where [1] must precede it
+                if (combinator == "+")
                     sub_xpath$add_name_test()
                 axis <-
                     if (combinator == ">") "child::"
