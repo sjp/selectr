@@ -1,6 +1,6 @@
 # All user-facing selectr failures share one condition hierarchy so
 # callers can catch the family without matching on message text, and
-# narrow to a specific shape when they need one (see issue 204):
+# narrow to a specific shape when they need one:
 #
 #   selectr_parse_error       malformed CSS (fields: selector, pos)
 #   selectr_translation_error valid but unsupported CSS (fields:
