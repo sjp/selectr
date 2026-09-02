@@ -334,4 +334,28 @@ test_that("unimplemented methods throw errors", {
     expect_error(translator$css_to_xpath("*:first-of-type"), ".* is not implemented")
     expect_error(translator$css_to_xpath("*:last-of-type"), ".* is not implemented")
     expect_error(translator$css_to_xpath("*:only-of-type"), ".* is not implemented")
+
+    # A namespaced wildcard is the universal selector too: counting
+    # 'svg|*' siblings would group them by namespace rather than by
+    # expanded name, so it errors instead of mistranslating
+    expect_error(translator$css_to_xpath("svg|*:nth-of-type(2)"),
+                 ".* is not implemented")
+    expect_error(translator$css_to_xpath("svg|*:nth-last-of-type(2)"),
+                 ".* is not implemented")
+    expect_error(translator$css_to_xpath("svg|*:first-of-type"),
+                 ".* is not implemented")
+    expect_error(translator$css_to_xpath("svg|*:last-of-type"),
+                 ".* is not implemented")
+    expect_error(translator$css_to_xpath("svg|*:only-of-type"),
+                 ".* is not implemented")
+    # ... including where a combinator has folded the name test into a
+    # predicate
+    expect_error(translator$css_to_xpath("a + svg|*:first-of-type"),
+                 ".* is not implemented")
+
+    # A namespaced *name* is still counted by its own node test
+    expect_that(translator$css_to_xpath("svg|g:first-of-type"),
+                equals(paste("descendant-or-self::svg:g",
+                             "[count(preceding-sibling::svg:g) = 0]",
+                             sep = "")))
 })

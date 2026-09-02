@@ -164,10 +164,16 @@ is_prefixed_nodetest <- function(name) {
 # outside XSLT) - so that case is not implemented, an error shared
 # with the Python cssselect library
 of_type_nodetest <- function(xpath) {
-    if (xpath$element != "*")
-        xpath$element
+    nodetest <- if (xpath$element != "*") xpath$element else xpath$name_test
+    # A namespaced wildcard ('svg|*', kept as the node test 'svg:*')
+    # is just as much the universal selector for this purpose: counting
+    # those siblings would group them by namespace rather than by
+    # expanded name, so it shares the error instead of silently
+    # translating to different semantics
+    if (is.null(nodetest) || grepl("(^|:)\\*$", nodetest))
+        NULL
     else
-        xpath$name_test
+        nodetest
 }
 
 # Shared translation for pseudo-classes that can never match in a
