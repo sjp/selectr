@@ -181,6 +181,20 @@ test_that("translation from parsed objects to XPath works", {
                  "*[self::b and preceding-sibling::*[self::a]]")
     expect_equal(xpath(':is(a > b ~ c)'),
                  "*[self::c and preceding-sibling::*[self::b and parent::*[self::a]]]")
+    # The combinator chain inside a functional pseudo-class parses the
+    # same whether or not whitespace surrounds each combinator, and
+    # whether or not trailing whitespace precedes the closing ')'/','
+    expect_equal(xpath(':is(a>b>c)'), xpath(':is(a > b > c)'))
+    expect_equal(xpath(':is(a > b )'), xpath(':is(a > b)'))
+    expect_equal(xpath(':is(a, b )'), xpath(':is(a, b)'))
+    # A nested or-group used as the rightmost compound of a combinator
+    # chain, itself carrying no element name to AND against (so
+    # add_name_test() leaves its condition_is_or flag untouched), is
+    # parenthesized before being AND-ed with the reversed-axis test
+    expect_equal(xpath(':is(a > :is(.x, .y))'),
+                 paste0("*[(@class and contains(concat(' ', normalize-space(@class), ' '), ' x ')",
+                       " or @class and contains(concat(' ', normalize-space(@class), ' '), ' y '))",
+                       " and parent::*[self::a]]"))
     expect_equal(xpath('e:not(a b)'),
                  "e[not(self::b and ancestor::*[self::a])]")
     expect_equal(xpath(':where(a + b)'),

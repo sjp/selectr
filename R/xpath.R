@@ -29,12 +29,9 @@ XPathExpr <- R6Class("XPathExpr",
         # up as the right side of a combinator (or inside a
         # pseudo-class argument)
         scoped = FALSE,
-        initialize = function(
-            path = "", element = "*", condition = "", star_prefix = FALSE) {
+        initialize = function(path = "", element = "*", star_prefix = FALSE) {
             self$path <- path
             self$element <- element
-            if (nzchar(condition))
-                self$add_condition(condition)
             self$star_prefix <- star_prefix
         },
         str = function() {

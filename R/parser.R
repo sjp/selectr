@@ -804,15 +804,12 @@ parse_simple_selector_arguments <- function(stream, function_name = NULL, # noli
 
     check_no_pseudo_element <- function(pseudo_element) {
         if (!is.null(pseudo_element)) {
-            if (!is.null(function_name)) {
-                parse_stop("Got pseudo-element ::", pseudo_element,
-                           " inside :", function_name, "()",
-                           pos = stream$peek()$pos)
-            } else {
-                parse_stop("Got pseudo-element ::", pseudo_element,
-                           " inside function",
-                           pos = stream$peek()$pos)
-            }
+            # function_name is always supplied by every call site
+            # ("not", "is"/"matches", "where", "has", or the nth-*
+            # ident's "of" selector list)
+            parse_stop("Got pseudo-element ::", pseudo_element,
+                       " inside :", function_name, "()",
+                       pos = stream$peek()$pos)
         }
     }
 
@@ -888,7 +885,13 @@ parse_simple_selector_arguments <- function(stream, function_name = NULL, # noli
             }
             # Continue to parse next selector
         } else {
-            parse_stop("Expected an argument, got ", token_repr(nt), pos = nt$pos)
+            # Unreachable: parse_simple_selector() only returns (without
+            # erroring itself) with the stream positioned at one of S,
+            # EOF, ')', ',', '+', '>' or '~' -- inside_arguments makes
+            # ')' a valid stop token there too -- and the chain loop
+            # above consumes or breaks on every one of those, always
+            # leaving nt as ')', ',' or EOF by the time it gets here
+            internal_stop("Unexpected argument-list token ", token_repr(nt))
         }
     }
 

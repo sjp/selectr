@@ -54,6 +54,8 @@ test_that("a non-leading :scope is rejected", {
     expect_error(css_to_xpath(":not(:scope)"), err, fixed = TRUE)
     expect_error(css_to_xpath(":is(:scope)"), err, fixed = TRUE)
     expect_error(css_to_xpath(":is(:scope > a)"), err, fixed = TRUE)
+    # :scope as the rightmost compound of the chain, not just the left
+    expect_error(css_to_xpath(":is(a > :scope)"), err, fixed = TRUE)
     expect_error(css_to_xpath(":where(:scope)"), err, fixed = TRUE)
     expect_error(css_to_xpath(":has(:scope)"), err, fixed = TRUE)
     expect_error(css_to_xpath(":has(> :scope)"), err, fixed = TRUE)

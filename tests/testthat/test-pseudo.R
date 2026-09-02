@@ -252,3 +252,16 @@ test_that("pseudo-class names spelled with underscores are unknown", {
     expect_equal(css_to_xpath(":any-link", translator = "html"),
                  css_to_xpath(":link", translator = "html"))
 })
+
+test_that("a pseudo-element is rejected at translation time", {
+    # parse() accepts a trailing pseudo-element (it is only invalid
+    # mid-selector, e.g. ":before a"); css_to_xpath() has nothing to
+    # translate it to, so it is rejected once translation begins
+    expect_error(css_to_xpath("a::before"), class = "selectr_translation_error")
+    expect_error(css_to_xpath("a::before"),
+                 "^Pseudo-elements are not supported\\.$")
+    expect_error(css_to_xpath("::after"),
+                 "^Pseudo-elements are not supported\\.$")
+    expect_error(css_to_xpath("a:before"),
+                 "^Pseudo-elements are not supported\\.$")
+})

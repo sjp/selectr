@@ -29,6 +29,14 @@ test_that(":nth-child(n of S) with multiple selectors parses correctly", {
     expect_equal(length(fn_obj$selector_list), 2)
 })
 
+test_that("Function$repr() includes the 'of S' selector list", {
+    expect_equal(selectr:::parse(":nth-child(2 of .a)")[[1]]$repr(),
+                 "Function[Element[*]:nth-child(['2'] of Class[Element[*].a])]")
+    expect_equal(selectr:::parse(":nth-child(2 of .a, .b)")[[1]]$repr(),
+                 paste0("Function[Element[*]:nth-child(['2'] of ",
+                       "Class[Element[*].a], Class[Element[*].b])]"))
+})
+
 test_that(":nth-child(n of S) generates correct XPath", {
     xpath <- css_to_xpath("div:nth-child(2 of .foo)")
 

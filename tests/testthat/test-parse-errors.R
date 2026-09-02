@@ -250,6 +250,17 @@ test_that("the caret gutter accounts for tabs and wide characters", {
                  nchar(substr(css, 1, err2$pos - 1L), type = "width"))
 })
 
+test_that("a multi-line selector gets a position suffix instead of a gutter", {
+    # A caret gutter assumes the selector is a single source line;
+    # alignment would be wrong across a newline, so a multi-line
+    # selector falls back to "... at position N" with no gutter block
+    err <- tryCatch(parse("a\n>>b"), error = identity)
+    expect_equal(err$pos, 4)
+    expect_equal(conditionMessage(err),
+                "Expected selector, got <DELIM '>' at 4> at position 4")
+    expect_false(grepl("\n  \\|", conditionMessage(err), perl = TRUE))
+})
+
 test_that("parse errors are structured conditions", {
     e <- tryCatch(css_to_xpath("div >"), error = identity)
     expect_s3_class(e, "selectr_parse_error")

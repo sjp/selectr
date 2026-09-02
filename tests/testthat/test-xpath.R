@@ -202,6 +202,13 @@ test_that("HTML translator handles :lang() extended-filtering wildcards", {
     # A non-trailing wildcard in a comma list translates alongside its
     # neighbours without error
     expect_error(translator$css_to_xpath(":lang(en, *-CH)"), NA)
+
+    # An empty subtag from an embedded double dash is simply skipped,
+    # translating the same as if it were never there (R's strsplit()
+    # already drops a *trailing* empty subtag, e.g. ":lang(*-)", so
+    # this only matters for one embedded between two others)
+    expect_equal(translator$css_to_xpath(":lang(de-*--de)"),
+                 translator$css_to_xpath(":lang(de-*-de)"))
 })
 
 test_that("HTML :lang() extended wildcards match the right elements", {

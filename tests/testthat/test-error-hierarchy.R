@@ -26,6 +26,27 @@ test_that("selectr_translation_error is a structured condition", {
     expect_equal(e2$feature, ":scope")
 })
 
+test_that("a selector nesting functional pseudo-classes too deeply is caught", {
+    # Deeply nested :not() overflows R's expression nesting limit while
+    # translating (R >= 4.3 raises expressionStackOverflowError; older R
+    # raises a plain error with the same message text); this is caught
+    # and re-raised as a structured translation error rather than a raw
+    # base-R error. options(expressions=) is lowered so a moderate
+    # nesting depth trips the *expression* limit well short of the C
+    # stack itself -- how deep that is varies by platform and by how
+    # much stack a test runner has already used, so pinning the real
+    # default (5000) would make this test's pass/fail depend on where
+    # it happens to overflow first
+    old_opts <- options(expressions = 450)
+    on.exit(options(old_opts))
+    deeply_nested <- paste0(strrep(":not(", 300), "a", strrep(")", 300))
+    e <- tryCatch(css_to_xpath(deeply_nested), error = identity)
+    expect_s3_class(e, "selectr_translation_error")
+    expect_equal(conditionMessage(e),
+                "selector nests functional pseudo-classes too deeply")
+    expect_equal(e$selector, deeply_nested)
+})
+
 test_that("selectr_argument_error is a structured condition", {
     e <- tryCatch(css_to_xpath(1), error = identity)
     expect_s3_class(e, "selectr_argument_error")
