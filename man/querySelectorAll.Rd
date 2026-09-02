@@ -162,8 +162,8 @@ querySelectorAllNS(doc, selector, ns,
 \references{
   CSS Selectors Level 4 \url{https://www.w3.org/TR/selectors-4/}, XPath
   \url{https://www.w3.org/TR/xpath/}, querySelectorAll
-  \url{https://developer.mozilla.org/en-US/docs/DOM/Document.querySelectorAll}
-  and \url{https://www.w3.org/TR/selectors-api/#interface-definitions}.
+  \url{https://developer.mozilla.org/en-US/docs/Web/API/Document/querySelectorAll}
+  and \url{https://dom.spec.whatwg.org/#dom-parentnode-queryselectorall}.
 }
 \author{
   Simon Potter
