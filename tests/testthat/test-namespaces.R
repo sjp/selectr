@@ -32,6 +32,16 @@ test_that("namespace selectors translate faithfully", {
     expect_that(xpath("[|a]"), equals("*[@a]"))
     expect_that(xpath("[|a='v']"), equals("*[@a = 'v']"))
     expect_that(xpath("[ns|a]"), equals("*[@ns:a]"))
+    # An unsafe prefix (not an NCName) forces a whole-name comparison
+    # on the attribute axis, mirroring the element path; a QName like
+    # '@1ns:href' is not valid XPath and would fail to compile
+    expect_that(xpath("[\\31 ns|href]"),
+                equals("*[attribute::*[name() = '1ns:href']]"))
+    expect_that(xpath("[\\31 ns|href='v']"),
+                equals("*[attribute::*[name() = '1ns:href'] = 'v']"))
+    # An unsafe local name already took this path; guard it still does
+    expect_that(xpath("[ns|\\31 href]"),
+                equals("*[attribute::*[name() = 'ns:1href']]"))
 
     # Composability
     expect_that(xpath(":not(*|e)"), equals("*[not(local-name() = 'e')]"))

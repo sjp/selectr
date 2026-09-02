@@ -716,6 +716,7 @@ GenericTranslator <- R6Class("GenericTranslator",
             } else {
                 if (!is.null(selector$namespace)) {
                     name <- paste0(selector$namespace, ":", name)
+                    safe <- safe && is_safe_name(selector$namespace)
                 }
                 if (safe) {
                     attrib <- paste0("@", name)
