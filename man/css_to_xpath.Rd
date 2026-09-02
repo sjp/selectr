@@ -127,6 +127,11 @@ css_to_xpath(selector,
   particular it qualifies the following pseudo selectors to apply only
   to relevant (X)HTML elements: \code{:checked}, \code{:disabled},
   \code{:enabled}, \code{:link}, \code{:optional} and \code{:required}.
+  Unlike a plain type selector, these pseudo-classes identify HTML
+  elements by local name regardless of namespace, so they work the
+  same way with a namespace-qualified subject: \code{"*|input:disabled"}
+  and \code{"d1|input:disabled"} apply \code{:disabled} exactly as
+  \code{"input:disabled"} does on an unnamespaced HTML document.
   \code{:enabled} and \code{:disabled} partition the elements HTML
   allows to be \dQuote{actually disabled} - \code{button},
   \code{input}, \code{select}, \code{textarea}, \code{optgroup},

@@ -355,7 +355,7 @@ fold_type <- "translate(@type, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqr
 # the control that participates in the form-state pseudo-classes. Using
 # not(... = 'hidden') rather than @type != 'hidden' also matches an input
 # with no type attribute, which defaults to text
-input_not_hidden <- paste0("name(.) = 'input' and not(", fold_type,
+input_not_hidden <- paste0("local-name(.) = 'input' and not(", fold_type,
                            " = 'hidden')")
 
 # A disabled <fieldset> disables its descendant controls except those
@@ -363,11 +363,15 @@ input_not_hidden <- paste0("name(.) = 'input' and not(", fold_type,
 # control is disabled by a fieldset when it has more disabled-fieldset
 # ancestors than first-legend ancestors that protect it: each protecting
 # legend (first child of a disabled fieldset) cancels exactly the one
-# fieldset it belongs to, so nested disabled fieldsets still disable
+# fieldset it belongs to, so nested disabled fieldsets still disable.
+# Element names are matched by local-name() rather than name() so these
+# fragments work under a namespaced (XHTML) document too - see the
+# xhtml translator's local-name() convention for type selectors
 disabled_by_fieldset <- paste0(
-    "count(ancestor::fieldset[@disabled])",
-    " > count(ancestor::legend[not(preceding-sibling::legend)]",
-    "[parent::fieldset[@disabled]])")
+    "count(ancestor::*[local-name() = 'fieldset'][@disabled])",
+    " > count(ancestor::*[local-name() = 'legend']",
+    "[not(preceding-sibling::*[local-name() = 'legend'])]",
+    "[parent::*[local-name() = 'fieldset'][@disabled]])")
 
 xpath_literal <- function(literal) {
     if (!is.character(literal) || length(literal) != 1) {
@@ -1336,8 +1340,8 @@ HTMLTranslator <- R6Class("HTMLTranslator",
         # matches 'a:enabled' either; ':link'/':any-link' select links
         xpath_checked_pseudo = function(xpath) {
             xpath$add_condition(
-                paste0("(@selected and name(.) = 'option') or ",
-                       "(@checked and name(.) = 'input' ",
+                paste0("(@selected and local-name(.) = 'option') or ",
+                       "(@checked and local-name(.) = 'input' ",
                        "and (", fold_type, " = 'checkbox' or ",
                        fold_type, " = 'radio'))"),
                 is_or_group = TRUE)
@@ -1354,16 +1358,16 @@ HTMLTranslator <- R6Class("HTMLTranslator",
             xpath$add_condition(
                 paste("@required and",
                       paste0("((", input_not_hidden, ") or"),
-                      "name(.) = 'select' or",
-                      "name(.) = 'textarea')"))
+                      "local-name(.) = 'select' or",
+                      "local-name(.) = 'textarea')"))
             xpath
         },
         xpath_optional_pseudo = function(xpath) {
             xpath$add_condition(
                 paste("not(@required) and",
                       paste0("((", input_not_hidden, ") or"),
-                      "name(.) = 'select' or",
-                      "name(.) = 'textarea')"))
+                      "local-name(.) = 'select' or",
+                      "local-name(.) = 'textarea')"))
             xpath
         },
         xpath_lang_function = function(xpath, fn) {
@@ -1413,7 +1417,7 @@ HTMLTranslator <- R6Class("HTMLTranslator",
             xpath
         },
         xpath_link_pseudo = function(xpath) {
-            xpath$add_condition("@href and (name(.) = 'a' or name(.) = 'link' or name(.) = 'area')")
+            xpath$add_condition("@href and (local-name(.) = 'a' or local-name(.) = 'link' or local-name(.) = 'area')")
             xpath
         },
         xpath_any_link_pseudo = function(xpath) {
@@ -1431,19 +1435,19 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                       "@disabled and",
                       "(",
                       paste0("(", input_not_hidden, ") or"),
-                      "name(.) = 'button' or",
-                      "name(.) = 'select' or",
-                      "name(.) = 'textarea' or",
-                      "name(.) = 'fieldset' or",
-                      "name(.) = 'optgroup' or",
-                      "name(.) = 'option'",
+                      "local-name(.) = 'button' or",
+                      "local-name(.) = 'select' or",
+                      "local-name(.) = 'textarea' or",
+                      "local-name(.) = 'fieldset' or",
+                      "local-name(.) = 'optgroup' or",
+                      "local-name(.) = 'option'",
                       ")",
                       ") or (",
                       "(",
                       paste0("(", input_not_hidden, ") or"),
-                      "name(.) = 'button' or",
-                      "name(.) = 'select' or",
-                      "name(.) = 'textarea'",
+                      "local-name(.) = 'button' or",
+                      "local-name(.) = 'select' or",
+                      "local-name(.) = 'textarea'",
                       ")",
                       "and", disabled_by_fieldset,
                       ") or (",
@@ -1452,21 +1456,21 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                       # @disabled; ancestor:: matches ':enabled' and is
                       # equivalent to the spec's parent:: because
                       # optgroups cannot nest
-                      "name(.) = 'option' and ancestor::optgroup[@disabled]",
+                      "local-name(.) = 'option' and ancestor::*[local-name() = 'optgroup'][@disabled]",
                       ")"),
                 is_or_group = TRUE)
             xpath
         },
         xpath_enabled_pseudo = function(xpath) {
             xpath$add_condition(
-                paste("((name(.) = 'fieldset' or name(.) = 'optgroup') and not(@disabled))",
+                paste("((local-name(.) = 'fieldset' or local-name(.) = 'optgroup') and not(@disabled))",
                       "or",
                       paste0("(((", input_not_hidden, ")"),
-                      "or name(.) = 'button'",
-                      "or name(.) = 'select'",
-                      "or name(.) = 'textarea')",
+                      "or local-name(.) = 'button'",
+                      "or local-name(.) = 'select'",
+                      "or local-name(.) = 'textarea')",
                       paste0("and not (@disabled or ", disabled_by_fieldset, "))"),
-                      "or (name(.) = 'option' and not(@disabled or ancestor::optgroup[@disabled]))"),
+                      "or (local-name(.) = 'option' and not(@disabled or ancestor::*[local-name() = 'optgroup'][@disabled]))"),
                 is_or_group = TRUE)
             xpath
         }

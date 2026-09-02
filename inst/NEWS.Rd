@@ -69,6 +69,20 @@
   \subsection{BUG FIXES}{
     \itemize{
 
+      \item The \code{html}-qualified pseudo-classes (\code{:checked},
+      \code{:disabled}, \code{:enabled}, \code{:link}/\code{:any-link},
+      \code{:optional} and \code{:required}) now identify elements by
+      local name, matching the \code{xhtml} translator's rule for type
+      selectors. Previously these pseudo-classes were built from
+      unprefixed \code{name(.)} tests and axis steps
+      (\code{ancestor::fieldset}, \code{ancestor::optgroup}, and
+      similar), so under the \code{xhtml} translator they silently
+      matched nothing, or the wrong elements, on a namespaced document
+      even though the selector's subject (e.g. \code{"*|input"} or
+      \code{"h|input"}) was written correctly. The \code{html}
+      translator is unaffected in practice, since libxml2's HTML
+      parser produces no namespaces.
+
       \item \code{querySelectorNS()} and \code{querySelectorAllNS()}
       now search only within the node they are given, as their
       un-namespaced counterparts do. The namespace filter was built as

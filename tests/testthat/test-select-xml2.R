@@ -391,3 +391,52 @@ test_that(":enabled/:disabled cover the form elements and nothing else", {
     expect_that(ids('command:disabled'), equals(NULL))
     expect_that(ids(':checked'), equals('check-on'))
 })
+
+test_that("HTML pseudo-classes see elements in the default XHTML namespace", {
+    library(xml2)
+    # The xhtml translator tells its users to write '*|input' rather than
+    # 'input' so a type selector matches an element in the default XHTML
+    # namespace. The pseudo-class conditions must follow the same rule
+    # so a selector that gets the subject right still gets a right answer
+    doc <- read_xml(paste0(
+        '<html xmlns="http://www.w3.org/1999/xhtml"><body>',
+        '<fieldset disabled="">',
+        '<legend><input id="protected" /></legend>',
+        '<input id="inside" />',
+        '</fieldset>',
+        '<select><optgroup disabled=""><option id="o1">a</option></optgroup></select>',
+        '<input id="free" />',
+        '</body></html>'))
+    ids <- function(css) {
+        xpath <- css_to_xpath(css, translator = "xhtml")
+        result <- unlist(lapply(xml_find_all(doc, xpath, ns = xml_ns(doc)),
+                                 xml_attr, "id"))
+        if (is.null(result)) NULL else result
+    }
+
+    expect_that(ids('*|input:disabled'), equals('inside'))
+    expect_that(ids('*|input:enabled'), equals(c('protected', 'free')))
+    expect_that(ids('*|option:disabled'), equals('o1'))
+    expect_that(ids('*|option:enabled'), equals(NULL))
+})
+
+test_that("HTML pseudo-classes see elements in a prefix-bound XHTML namespace", {
+    library(xml2)
+    doc <- read_xml(paste0(
+        '<h:html xmlns:h="http://www.w3.org/1999/xhtml"><h:body>',
+        '<h:select><h:option id="p1" selected="selected">a</h:option></h:select>',
+        '<h:a id="lnk" href="x" />',
+        '<h:input id="req" required="required" />',
+        '</h:body></h:html>'))
+    ids <- function(css) {
+        xpath <- css_to_xpath(css, translator = "xhtml")
+        result <- unlist(lapply(xml_find_all(doc, xpath, ns = xml_ns(doc)),
+                                 xml_attr, "id"))
+        if (is.null(result)) NULL else result
+    }
+
+    expect_that(ids('h|option:checked'), equals('p1'))
+    expect_that(ids('h|a:link'), equals('lnk'))
+    expect_that(ids('h|input:required'), equals('req'))
+    expect_that(ids('h|input:enabled'), equals('req'))
+})

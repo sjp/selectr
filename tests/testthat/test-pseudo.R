@@ -102,19 +102,19 @@ test_that(":required and :optional translate from the @required attribute", {
     # translation on the HTML translator (like :checked), never-match
     # on the generic translator
     not_hidden <- paste0(
-        "name(.) = 'input' and not(translate(@type, ",
+        "local-name(.) = 'input' and not(translate(@type, ",
         "'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') ",
         "= 'hidden')")
     required_xpath <- paste(
         "@required and",
         paste0("((", not_hidden, ") or"),
-        "name(.) = 'select' or",
-        "name(.) = 'textarea')")
+        "local-name(.) = 'select' or",
+        "local-name(.) = 'textarea')")
     optional_xpath <- paste(
         "not(@required) and",
         paste0("((", not_hidden, ") or"),
-        "name(.) = 'select' or",
-        "name(.) = 'textarea')")
+        "local-name(.) = 'select' or",
+        "local-name(.) = 'textarea')")
     for (translator in c("html", "xhtml")) {
         expect_that(css_to_xpath("input:required", translator = translator),
                     equals(paste0("descendant-or-self::input[",
@@ -214,7 +214,7 @@ test_that(":any-link matches the same elements as :link", {
     # a/area element set, which would omit 'link')
     link_xpath <- paste0(
         "descendant-or-self::e[@href and ",
-        "(name(.) = 'a' or name(.) = 'link' or name(.) = 'area')]")
+        "(local-name(.) = 'a' or local-name(.) = 'link' or local-name(.) = 'area')]")
     for (translator in c("html", "xhtml")) {
         expect_that(css_to_xpath("e:any-link", translator = translator),
                     equals(link_xpath))
