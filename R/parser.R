@@ -824,6 +824,9 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                                token_repr(nt), pos = nt$pos)
                 }
 
+                if (tolower(ident) %in% anb_function_names)
+                    validate_series(arguments, ident)
+
                 result <- Function$new(result, ident, arguments, selector_list)
             }
         } else {
@@ -924,8 +927,10 @@ parse_simple_selector_arguments <- function(stream, function_name = NULL, # noli
             # Check if there's actually a selector after the comma
             peek <- stream$peek()
             if (token_equality(peek, "DELIM", ")")) {
-                # Trailing comma before closing paren
-                parse_stop("Expected ')', got ", token_repr(nt), pos = nt$pos)
+                # Trailing comma: the ',' promised another selector, so
+                # point at the ')' that arrived instead of it
+                parse_stop("Expected selector after ',', got ",
+                           token_repr(peek), pos = peek$pos)
             }
             # Continue to parse next selector
         } else {
@@ -1010,26 +1015,75 @@ str_int <- function(s) {
     suppressWarnings(as.integer(s))
 }
 
+# The An+B grammar (css-syntax-3 section 6): whitespace is permitted
+# only around the +/- sign that separates the B value (e.g. "2n + 1"),
+# never inside or between the other components ("3 7", "2 n", "- n" are
+# all invalid).
+anb_re <- paste0("^[ \t\r\n\f]*",
+                 "(odd|even|[+-]?[0-9]+|",
+                 "[+-]?[0-9]*n([ \t\r\n\f]*[+-][ \t\r\n\f]*[0-9]+)?)",
+                 "[ \t\r\n\f]*$")
+
+# The text an nth-*() argument list spells, as written by the user.
+series_source <- function(tokens) {
+    paste0(sapply(tokens, function(x) x$value), collapse = "")
+}
+
+# The same text, case-folded for matching: the An+B microsyntax is ASCII
+# case-insensitive (css-syntax-3), e.g. "2N", "ODD", "EVEN". chartr()
+# rather than tolower() so the mapping is locale-independent; "nodev"
+# covers every letter that can appear in a valid series.
+series_text <- function(tokens) {
+    chartr("NODEV", "nodev", series_source(tokens))
+}
+
+# The nth-*() pseudo-classes whose argument is an An+B series. :nth-col()
+# and :nth-last-col() are deliberately absent: they are unsupported
+# altogether, and the translator says so by name.
+anb_function_names <- c("nth-child", "nth-last-child",
+                        "nth-of-type", "nth-last-of-type")
+
+# Reject an invalid An+B argument at parse time, where the tokens still
+# carry the source positions the caret gutter needs and the pseudo-class
+# the user wrote is still known. By translation time the series has been
+# flattened to a string and every nth-*() looks alike.
+validate_series <- function(tokens, function_name) {
+    invalid <- function(..., pos) {
+        # Lower-cased to match the translator's ":name() is unknown":
+        # pseudo-class names are ASCII case-insensitive
+        parse_stop("Invalid An+B expression in :", tolower(function_name),
+                   "(): ", ..., pos = pos)
+    }
+    for (token in tokens) {
+        if (token$type == "STRING")
+            invalid("a quoted string is not allowed", pos = token$pos)
+        # 'of <selector-list>' is consumed by the parser for
+        # :nth-child()/:nth-last-child(); anywhere else it lands here as
+        # part of the series
+        if (token$type == "IDENT" && identical(tolower(token$value), "of"))
+            invalid("'of' is only allowed in :nth-child() and ",
+                    ":nth-last-child()", pos = token$pos)
+    }
+    series <- trimws(series_source(tokens))
+    pos <- if (length(tokens)) tokens[[1]]$pos else NULL
+    if (!grepl(anb_re, series_text(tokens)))
+        invalid("'", series, "'", pos = pos)
+    # The grammar has matched, so the only way parse_series() can still
+    # fail is an A or B too large for an R integer
+    ab <- parse_series(tokens)
+    if (is.null(ab) || anyNA(ab))
+        invalid("'", series, "' is out of the supported integer range",
+                pos = pos)
+    invisible(ab)
+}
+
 parse_series <- function(tokens) {
     for (token in tokens) {
         if (token$type == "STRING")
             stop("String tokens not allowed in series.")
     }
-    s <- paste0(sapply(tokens, function(x) x$value), collapse = "")
-    # The An+B microsyntax is ASCII case-insensitive (css-syntax-3),
-    # e.g. "2N", "ODD", "EVEN". chartr() rather than tolower() so the
-    # mapping is locale-independent; "nodev" covers every letter that
-    # can appear in a valid series.
-    s <- chartr("NODEV", "nodev", s)
-    # Validate against the An+B grammar (css-syntax-3 section 6):
-    # whitespace is permitted only around the +/- sign that separates
-    # the B value (e.g. "2n + 1"), never inside or between the other
-    # components ("3 7", "2 n", "- n" are all invalid).
-    anb <- paste0("^[ \t\r\n\f]*",
-                  "(odd|even|[+-]?[0-9]+|",
-                  "[+-]?[0-9]*n([ \t\r\n\f]*[+-][ \t\r\n\f]*[0-9]+)?)",
-                  "[ \t\r\n\f]*$")
-    if (!grepl(anb, s))
+    s <- series_text(tokens)
+    if (!grepl(anb_re, s))
         return(NULL)
     s <- gsub("[ \t\r\n\f]+", "", s)
     if (s == "odd")
