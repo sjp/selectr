@@ -76,7 +76,7 @@
     \code{e:last-of-type} \tab supported (needs a named element) \tab \code{...e[count(following-sibling::e) = 0]} \cr
     \code{e:only-of-type} \tab supported (needs a named element) \tab preceding- and following-sibling \code{e} counts both 0 \cr
     \code{*:first-of-type} etc. \tab error \tab needs each sibling's own name; not expressible in XPath 1.0 \cr
-    \code{:nth-child(An+B)} \tab supported \tab \code{...[count(preceding-sibling::*) mod A = B]}-shaped \cr
+    \code{:nth-child(An+B)} \tab supported \tab \code{:nth-child(2n+1)} gives \code{...[count(preceding-sibling::*) mod 2 = 0]}; a \code{B} outside the first cycle adds a \code{>= B-1} bound and an offset in the \code{mod} \cr
     \code{:nth-child(An+B of S)} \tab supported \tab preceding-siblings filtered to \code{S}, plus \code{self::} test \cr
     \code{:nth-last-child()} \tab supported \tab as \code{:nth-child()}, counting from the end \cr
     \code{e:nth-of-type()}, \code{e:nth-last-of-type()} \tab supported (needs a named element) \tab as above, restricted to siblings named \code{e} \cr

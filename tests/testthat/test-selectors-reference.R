@@ -92,6 +92,10 @@ test_that("man/selectors.Rd structural pseudo-class examples match live translat
     expect_equal(gt$css_to_xpath("e:only-of-type"),
                  "descendant-or-self::e[count(preceding-sibling::e) = 0 and count(following-sibling::e) = 0]")
     expect_error(gt$css_to_xpath("*:first-of-type"))
+    expect_equal(gt$css_to_xpath(":nth-child(2n+1)"),
+                 "descendant-or-self::*[count(preceding-sibling::*) mod 2 = 0]")
+    expect_equal(gt$css_to_xpath(":nth-child(3n+2)"),
+                 "descendant-or-self::*[count(preceding-sibling::*) >= 1 and (count(preceding-sibling::*) +2) mod 3 = 0]")
     expect_equal(gt$css_to_xpath(":empty"),
                  "descendant-or-self::*[not(*) and not(string-length())]")
     expect_equal(gt$css_to_xpath(":scope"), "self::*")

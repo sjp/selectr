@@ -33,11 +33,13 @@ querySelectorAllNS(doc, selector, ns,
     string.
   }
   \item{ns}{
-    The namespace that the query will be filtered to. This is a named
-    list or vector which has as its name a namespace, and its value is
-    the namespace URI. This can be ignored for the un-namespaced
-    functions, where a zero-length \code{ns} (\code{character(0)} or
-    \code{list()}) additionally means no namespaces at all.
+    The namespaces that the query will be filtered to. This is a named
+    list or vector whose name is the prefix a selector uses (the
+    \code{svg} in \code{"svg|g"}), and whose value is the namespace URI
+    that prefix stands for. Each name must be a valid XML name. This
+    can be ignored for the un-namespaced functions, where a zero-length
+    \code{ns} (\code{character(0)} or \code{list()}) additionally means
+    no namespaces at all.
   }
   \item{prefix}{
     The prefix to apply to the resulting XPath expression. The default
@@ -153,7 +155,7 @@ querySelectorAllNS(doc, selector, ns,
   that is not an \pkg{XML} or \pkg{xml2} document, node, or node set;
   \code{selector} that is not a single character string; or \code{ns}
   that is not a named list or named character vector of non-empty
-  strings whose names are valid XML prefixes (or, for
+  strings whose names are valid XML names (or, for
   \code{querySelectorNS} and \code{querySelectorAllNS}, a missing or
   zero-length \code{ns}).
 }
