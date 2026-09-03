@@ -1,8 +1,8 @@
-Makefile
-.travis.yml
-.github
-^.*\.Rproj$
+^Makefile$
+^\.github$
+^\.devcontainer$
+^\.lintr$
 ^\.Rproj\.user$
-.github
-.devcontainer
-.lintr
+^.*\.Rproj$
+^.*\.Rcheck$
+^selectr_.*\.tar\.gz$
