@@ -779,6 +779,9 @@ test_that("large An+B values are written out in full", {
 })
 
 test_that("large An+B values select the right nodes", {
+    skip_if_not_installed("XML")
+    skip_if_not_installed("xml2")
+
     library(XML)
     library(xml2)
 
