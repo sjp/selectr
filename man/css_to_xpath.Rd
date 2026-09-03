@@ -31,6 +31,12 @@ css_to_xpath(selector,
   }
 }
 \details{
+  See \code{\link{selectors}} for a table of every combinator,
+  attribute operator and pseudo-class this function supports, along
+  with an example translation for each; the rest of this section
+  explains the reasoning behind the more surprising entries in that
+  table.
+
   Each selector given to this function will be translated to an
   equivalent XPath expression. Each of \code{selector}, \code{prefix}
   and \code{translator} must either have length 1, in which case its
@@ -136,64 +142,16 @@ css_to_xpath(selector,
   The translator used is usually unnecessary to specify as the default
   is sufficient for most cases. However, it is of use when creating
   expressions relating to (X)HTML pseudo elements and languages. In
-  particular it qualifies the following pseudo selectors to apply only
-  to relevant (X)HTML elements: \code{:checked}, \code{:default},
-  \code{:disabled}, \code{:enabled}, \code{:link}, \code{:optional},
-  \code{:placeholder-shown}, \code{:read-only}, \code{:read-write} and
-  \code{:required}. Unlike a plain type selector, these pseudo-classes
-  identify HTML
-  elements by local name regardless of namespace, so they work the
-  same way with a namespace-qualified subject: \code{"*|input:disabled"}
-  and \code{"d1|input:disabled"} apply \code{:disabled} exactly as
-  \code{"input:disabled"} does on an unnamespaced HTML document.
-  \code{:enabled} and \code{:disabled} partition the elements HTML
-  allows to be \dQuote{actually disabled} - \code{button},
-  \code{input}, \code{select}, \code{textarea}, \code{optgroup},
-  \code{option} and \code{fieldset} - and match nothing outside that
-  set. In particular a hyperlink is not \code{:enabled}: an early
-  draft said otherwise, but no browser matches \code{a:enabled}, so
-  use \code{:link} or \code{:any-link} for links. \code{:checked}
-  matches checked \code{checkbox} and \code{radio} inputs and
-  selected \code{option}s. The obsolete \code{command} and
-  \code{keygen} elements are matched by none of the three.
-  Because \code{type} is an HTML enumerated attribute, the
-  form-state pseudo-classes match its keywords ASCII
-  case-insensitively, so \code{<input type="RADIO">} is \code{:checked}
-  and \code{<input type="HIDDEN">} is excluded from \code{:disabled}
-  just as their lower-case spellings are. An \code{<input>} with no
-  \code{type} defaults to text and so participates in
-  \code{:enabled}/\code{:disabled}. A disabled \code{<fieldset>}
-  disables its descendant form controls for \code{:disabled} and
-  \code{:enabled}, except those inside its first \code{<legend>} child,
-  which stay \code{:enabled}; nested disabled fieldsets are handled
-  correctly.
-
-  \code{:read-write} matches an editable \code{input} (one of the
-  textual, numeric or date/time types that support the
-  \code{readonly} attribute, or one with no \code{type} at all, which
-  defaults to text) or \code{textarea} that is neither \code{readonly}
-  nor disabled (including by an ancestor \code{<fieldset>}), and any
-  element carrying its own \code{contenteditable} attribute other than
-  \code{"false"}. \code{:read-only} matches everything
-  \code{:read-write} does not - Selectors 4 defines it as that
-  negation, with no element set of its own, so it also matches
-  elements \code{:read-write} never considers, such as a
-  \code{checkbox} input or a plain \code{div}. Because
-  \code{contenteditable} without a value, or set to \code{"inherit"},
-  actually inherits editability from the nearest ancestor that sets
-  it, and a document with no live DOM cannot resolve that, only an
-  element's own attribute is considered - an inherited or ambiguous
-  \code{contenteditable} state is not detected.
-  \code{:placeholder-shown} matches an \code{input} or \code{textarea}
-  that has a \code{placeholder} attribute and an empty current value
-  (for a \code{textarea}, its text content).
-  \code{:default} matches a selected \code{option}, a checked
-  \code{checkbox} or \code{radio} input, and the default submit button
-  of a form - the first \code{button} or \code{input} of type
-  \code{submit}/\code{image}, in document order, among the descendants
-  of its nearest enclosing \code{<form>}. The submit-button case is an
-  approximation: it does not follow a \code{form} attribute pointing at
-  a \code{<form>} elsewhere in the document, only the nearest ancestor.
+  particular it qualifies a number of pseudo-classes - \code{:checked},
+  \code{:default}, \code{:disabled}, \code{:enabled}, \code{:link},
+  \code{:optional}, \code{:placeholder-shown}, \code{:read-only},
+  \code{:read-write} and \code{:required} - to apply only to relevant
+  (X)HTML elements, identified by local name regardless of namespace so
+  that, for example, \code{"*|input:disabled"} and
+  \code{"d1|input:disabled"} apply \code{:disabled} exactly as
+  \code{"input:disabled"} does on an unnamespaced HTML document. See
+  \code{\link{selectors}} for exactly which elements and attributes
+  each of these matches.
 
   When the translator is set to \code{html}, all elements and
   attributes will be converted to lower case. This restriction is
@@ -249,6 +207,7 @@ css_to_xpath(selector,
   Simon Potter
 }
 \seealso{
+  \code{\link{selectors}} for the full selector-support reference;
   \code{\link{querySelectorAll}}, which propagates the same conditions.
 }
 \examples{

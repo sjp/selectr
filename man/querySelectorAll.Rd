@@ -170,7 +170,8 @@ querySelectorAllNS(doc, selector, ns,
 }
 \seealso{
   \code{\link{css_to_xpath}}, whose \sQuote{Errors} section documents
-  the condition classes' fields.
+  the condition classes' fields; \code{\link{selectors}} for the full
+  selector-support reference.
 }
 \examples{
   # All three selectr_error classes (see 'Errors' below) propagate

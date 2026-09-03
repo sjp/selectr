@@ -22,8 +22,8 @@ install.packages("selectr")
 ### Install the development version from GitHub
 
 ``` r
-# install.packages("devtools")
-devtools::install_github("sjp/selectr")
+# install.packages("remotes")
+remotes::install_github("sjp/selectr")
 ```
 
 ## Overview
@@ -42,35 +42,76 @@ The key functions in selectr are:
 
     * Find all matching nodes in a namespaced document with `querySelectorAllNS()`.
 
+Documents read with `htmlParse()` (`XML`) or `read_html()` (`xml2`) are auto-detected and queried with the HTML translator, so `:checked`, `:disabled`, `:link` and case-insensitive names all work without passing `translator = "html"` yourself. Queries also chain: `querySelectorAll()` accepts a node set as well as a document, so `querySelectorAll(querySelectorAll(doc, "table"), "tr")` runs the second selector from each node the first matched. `:scope`, `:is()`, `:where()`, `:has()` and `:nth-child(An+B of S)` are all supported. See `?selectors` for the full table of what selectr supports and what each translates to, and `?css_to_xpath` for the reasoning behind its more surprising entries.
+
 ## Examples
 
-Here is a simple example to demonstrate how to query an `XML` or `xml2` document with `querySelector()`.
+### Scraping an HTML document
 
 ``` r
 library(selectr)
-xmlText <- '<foo><bar><baz id="first"/></bar><baz id="second"/></foo>'
-
-library(XML)
-doc <- xmlParse(xmlText)
-querySelector(doc, "baz")
-#> <baz id="first"/>
-querySelectorAll(doc, "baz")
-#> [[1]]
-#> <baz id="first"/>
-#>
-#> [[2]]
-#> <baz id="second"/>
-#>
-#> attr(,"class")
-#> [1] "XMLNodeSet"
-
 library(xml2)
-doc <- read_xml(xmlText)
-querySelector(doc, "baz")
-#> {xml_node}
-#> <baz id="first">
-querySelectorAll(doc, "baz")
+
+html <- paste0(
+  "<html><body>",
+  "<table id='products'>",
+  "<tr><td class='name'>Widget</td><td class='price'>9.99</td></tr>",
+  "<tr><td class='name'>Gadget</td><td class='price'>19.99</td></tr>",
+  "</table>",
+  "<input type='checkbox' checked>",
+  "</body></html>")
+doc <- read_html(html)
+
+# :has() picks out the table, chaining then walks its rows
+rows <- querySelectorAll(doc, "table:has(.price) tr")
+querySelectorAll(rows, "td.name")
 #> {xml_nodeset (2)}
-#> [1] <baz id="first"/>
-#> [2] <baz id="second"/>
+#> [1] <td class="name">Widget</td>
+#> [2] <td class="name">Gadget</td>
+
+# The html translator (auto-detected from read_html()) implements :checked
+querySelector(doc, "input:checked")
+#> {html_node}
+#> <input type="checkbox" checked="checked">
 ```
+
+### Querying a namespaced XML document
+
+``` r
+library(selectr)
+library(xml2)
+
+# A document with both SVG and MathML content
+svgdoc <- read_xml(system.file("demos/svg-mathml.svg", package = "selectr"))
+querySelectorAllNS(svgdoc, "svg|script, math|mo",
+                   c(svg = "http://www.w3.org/2000/svg",
+                     math = "http://www.w3.org/1998/Math/MathML"))
+```
+
+Parsing a large namespaced document with `xml2` builds its namespace map on every call by default; pass `ns = character(0)` to `querySelector()`/`querySelectorAll()` to skip that lookup when the document is known to be un-namespaced.
+
+### Structured, position-annotated errors
+
+Every error `css_to_xpath()` and the `querySelector*()` functions raise inherits `selectr_error`, so a caller can catch the whole family or a specific class such as `selectr_parse_error`, which also carries the 1-based character position the parser gave up at:
+
+``` r
+tryCatch(
+  css_to_xpath("div >"),
+  selectr_parse_error = function(e) cat(conditionMessage(e), "\n")
+)
+#> Expected selector, got <EOF at 6>
+#>   |
+#>   | div >
+#>   |      ^
+```
+
+See `?css_to_xpath` (section "Errors") for the full condition hierarchy.
+
+## Development
+
+* Run the test suite: `R -e 'pkgload::load_all(); testthat::test_dir("tests/testthat")'`.
+* Lint the package: `R -e 'lintr::lint_package()'` (configured by `.lintr`).
+* Build and run a full CRAN-style check with the Makefile: `make check`
+  (or `make build` to only build the source tarball).
+
+A [devcontainer](.devcontainer) is provided with R and the package's dependencies preinstalled.
