@@ -29,12 +29,11 @@
       \code{:lang()} (via the \code{lang} attribute) match as they
       do in a browser, without \code{translator = "html"} having to
       be passed on every call. An explicit \code{translator}
-      argument still wins. For \pkg{xml2} the document is recognised
-      however the query starts, including from a node or an
-      \code{xml_nodeset}; the \pkg{XML} package gives the nodes of
-      an HTML document the same class as those of an XML document, so
-      there only a query starting from the document itself is
-      recognised.
+      argument still wins. The document is recognised however the
+      query starts, so a chain of queries beginning at an HTML
+      document keeps the \code{html} translator when it continues
+      from one of the document's nodes or from an
+      \code{xml_nodeset} or \code{XMLNodeSet}.
 
       \item An \pkg{xml2} \code{xml_missing}, as returned by a failed
       \code{xml_find_first()}, is now accepted by the

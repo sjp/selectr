@@ -198,9 +198,11 @@ querySelector.XMLInternalDocument <- function(doc, selector, ns = NULL, ...) {
         NULL
 }
 
-querySelectorAll.XMLInternalNode <- function(doc, selector, ns = NULL, ...) {
+querySelectorAll.XMLInternalNode <- function(doc, selector, ns = NULL,
+                                             translator = NULL, ...) {
     validateSelector(selector)
-    xpath <- css_to_xpath(selector, ...)
+    translator <- xmlTranslator(translator, doc)
+    xpath <- css_to_xpath(selector, translator = translator, ...)
     if (!is.null(ns)) {
         ns <- formatNS(ns)
         XML::getNodeSet(doc, xpath, ns)
@@ -215,25 +217,11 @@ querySelectorAll.XMLInternalDocument <- function(doc, selector, ns = NULL, ...) 
     querySelectorAll(doc, selector, ns, ...)
 }
 
-# XML::htmlParse() gives a document the "HTMLInternalDocument" class,
-# so an HTML document is recognised by dispatch. The nodes of such a
-# document are plain XMLInternalNodes, indistinguishable from those of
-# an XML document, so a query starting from a node (or a node set) is
-# not recognised and keeps the generic translator.
-#
-# Only querySelectorAll() needs a method here: querySelector() and the
-# two namespaced functions call the generic on the document itself, so
-# they arrive back here.
-querySelectorAll.HTMLInternalDocument <- function(doc, selector, ns = NULL,
-                                                  translator = "html", ...) {
+querySelectorAll.XMLNodeSet <- function(doc, selector, ns = NULL,
+                                        translator = NULL, ...) {
     validateSelector(selector)
-    doc <- XML::xmlRoot(doc)
-    querySelectorAll(doc, selector, ns, translator = translator, ...)
-}
-
-querySelectorAll.XMLNodeSet <- function(doc, selector, ns = NULL, ...) {
-    validateSelector(selector)
-    xpath <- css_to_xpath(selector, ...)
+    translator <- xmlTranslator(translator, doc)
+    xpath <- css_to_xpath(selector, translator = translator, ...)
     if (!is.null(ns))
         ns <- formatNS(ns)
     results <- lapply(doc, function(node) {
@@ -278,7 +266,7 @@ querySelector.xml_node <- function(doc, selector, ns = NULL,
         ns <- xml2::xml_ns(doc)
     else
         ns <- formatNS(ns)
-    translator <- defaultTranslator(translator, doc)
+    translator <- xml2Translator(translator, doc)
     xpath <- css_to_xpath(selector, translator = translator, ...)
     result <- xml2::xml_find_first(doc, xpath, ns)
     if (length(result))
@@ -294,7 +282,7 @@ querySelectorAll.xml_node <- function(doc, selector, ns = NULL,
         ns <- xml2::xml_ns(doc)
     else
         ns <- formatNS(ns)
-    translator <- defaultTranslator(translator, doc)
+    translator <- xml2Translator(translator, doc)
     xml2::xml_find_all(doc, css_to_xpath(selector, translator = translator, ...), ns)
 }
 
@@ -314,7 +302,7 @@ querySelectorAll.xml_nodeset <- function(doc, selector, ns = NULL,
         ns <- xml2::xml_ns(doc)
     else
         ns <- formatNS(ns)
-    translator <- defaultTranslator(translator, doc)
+    translator <- xml2Translator(translator, doc)
     xpath <- css_to_xpath(selector, translator = translator, ...)
     # xml2 evaluates the expression from each node in turn, so a
     # relative selector (e.g. ":scope > a") applies per node, and a
@@ -351,18 +339,41 @@ querySelectorAllNS.xml_node <- function(doc, selector, ns,
 # translator, so a document parsed as HTML gets it; everything else
 # keeps the "generic" (XML) translator that css_to_xpath() defaults to.
 #
-# xml2 uses the same classes for HTML and XML content, so unlike the
-# XML package the kind of document cannot be found by dispatch and is
-# instead asked of libxml2 here. The document node of a document read
-# by xml2::read_html() reports its type as "html_document", which is
-# true for its nodes and node sets too. A node set may be empty, and
-# so have no document to ask, in which case the query is generic.
-defaultTranslator <- function(translator, doc) {
+# Both packages use the same classes for the nodes of HTML and XML
+# content, so the kind of document cannot be found by dispatch and is
+# asked of libxml2 instead. The document node of a document read by
+# xml2::read_html() reports its type as "html_document", which is true
+# whether the query starts from the document, one of its nodes or a
+# node set. A node set may be empty, and so have no document to ask,
+# in which case the query is generic.
+xml2Translator <- function(translator, doc) {
     if (!is.null(translator))
         return(translator)
     type <- tryCatch(xml2::xml_type(xml2::xml_parent(xml2::xml_root(doc))),
                      error = function(e) NA_character_)
     if (identical(type, "html_document"))
+        "html"
+    else
+        "generic"
+}
+
+# The XML package counterpart of xml2Translator(). Every node knows
+# its owning document, reached as the "/" node here, and the XML
+# package classes that document node as an XMLHTMLDocumentNode when
+# the document was parsed by XML::htmlParse(). A node that belongs to
+# no document (one built by XML::newXMLNode(), say) has nothing to
+# ask, as does an empty node set, and both stay generic.
+xmlTranslator <- function(translator, doc) {
+    if (!is.null(translator))
+        return(translator)
+    if (inherits(doc, "XMLNodeSet")) {
+        if (!length(doc))
+            return("generic")
+        doc <- doc[[1]]
+    }
+    docNode <- tryCatch(XML::getNodeSet(doc, "/")[[1]],
+                        error = function(e) NULL)
+    if (inherits(docNode, "XMLHTMLDocumentNode"))
         "html"
     else
         "generic"

@@ -106,13 +106,10 @@ querySelectorAllNS(doc, selector, ns,
   in a browser. Passing \code{translator} explicitly overrides this
   for either kind of document.
 
-  For \pkg{xml2} the document is recognised however the query starts,
-  including from a node or a set of nodes of an HTML document. The
-  \pkg{XML} package, on the other hand, gives the nodes of an HTML
-  document the same class as those of an XML document, so only a query
-  starting from the document itself is recognised; pass
-  \code{translator = "html"} when querying from an \pkg{XML} node or
-  \code{XMLNodeSet}.
+  The document is recognised however the query starts, so a chain of
+  queries beginning at an HTML document keeps the \code{html}
+  translator when it continues from one of the document's nodes or
+  from a set of them.
 
   A selector starting with the \code{:scope} pseudo-class is anchored
   at the queried node itself: \code{querySelectorAll(node, ":scope >

@@ -48,14 +48,36 @@ test_that("XML documents and nodes keep the generic translator", {
     expect_equal(length(querySelectorAll(doc, "b")), 0)
     expect_equal(length(querySelectorAll(doc, "input:checked")), 0)
 
-    # An XML node carries no record of the document it came from, so a
-    # query starting from a node of an HTML document is generic
-    hdoc <- htmlParse(htmlText, asText = TRUE)
-    expect_equal(length(querySelectorAll(xmlRoot(hdoc), "input:checked")),
+    node <- querySelector(doc, "a")
+    expect_equal(length(querySelectorAll(node, "B")), 1)
+
+    # A node built outside any document, and an empty node set, have
+    # no document to inspect, and must not error
+    expect_equal(length(querySelectorAll(newXMLNode("a"), "B")), 0)
+    expect_equal(length(querySelectorAll(querySelectorAll(doc, "zz"), "B")),
                  0)
-    expect_equal(length(querySelectorAll(xmlRoot(hdoc), "input:checked",
-                                         translator = "html")),
-                 1)
+})
+
+test_that("XML nodes and node sets of an HTML document are detected", {
+    skip_if_not_installed("XML")
+    library(XML)
+    doc <- htmlParse(htmlText, asText = TRUE)
+    node <- querySelector(doc, "div")
+    nodeset <- querySelectorAll(doc, "div")
+
+    expect_equal(length(querySelectorAll(node, "input:checked")), 1)
+    expect_equal(length(querySelectorAll(node, "INPUT")), 2)
+    expect_false(is.null(querySelector(node, "input:checked")))
+    expect_equal(length(querySelectorAll(nodeset, "input:checked")), 1)
+    expect_false(is.null(querySelector(nodeset, "input:checked")))
+
+    # An explicit translator still wins for both
+    expect_equal(length(querySelectorAll(node, "input:checked",
+                                         translator = "generic")),
+                 0)
+    expect_equal(length(querySelectorAll(nodeset, "input:checked",
+                                         translator = "generic")),
+                 0)
 })
 
 test_that("namespaced queries on an XML HTML document use the html translator", {
