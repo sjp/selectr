@@ -633,11 +633,13 @@ test_that(":nth-child() early-exit condition 2: a<0, b-1<0 (matches none)", {
 })
 
 test_that(":nth-child(0) uses the same early-exit form as :nth-child(-n)", {
+    skip_if_not_installed("xml2")
+    library(xml2)
     # a=0, b=0, b-1=-1<0: an impossible count, just like a<0/b-1<0. Both
     # should produce the tidy "[0]" early exit rather than an always-false
     # "count(...) = -1" comparison built from the literal b-1
     expect_equal(css_to_xpath("li:nth-child(0)"), css_to_xpath("li:nth-child(-n)"))
-    expect_equal(length(querySelectorAll(xml2::read_xml(
+    expect_equal(length(querySelectorAll(read_xml(
         "<root><li/><li/></root>"), "li:nth-child(0)")), 0)
 })
 
@@ -741,4 +743,70 @@ test_that(":nth-child() boundary between early-exit conditions", {
     # :nth-child(-2n+0) -> a=-2, b=0, b-1=-1<0 -> early-exit condition 2
     expect_equal(length(querySelectorAll(doc, "li:nth-child(-2n+0)")),
                  0)
+})
+
+test_that("large An+B values are written out in full", {
+    xpath <- function(css) {
+        css_to_xpath(css, prefix = "")
+    }
+
+    # XPath 1.0 numbers have no exponent form, so neither a nor b may
+    # reach the expression as "1e+05"
+    expect_equal(xpath("li:nth-child(100001)"),
+                 "li[count(preceding-sibling::*) = 100000]")
+    expect_equal(xpath("li:nth-child(n+100001)"),
+                 "li[count(preceding-sibling::*) >= 100000]")
+    expect_equal(xpath("li:nth-child(200000n)"),
+                 "li[(count(preceding-sibling::*) +1) mod 200000 = 0]")
+    expect_equal(xpath("li:nth-child(1000000n+1000001)"),
+                 paste0("li[count(preceding-sibling::*) >= 1000000 and ",
+                        "count(preceding-sibling::*) mod 1000000 = 0]"))
+    expect_equal(xpath("li:nth-last-child(-100000n+100000)"),
+                 paste0("li[count(following-sibling::*) <= 99999 and ",
+                        "(count(following-sibling::*) +1) mod -100000 = 0]"))
+    expect_equal(xpath("li:nth-of-type(100000n+3)"),
+                 paste0("li[count(preceding-sibling::li) >= 2 and ",
+                        "(count(preceding-sibling::li) +99998) mod 100000 = 0]"))
+
+    # and the formatting does not follow the session's number-printing
+    # options
+    op <- options(scipen = -9)
+    on.exit(options(op))
+    expect_equal(xpath("li:nth-child(100001)"),
+                 "li[count(preceding-sibling::*) = 100000]")
+    expect_equal(xpath("li:nth-child(200000n)"),
+                 "li[(count(preceding-sibling::*) +1) mod 200000 = 0]")
+})
+
+test_that("large An+B values select the right nodes", {
+    library(XML)
+    library(xml2)
+
+    html <- paste0(
+        "<root>",
+        "  <ul>",
+        "    <li id=\"li1\">1</li>",
+        "    <li id=\"li2\">2</li>",
+        "    <li id=\"li3\">3</li>",
+        "  </ul>",
+        "</root>"
+    )
+    docs <- list(XML = xmlParse(html), xml2 = read_xml(html))
+
+    ids <- function(doc, css) {
+        results <- querySelectorAll(doc, css)
+        if (inherits(doc, "XMLInternalDocument"))
+            as.character(sapply(results, xmlGetAttr, "id"))
+        else
+            xml_attr(results, "id")
+    }
+
+    for (doc in docs) {
+        # b beyond the number of siblings matches nothing
+        expect_equal(length(querySelectorAll(doc, "li:nth-child(100001)")), 0)
+        # only n = 0 lands inside the list
+        expect_equal(ids(doc, "li:nth-child(200000n+2)"), "li2")
+        expect_equal(ids(doc, "li:nth-last-child(100000n+1)"), "li3")
+        expect_equal(ids(doc, "li:nth-of-type(1000000n+1)"), "li1")
+    }
 })

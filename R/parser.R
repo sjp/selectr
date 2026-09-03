@@ -1046,7 +1046,7 @@ parse_series <- function(tokens) {
     if (s == "odd")
         return(2:1)
     else if (s == "even")
-        return(c(2, 0))
+        return(c(2L, 0L))
     else if (s == "n")
         return(1:0)
     n_pos <- regexpr("n", s, fixed = TRUE)
@@ -1055,7 +1055,7 @@ parse_series <- function(tokens) {
         if (is.na(result)) {
             return(NULL)
         } else {
-            return(c(0, result))
+            return(c(0L, result))
         }
     }
     # Split at the first 'n' only
@@ -1067,13 +1067,13 @@ parse_series <- function(tokens) {
         return(NULL)
 
     if (!nzchar(a))
-        a <- 1
+        a <- 1L
     else if (a == "-" || a == "+")
         a <- str_int(paste0(a, "1"))
     else
         a <- str_int(a)
     if (!nzchar(b))
-        b <- 0
+        b <- 0L
     else
         b <- str_int(b)
     c(a, b)

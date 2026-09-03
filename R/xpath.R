@@ -478,6 +478,14 @@ required_optional_disjuncts <- function(required_condition) {
         list(element = "textarea", condition = required_condition))
 }
 
+# XPath 1.0's Number production has no exponent form, and R's default
+# formatting switches to scientific notation for large round values
+# (and honours options(scipen=)), so every number written into an
+# expression goes through here rather than being pasted directly.
+xpath_number <- function(number) {
+    format(number, scientific = FALSE, trim = TRUE)
+}
+
 xpath_literal <- function(literal) {
     if (!is.character(literal) || length(literal) != 1) {
         internal_stop("literal must be a single character string")
@@ -1167,7 +1175,8 @@ GenericTranslator <- R6Class("GenericTranslator",
             # ~~~~~~~~~~
             #    count(***-sibling::***) = b-1
             if (a == 0) {
-                xpath$add_condition(paste0(siblings_count, " = ", b_min_1))
+                xpath$add_condition(paste0(siblings_count, " = ",
+                                           xpath_number(b_min_1)))
 
                 # CSS Level 4: When selector list is provided, ensure current element matches
                 if (!is.null(selector_list_cond)) {
@@ -1185,13 +1194,15 @@ GenericTranslator <- R6Class("GenericTranslator",
                 # so if a>0, and (b-1)<=0, an "n" exists to satisfy this,
                 # therefore, the predicate is only interesting if (b-1)>0
                 if (b_min_1 > 0) {
-                    expr <- c(expr, paste0(siblings_count, " >= ", b_min_1))
+                    expr <- c(expr, paste0(siblings_count, " >= ",
+                                           xpath_number(b_min_1)))
                 }
             } else {
                 # if a<0, and (b-1)<0, no "n" satisfies this,
                 # this is tested above as an early exist condition
                 # otherwise,
-                expr <- c(expr, paste0(siblings_count, " <= ", b_min_1))
+                expr <- c(expr, paste0(siblings_count, " <= ",
+                                       xpath_number(b_min_1)))
             }
 
             # operations modulo 1 or -1 are simpler, one only needs to verify:
@@ -1215,11 +1226,11 @@ GenericTranslator <- R6Class("GenericTranslator",
                 b_neg <- (-b_min_1) %% abs(a)
 
                 if (b_neg != 0) {
-                    b_neg <- paste0("+", b_neg)
+                    b_neg <- paste0("+", xpath_number(b_neg))
                     left <- paste0("(", left, " ", b_neg, ")")
                 }
 
-                expr <- c(expr, paste0(left, " mod ", a, " = 0"))
+                expr <- c(expr, paste0(left, " mod ", xpath_number(a), " = 0"))
             }
 
             if (length(expr)) {
@@ -1491,7 +1502,7 @@ GenericTranslator <- R6Class("GenericTranslator",
                     ", string-length(",
                     name,
                     ")-",
-                    nchar(value) - 1,
+                    xpath_number(nchar(value) - 1),
                     ") = ",
                     xpath_literal(value)))
             } else {

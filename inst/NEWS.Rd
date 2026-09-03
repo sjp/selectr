@@ -122,6 +122,17 @@
   \subsection{BUG FIXES}{
     \itemize{
 
+      \item A large \code{An+B} value in \code{:nth-child()} and the
+      other \code{:nth-*()} pseudo-classes is now written into the
+      generated XPath in full. Values of five or more digits were
+      formatted with R's default number printing, so
+      \code{css_to_xpath(":nth-child(100001)")} produced
+      \code{"... = 1e+05"}, which XPath 1.0 has no syntax for; the
+      exact output also depended on \code{options(scipen=)}. libxml2
+      accepts an exponent, so \pkg{xml2} and \pkg{XML} selected the
+      right nodes regardless, but the expression was not portable to
+      other XPath engines.
+
       \item The \code{html}-qualified pseudo-classes (\code{:checked},
       \code{:disabled}, \code{:enabled}, \code{:link}/\code{:any-link},
       \code{:optional} and \code{:required}) now identify elements by
