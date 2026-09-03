@@ -109,9 +109,12 @@ See `?css_to_xpath` (section "Errors") for the full condition hierarchy.
 
 ## Development
 
-* Run the test suite: `R -e 'pkgload::load_all(); testthat::test_dir("tests/testthat")'`.
-* Lint the package: `R -e 'lintr::lint_package()'` (configured by `.lintr`).
-* Build and run a full CRAN-style check with the Makefile: `make check`
-  (or `make build` to only build the source tarball).
+The Makefile wraps the usual tasks:
 
-A [devcontainer](.devcontainer) is provided with R and the package's dependencies preinstalled.
+* `make test` runs the test suite (`testthat::test_local()`).
+* `make lint` lints the package (configured by `.lintr`).
+* `make check` builds the source tarball and runs a full CRAN-style
+  `R CMD check --as-cran` on it (`make build` only builds the tarball).
+
+A [devcontainer](https://github.com/sjp/selectr/tree/master/.devcontainer)
+is provided with R and the package's dependencies preinstalled.
