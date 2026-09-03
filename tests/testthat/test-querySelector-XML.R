@@ -162,3 +162,39 @@ test_that("querySelector methods handle invalid arguments", {
     expect_error(querySelectorAllNS(doc, "a", NULL), namespace_error, fixed = TRUE)
     expect_error(querySelectorAllNS(doc, "a", character(0)), namespace_error, fixed = TRUE)
 })
+
+test_that("querySelector returns the first node querySelectorAll finds", {
+    skip_if_not_installed("XML")
+    library(XML)
+    doc <- xmlParse(paste0('<r xmlns:s="http://www.w3.org/2000/svg">',
+                           '<b id="b1"/><a id="a1"/>',
+                           '<w id="w1"><b id="b2"/><s:a id="s1"/></w>',
+                           '<w id="w2"><a id="a2"/><s:a id="s2"/></w>',
+                           '</r>'))
+    ns <- c(s = "http://www.w3.org/2000/svg")
+    id <- function(node) if (is.null(node)) NULL else xmlGetAttr(node, "id")
+    first <- function(nodes) if (length(nodes)) nodes[[1]] else NULL
+
+    root <- xmlRoot(doc)
+    nodes <- getNodeSet(root, "//w")
+    # A grouped selector is a union, whose first node is the first in
+    # document order rather than the first branch's first match.
+    selectors <- c("a", "b", "a, b", "b, a", "w > a", ":scope > a", "z")
+    for (selector in selectors) {
+        for (obj in list(doc, root, nodes)) {
+            expect_identical(querySelector(obj, selector),
+                             first(querySelectorAll(obj, selector)))
+        }
+    }
+    for (selector in c(selectors, "s|a", "s|a, b")) {
+        for (obj in list(doc, root, nodes)) {
+            expect_identical(querySelectorNS(obj, selector, ns),
+                             first(querySelectorAllNS(obj, selector, ns)))
+        }
+    }
+
+    expect_equal(id(querySelector(root, "a, b")), "b1")
+    expect_equal(id(querySelector(nodes, "a")), "a2")
+    expect_equal(id(querySelectorNS(root, "s|a", ns)), "s1")
+    expect_null(querySelector(structure(list(), class = "XMLNodeSet"), "a"))
+})

@@ -187,49 +187,78 @@ querySelectorAllNS.default <- function(doc, selector, ns,
     argument_stop("The object given to querySelectorAllNS() is not an 'XML' or 'xml2' document or node.")
 }
 
-querySelector.XMLNodeSet          <-
-querySelector.XMLInternalNode     <-
-querySelector.XMLInternalDocument <- function(doc, selector, ns = NULL, ...) {
-    # The selector is validated by the querySelectorAll() method below
-    results <- querySelectorAll(doc, selector, ns, ...)
+# The first step shared by the XML methods below: validate the
+# selector, settle on the translator for the document and translate,
+# and put the namespace object into the form XML::getNodeSet() takes.
+xmlQuery <- function(doc, selector, ns, translator, ...) {
+    validateSelector(selector)
+    translator <- xmlTranslator(translator, doc)
+    list(xpath = css_to_xpath(selector, translator = translator, ...),
+         ns = if (is.null(ns)) NULL else formatNS(ns))
+}
+
+# XML::getNodeSet() derives a default set of namespaces from the
+# document, so "no namespaces given" has to be an absent argument
+# rather than a NULL one.
+xmlMatches <- function(node, xpath, ns) {
+    if (is.null(ns))
+        XML::getNodeSet(node, xpath)
+    else
+        XML::getNodeSet(node, xpath, ns)
+}
+
+# The first node the expression matches, or NULL. A positional
+# predicate applies to a node set in document order, so parenthesising
+# the whole expression and taking [1] picks out the same node as the
+# first of the full result -- without the XML package wrapping each of
+# the other matches in an R object on the way to discarding it.
+xmlFirstMatch <- function(node, xpath, ns) {
+    results <- xmlMatches(node, paste0("(", xpath, ")[1]"), ns)
     if (length(results))
         results[[1]]
     else
         NULL
 }
 
+querySelector.XMLInternalNode <- function(doc, selector, ns = NULL,
+                                          translator = NULL, ...) {
+    query <- xmlQuery(doc, selector, ns, translator, ...)
+    xmlFirstMatch(doc, query$xpath, query$ns)
+}
+
+querySelector.XMLInternalDocument <- function(doc, selector, ns = NULL, ...) {
+    validateSelector(selector)
+    querySelector(XML::xmlRoot(doc), selector, ns, ...)
+}
+
+# Each node of the set is queried in turn and the first match ends the
+# search, which is the node querySelectorAll() would return first.
+querySelector.XMLNodeSet <- function(doc, selector, ns = NULL,
+                                     translator = NULL, ...) {
+    query <- xmlQuery(doc, selector, ns, translator, ...)
+    for (i in seq_along(doc)) {
+        result <- xmlFirstMatch(doc[[i]], query$xpath, query$ns)
+        if (!is.null(result))
+            return(result)
+    }
+    NULL
+}
+
 querySelectorAll.XMLInternalNode <- function(doc, selector, ns = NULL,
                                              translator = NULL, ...) {
-    validateSelector(selector)
-    translator <- xmlTranslator(translator, doc)
-    xpath <- css_to_xpath(selector, translator = translator, ...)
-    if (!is.null(ns)) {
-        ns <- formatNS(ns)
-        XML::getNodeSet(doc, xpath, ns)
-    } else {
-        XML::getNodeSet(doc, xpath)
-    }
+    query <- xmlQuery(doc, selector, ns, translator, ...)
+    xmlMatches(doc, query$xpath, query$ns)
 }
 
 querySelectorAll.XMLInternalDocument <- function(doc, selector, ns = NULL, ...) {
     validateSelector(selector)
-    doc <- XML::xmlRoot(doc)
-    querySelectorAll(doc, selector, ns, ...)
+    querySelectorAll(XML::xmlRoot(doc), selector, ns, ...)
 }
 
 querySelectorAll.XMLNodeSet <- function(doc, selector, ns = NULL,
                                         translator = NULL, ...) {
-    validateSelector(selector)
-    translator <- xmlTranslator(translator, doc)
-    xpath <- css_to_xpath(selector, translator = translator, ...)
-    if (!is.null(ns))
-        ns <- formatNS(ns)
-    results <- lapply(doc, function(node) {
-        if (is.null(ns))
-            XML::getNodeSet(node, xpath)
-        else
-            XML::getNodeSet(node, xpath, ns)
-    })
+    query <- xmlQuery(doc, selector, ns, translator, ...)
+    results <- lapply(doc, xmlMatches, query$xpath, query$ns)
     results <- unlist(results, recursive = FALSE)
     if (is.null(results))
         results <- list()
@@ -253,22 +282,23 @@ querySelectorAllNS.XMLInternalDocument <- function(doc, selector, ns,
     ns_dispatch(querySelectorAll, doc, selector, ns, prefix, ...)
 }
 
-# Unlike querySelector.XMLInternalNode/Document above, this does not
-# delegate to querySelectorAll(): xml2::xml_find_first() is cheaper
-# than xml2::xml_find_all()[[1]] (it can stop at the first match), so
-# the query is translated and run directly instead. The XML package
-# has no first-match equivalent, so its methods have no such shortcut
-# available and materialise the full node set regardless.
+# The xml2 counterpart of xmlQuery(). xml2 wants the namespaces as an
+# argument to every query, and takes the document's own when the
+# caller named none.
+xml2Query <- function(doc, selector, ns, translator, ...) {
+    validateSelector(selector)
+    translator <- xml2Translator(translator, doc)
+    list(xpath = css_to_xpath(selector, translator = translator, ...),
+         ns = if (is.null(ns)) xml2::xml_ns(doc) else formatNS(ns))
+}
+
+# xml2::xml_find_first() stops at the first match, which is the
+# shortcut the XML methods above get from a parenthesised expression
+# and a [1] predicate; neither has to find every match to return one.
 querySelector.xml_node <- function(doc, selector, ns = NULL,
                                    translator = NULL, ...) {
-    validateSelector(selector)
-    if (is.null(ns))
-        ns <- xml2::xml_ns(doc)
-    else
-        ns <- formatNS(ns)
-    translator <- xml2Translator(translator, doc)
-    xpath <- css_to_xpath(selector, translator = translator, ...)
-    result <- xml2::xml_find_first(doc, xpath, ns)
+    query <- xml2Query(doc, selector, ns, translator, ...)
+    result <- xml2::xml_find_first(doc, query$xpath, query$ns)
     if (length(result))
         result
     else
@@ -277,37 +307,30 @@ querySelector.xml_node <- function(doc, selector, ns = NULL,
 
 querySelectorAll.xml_node <- function(doc, selector, ns = NULL,
                                       translator = NULL, ...) {
-    validateSelector(selector)
-    if (is.null(ns))
-        ns <- xml2::xml_ns(doc)
-    else
-        ns <- formatNS(ns)
-    translator <- xml2Translator(translator, doc)
-    xml2::xml_find_all(doc, css_to_xpath(selector, translator = translator, ...), ns)
+    query <- xml2Query(doc, selector, ns, translator, ...)
+    xml2::xml_find_all(doc, query$xpath, query$ns)
 }
 
-querySelector.xml_nodeset <- function(doc, selector, ns = NULL, ...) {
-    # The selector is validated by the querySelectorAll() method below
-    results <- querySelectorAll(doc, selector, ns, ...)
-    if (length(results))
-        results[[1]]
-    else
-        NULL
+# As for XMLNodeSet above, the nodes are queried in turn and the first
+# match ends the search.
+querySelector.xml_nodeset <- function(doc, selector, ns = NULL,
+                                      translator = NULL, ...) {
+    query <- xml2Query(doc, selector, ns, translator, ...)
+    for (i in seq_along(doc)) {
+        result <- xml2::xml_find_first(doc[[i]], query$xpath, query$ns)
+        if (length(result))
+            return(result)
+    }
+    NULL
 }
 
 querySelectorAll.xml_nodeset <- function(doc, selector, ns = NULL,
                                          translator = NULL, ...) {
-    validateSelector(selector)
-    if (is.null(ns))
-        ns <- xml2::xml_ns(doc)
-    else
-        ns <- formatNS(ns)
-    translator <- xml2Translator(translator, doc)
-    xpath <- css_to_xpath(selector, translator = translator, ...)
+    query <- xml2Query(doc, selector, ns, translator, ...)
     # xml2 evaluates the expression from each node in turn, so a
     # relative selector (e.g. ":scope > a") applies per node, and a
     # node matched more than once is returned only once.
-    xml2::xml_find_all(doc, xpath, ns)
+    xml2::xml_find_all(doc, query$xpath, query$ns)
 }
 
 querySelector.xml_missing <- function(doc, selector, ns = NULL, ...) {

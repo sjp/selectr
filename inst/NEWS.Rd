@@ -116,6 +116,15 @@
       give a measurable speed-up when translating long selectors. The
       test suite has also been migrated to testthat edition 3.
 
+      \item \code{querySelector()} no longer finds every match in
+      order to return the first one. On an \pkg{XML} document, node or
+      \code{XMLNodeSet} it asks XPath for the first node directly, and
+      on an \code{xml_nodeset} it stops at the first node of the set
+      that matches, rather than querying all of them. The node
+      returned is unchanged --- still the first in document order, a
+      grouped selector such as \code{"a, b"} included --- but a query
+      with many matches is now several times faster.
+
     }
   }
   \subsection{BUG FIXES}{
