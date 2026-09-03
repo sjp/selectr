@@ -2,6 +2,8 @@
 ^\.github$
 ^\.devcontainer$
 ^\.lintr$
+^\.gitattributes$
+^\.gitignore$
 ^\.Rproj\.user$
 ^.*\.Rproj$
 ^.*\.Rcheck$

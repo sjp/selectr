@@ -2,7 +2,7 @@
 	"name": "selectr development",
 	"image": "mcr.microsoft.com/devcontainers/base:trixie",
 	"features": {
-		"ghcr.io/rocker-org/devcontainer-features/r-apt:latest": {},
+		"ghcr.io/rocker-org/devcontainer-features/r-apt:0.5": {},
 		"ghcr.io/devcontainers/features/node:2": {
 			"version": "26"
 		},
