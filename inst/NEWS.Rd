@@ -43,6 +43,12 @@
       \code{xml_nodeset} from \code{querySelectorAll()} --- rather
       than an error.
 
+      \item A new \code{?selectors} help topic gives the full
+      selector-support reference: every selector, combinator and
+      pseudo-class that selectr understands, which of the three
+      translators supports each of them, and where the implementation
+      diverges from CSS Selectors Level 4.
+
       \item The \code{html} and \code{xhtml} translators now support
       four more Selectors 4 pseudo-classes that are decidable from
       document attributes alone: \code{:read-write}, \code{:read-only},
@@ -93,6 +99,17 @@
       instead of recycling as base R does: a length that is merely a
       multiple or a fraction of the common length previously produced
       a plausible-looking but silently mispaired result.
+
+      \item Generated XPath expressions are shorter. The \code{html}
+      and \code{xhtml} pseudo-class translations no longer carry
+      disjuncts that cannot apply once the compound selector's element
+      name is known --- \code{input:checked} drops the \code{option}
+      branch, and \code{div:checked} collapses to \code{div[0]} ---
+      and the attribute operators no longer emit a redundant
+      \code{@attr and ...} existence guard beside a test that already
+      implies it. The expressions are semantically unchanged, but code
+      comparing \code{css_to_xpath()} output against stored strings
+      will need updating.
 
       \item The tokenizer now matches against a bounded window of the
       remaining input instead of re-slicing it on every token, and
@@ -224,11 +241,27 @@
       rejected with an error, instead of being used as a namespace
       URI.
 
+      \item A \emph{name} in the \code{ns} argument of the
+      \code{querySelectorNS()} family that is not a valid XML name
+      (e.g. \code{c("s p" = "urn:s")}, or one containing a colon or
+      starting with a digit) is now rejected with an error. Previously
+      such a prefix was interpolated into the generated XPath, which
+      then failed to compile: the query raised a libxml2 warning and
+      returned no matches.
+
       \item A zero-length \code{ns} argument (\code{character(0)} or
       \code{list()}) to the \pkg{xml2} \code{querySelector()} family
       now means "no namespaces" and skips the \code{xml_ns()} walk of
       the whole document, rather than being treated the same as
       \code{NULL} (which uses the document's own namespace map).
+
+      \item A \code{selector} or \code{prefix} argument to
+      \code{css_to_xpath()} holding bytes that are invalid in their
+      declared encoding is now rejected with a
+      \code{selectr_argument_error}. Previously the bytes reached the
+      tokenizer and surfaced as base R's "invalid multibyte string"
+      error, which escaped the guarantee that every error selectr
+      signals inherits \code{selectr_error}.
 
       \item An invalid \code{translator} argument to \code{css_to_xpath()}
       (e.g. \code{translator = "xml"}) now raises a message naming the

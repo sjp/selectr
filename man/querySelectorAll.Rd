@@ -156,8 +156,9 @@ querySelectorAllNS(doc, selector, ns,
   that is not an \pkg{XML} or \pkg{xml2} document, node, or node set;
   \code{selector} that is not a single character string; or \code{ns}
   that is not a named list or named character vector of non-empty
-  strings (or, for \code{querySelectorNS} and \code{querySelectorAllNS},
-  a missing or zero-length \code{ns}).
+  strings whose names are valid XML prefixes (or, for
+  \code{querySelectorNS} and \code{querySelectorAllNS}, a missing or
+  zero-length \code{ns}).
 }
 \references{
   CSS Selectors Level 4 \url{https://www.w3.org/TR/selectors-4/}, XPath
