@@ -121,16 +121,11 @@ test_that(":required and :optional translate from the @required attribute", {
     expect_equal(css_to_xpath("input:optional"),
                  "descendant-or-self::input[0]")
 
-    # The other form-state pseudo-classes have no exact static
-    # translation and stay unknown
-    expect_error(css_to_xpath("input:read-only", translator = "html"),
-                 "The pseudo-class :read-only is unknown", fixed = TRUE)
-    expect_error(css_to_xpath("input:read-write", translator = "html"),
-                 "The pseudo-class :read-write is unknown", fixed = TRUE)
-    expect_error(css_to_xpath("input:placeholder-shown", translator = "html"),
-                 "The pseudo-class :placeholder-shown is unknown", fixed = TRUE)
-    expect_error(css_to_xpath("input:default", translator = "html"),
-                 "The pseudo-class :default is unknown", fixed = TRUE)
+    # ':indeterminate' has no exact static translation (see
+    # 021-html-translator-static-form-pseudo-classes.md: a 'progress'-only
+    # implementation was rejected as violating the "family in full or not
+    # at all" policy, and the radio-group and checkbox cases are not
+    # expressible in XPath 1.0/need live state) and stays unknown
     expect_error(css_to_xpath("input:indeterminate", translator = "html"),
                  "The pseudo-class :indeterminate is unknown", fixed = TRUE)
 })
@@ -171,6 +166,108 @@ test_that(":required and :optional match form elements correctly", {
 
     expect_equal(get_ids("input:required"), "i1")
     expect_equal(get_ids("select:optional"), "s2")
+})
+
+test_that(paste(":read-write, :read-only, :placeholder-shown and",
+                 ":default are never-matching on the generic translator"), {
+    for (css in c("a:read-write", "a:read-only", "a:placeholder-shown",
+                  "a:default")) {
+        expect_equal(css_to_xpath(css),
+                     paste0("descendant-or-self::a[0]"))
+    }
+})
+
+test_that(":read-write and :read-only classify editable HTML elements", {
+    skip_if_not_installed("xml2")
+    library(xml2)
+
+    doc <- read_xml(paste0(
+        '<form id="form1">',
+        '<input id="i1" type="text"/>',
+        '<input id="i2" type="text" readonly="readonly"/>',
+        '<input id="i3" type="text" disabled="disabled"/>',
+        '<input id="i4" type="checkbox"/>',
+        '<input id="i5"/>',
+        '<textarea id="t1"/>',
+        '<textarea id="t2" readonly="readonly"/>',
+        '<fieldset id="fs1" disabled="disabled">',
+        '<input id="i6" type="text"/></fieldset>',
+        '<div id="d1" contenteditable="true">x</div>',
+        '<div id="d2" contenteditable="">x</div>',
+        '<div id="d3" contenteditable="false">x</div>',
+        '<div id="d4">x</div>',
+        '</form>'
+    ))
+    get_ids <- function(css) {
+        xml_attr(querySelectorAll(doc, css, translator = "html"), "id")
+    }
+
+    # 'i4' (checkbox) does not support @readonly, so it is neither
+    # :read-write nor :read-only in the strict sense - but per the HTML
+    # definition it is still classified :read-only (not editable text);
+    # 'i5' has no @type, which defaults to 'text' and so is read-write.
+    # ':read-only' is the negation of ':read-write' over every element,
+    # so non-form containers ('form1', 'fs1') are read-only too
+    expect_equal(get_ids(":read-write"),
+                 c("i1", "i5", "t1", "d1", "d2"))
+    expect_equal(get_ids(":read-only"),
+                 c("form1", "i2", "i3", "i4", "t2", "fs1", "i6", "d3", "d4"))
+
+    # Pruned against a known element, both still agree with the
+    # unpruned form
+    expect_equal(get_ids("input:read-write"), c("i1", "i5"))
+    expect_equal(get_ids("textarea:read-write"), "t1")
+    expect_equal(get_ids("div:read-write"), c("d1", "d2"))
+    expect_equal(get_ids("input:read-only"), c("i2", "i3", "i4", "i6"))
+    expect_equal(get_ids("textarea:read-only"), "t2")
+})
+
+test_that(":placeholder-shown matches an empty placeholder-bearing control", {
+    skip_if_not_installed("xml2")
+    library(xml2)
+
+    doc <- read_xml(paste0(
+        '<form>',
+        '<input id="i1" placeholder="hi" value=""/>',
+        '<input id="i2" placeholder="hi" value="filled"/>',
+        '<input id="i3" placeholder="hi"/>',
+        '<input id="i4" value=""/>',
+        '<textarea id="t1" placeholder="hi"></textarea>',
+        '<textarea id="t2" placeholder="hi">filled</textarea>',
+        '</form>'
+    ))
+    get_ids <- function(css) {
+        xml_attr(querySelectorAll(doc, css, translator = "html"), "id")
+    }
+
+    expect_equal(get_ids(":placeholder-shown"), c("i1", "i3", "t1"))
+})
+
+test_that(":default matches selected/checked controls and the first submit button", {
+    skip_if_not_installed("xml2")
+    library(xml2)
+
+    doc <- read_xml(paste0(
+        '<div>',
+        '<form>',
+        '<select><option id="o1"/><option id="o2" selected="selected"/></select>',
+        '<input id="c1" type="checkbox" checked="checked"/>',
+        '<input id="c2" type="radio"/>',
+        '<button id="b1">First</button>',
+        '<button id="b2">Second</button>',
+        '<input id="s1" type="submit"/>',
+        '</form>',
+        '<button id="nf1">No form</button>',
+        '</div>'
+    ))
+    get_ids <- function(css) {
+        xml_attr(querySelectorAll(doc, css, translator = "html"), "id")
+    }
+
+    # 'o2' (selected), 'c1' (checked) and 'b1' (first submit button in
+    # its form, in document order) match; the later 'b2' and 's1' do
+    # not, nor does the form-less 'nf1'
+    expect_equal(get_ids(":default"), c("o2", "c1", "b1"))
 })
 
 test_that(":empty keeps the Selectors 3 white space semantics", {

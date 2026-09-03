@@ -505,6 +505,69 @@ xpath_literal <- function(literal) {
     paste0("concat(", paste(parts, collapse = ","), ")")
 }
 
+# HTML form controls to which the 'readonly' content attribute applies
+# (the HTML Standard's list of textual/numeric/date input types); an
+# <input> with no 'type' attribute defaults to 'text', which is in the
+# list, so a missing attribute counts as present
+readonly_capable_input_types <- c("text", "search", "url", "tel", "email",
+                                  "password", "date", "month", "week",
+                                  "time", "datetime-local", "number")
+readonly_capable_condition <- paste0(
+    "not(@type) or ",
+    paste(paste0(fold_type, " = ",
+                vapply(readonly_capable_input_types, xpath_literal,
+                       character(1))), collapse = " or "))
+
+# 'contenteditable' without a value, or set to "inherit", actually
+# inherits editability from the nearest ancestor that sets it, which a
+# document with no live DOM cannot resolve; this static approximation of
+# ':read-write' therefore considers only an element's own attribute
+fold_contenteditable <- paste0(
+    "translate(@contenteditable, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
+    "'abcdefghijklmnopqrstuvwxyz')")
+contenteditable_condition <- paste0(
+    "@contenteditable and not(", fold_contenteditable, " = 'false')")
+
+# The condition for xpath_read_write_pseudo() (':read-only' is simply
+# its negation): an <input> whose type takes 'readonly' or a <textarea>,
+# so long as neither its own @readonly nor @disabled (including
+# disabling by an ancestor <fieldset>, as for xpath_disabled_pseudo)
+# applies; or any element carrying its own @contenteditable. Returns the
+# condition text together with whether it is a bare top-level "or" (see
+# add_condition()) needing parentheses once joined with another
+# condition - true whenever a form-control branch is included, since it
+# is then always OR-ed with the contenteditable branch
+read_write_condition <- function(xpath) {
+    known <- known_local_element(xpath)
+    mutable_form_control <- paste0(
+        "not(@readonly) and not(@disabled or (", disabled_by_fieldset, "))")
+    input_branch <- paste0("(", readonly_capable_condition, ") and ",
+                           mutable_form_control)
+    form_branch <- if (identical(known, "input")) {
+        input_branch
+    } else if (identical(known, "textarea")) {
+        mutable_form_control
+    } else if (is.null(known)) {
+        paste0("(local-name(.) = 'input' and (", input_branch, ")) or ",
+              "(local-name(.) = 'textarea' and (", mutable_form_control, "))")
+    } else {
+        NULL
+    }
+    if (is.null(form_branch))
+        list(condition = contenteditable_condition, is_or = FALSE)
+    else
+        list(condition = paste(form_branch, "or", contenteditable_condition),
+             is_or = TRUE)
+}
+
+# The static definition of an HTML submit button (button/submit), shared
+# between the ':default' submit-button branch below and its own
+# lookup of the first such control within the nearest enclosing <form>
+submit_control_condition <- paste0(
+    "(local-name(.) = 'button' and (not(@type) or ", fold_type,
+    " = 'submit')) or (local-name(.) = 'input' and (", fold_type,
+    " = 'submit' or ", fold_type, " = 'image'))")
+
 GenericTranslator <- R6Class("GenericTranslator",
     public = list(
         combinator_mapping = c(" " = "descendant",
@@ -1352,6 +1415,14 @@ GenericTranslator <- R6Class("GenericTranslator",
         # HTML translator answers it from the @required attribute
         xpath_required_pseudo = pseudo_never_matches,
         xpath_optional_pseudo = pseudo_never_matches,
+        # Likewise editability, the shown-placeholder state and the
+        # default form control are HTML notions the HTML translator
+        # answers from attributes (see read_write_condition() and
+        # xpath_placeholder_shown_pseudo()/xpath_default_pseudo() below)
+        xpath_read_write_pseudo = pseudo_never_matches,
+        xpath_read_only_pseudo  = pseudo_never_matches,
+        xpath_placeholder_shown_pseudo = pseudo_never_matches,
+        xpath_default_pseudo = pseudo_never_matches,
 
         xpath_attrib_exists = function(xpath, name, value) {
             xpath$add_condition(name)
@@ -1485,6 +1556,65 @@ HTMLTranslator <- R6Class("HTMLTranslator",
         xpath_optional_pseudo = function(xpath) {
             add_disjunction(xpath,
                             required_optional_disjuncts("not(@required)"))
+        },
+        xpath_read_write_pseudo = function(xpath) {
+            rw <- read_write_condition(xpath)
+            xpath$add_condition(rw$condition, is_or_group = rw$is_or)
+            xpath
+        },
+        # ':read-only' matches exactly the elements ':read-write' does
+        # not - Selectors 4 defines it as that negation, with no element
+        # set of its own
+        xpath_read_only_pseudo = function(xpath) {
+            xpath$add_condition(paste0(
+                "not(", read_write_condition(xpath)$condition, ")"))
+            xpath
+        },
+        # ':placeholder-shown' matches an <input> or <textarea> with a
+        # placeholder and an empty current value; a <textarea>'s value
+        # is its text content rather than an attribute, hence string()
+        # (the context node's string-value) instead of string(@value)
+        xpath_placeholder_shown_pseudo = function(xpath) {
+            add_disjunction(xpath, list(
+                list(element = "input",
+                     condition = "@placeholder and not(string(@value))"),
+                list(element = "textarea",
+                     condition = "@placeholder and not(string())")))
+        },
+        # ':default' matches a selected <option>, a checked checkbox or
+        # radio <input>, and the default submit button of a form (the
+        # first submit button, in document order, among the descendants
+        # of its nearest enclosing <form>). The last part is approximate
+        # - it does not follow a 'form' attribute pointing at a form
+        # elsewhere in the document - but is otherwise exact. Testing
+        # whether the candidate *is* that first control needs a node
+        # identity test; XPath 1.0 has no current() (that is XSLT-only,
+        # see of_type_nodetest()) and libxml2's XPath evaluation does not
+        # expose generate-id() to either the XML or xml2 binding, so
+        # identity is tested the classic XPath 1.0 way instead: two
+        # single-node node-sets denote the same node exactly when their
+        # union still has one member (a distinct pair unions to two).
+        # "ancestor::form and" guards the degenerate case of a submit
+        # control with no enclosing form, where the right-hand node-set
+        # is empty and the union would otherwise vacuously equal ".", by
+        # requiring a form ancestor to exist before the count comparison
+        # is trusted
+        xpath_default_pseudo = function(xpath) {
+            first_submit <- paste0(
+                "ancestor::form and count(. | ancestor::form[1]/descendant::*[",
+                submit_control_condition, "][1]) = 1")
+            add_disjunction(xpath, list(
+                list(element = "option", condition = "@selected"),
+                list(element = "input",
+                     condition = paste0(
+                         "(@checked and (", fold_type, " = 'checkbox' or ",
+                         fold_type, " = 'radio')) or ((", fold_type,
+                         " = 'submit' or ", fold_type, " = 'image') and ",
+                         first_submit, ")"),
+                     is_or = TRUE),
+                list(element = "button",
+                     condition = paste0("(not(@type) or ", fold_type,
+                                        " = 'submit') and ", first_submit))))
         },
         xpath_lang_function = function(xpath, fn) {
             validate_lang_args(fn)

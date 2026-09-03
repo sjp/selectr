@@ -43,6 +43,17 @@
       \code{xml_nodeset} from \code{querySelectorAll()} --- rather
       than an error.
 
+      \item The \code{html} and \code{xhtml} translators now support
+      four more Selectors 4 pseudo-classes that are decidable from
+      document attributes alone: \code{:read-write}, \code{:read-only},
+      \code{:placeholder-shown} and \code{:default}. Previously these
+      raised "The pseudo-class :read-write is unknown" (and similarly
+      for the others); on the \code{generic} translator they still
+      translate to a never-matching expression, as \code{:checked} and
+      \code{:required} already did. Other Selectors 4 pseudo-classes
+      that depend on live document state or user interaction, such as
+      \code{:indeterminate}, remain unknown.
+
     }
   }
   \subsection{MINOR CHANGES}{

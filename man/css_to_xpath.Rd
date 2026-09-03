@@ -137,9 +137,11 @@ css_to_xpath(selector,
   is sufficient for most cases. However, it is of use when creating
   expressions relating to (X)HTML pseudo elements and languages. In
   particular it qualifies the following pseudo selectors to apply only
-  to relevant (X)HTML elements: \code{:checked}, \code{:disabled},
-  \code{:enabled}, \code{:link}, \code{:optional} and \code{:required}.
-  Unlike a plain type selector, these pseudo-classes identify HTML
+  to relevant (X)HTML elements: \code{:checked}, \code{:default},
+  \code{:disabled}, \code{:enabled}, \code{:link}, \code{:optional},
+  \code{:placeholder-shown}, \code{:read-only}, \code{:read-write} and
+  \code{:required}. Unlike a plain type selector, these pseudo-classes
+  identify HTML
   elements by local name regardless of namespace, so they work the
   same way with a namespace-qualified subject: \code{"*|input:disabled"}
   and \code{"d1|input:disabled"} apply \code{:disabled} exactly as
@@ -165,6 +167,33 @@ css_to_xpath(selector,
   \code{:enabled}, except those inside its first \code{<legend>} child,
   which stay \code{:enabled}; nested disabled fieldsets are handled
   correctly.
+
+  \code{:read-write} matches an editable \code{input} (one of the
+  textual, numeric or date/time types that support the
+  \code{readonly} attribute, or one with no \code{type} at all, which
+  defaults to text) or \code{textarea} that is neither \code{readonly}
+  nor disabled (including by an ancestor \code{<fieldset>}), and any
+  element carrying its own \code{contenteditable} attribute other than
+  \code{"false"}. \code{:read-only} matches everything
+  \code{:read-write} does not - Selectors 4 defines it as that
+  negation, with no element set of its own, so it also matches
+  elements \code{:read-write} never considers, such as a
+  \code{checkbox} input or a plain \code{div}. Because
+  \code{contenteditable} without a value, or set to \code{"inherit"},
+  actually inherits editability from the nearest ancestor that sets
+  it, and a document with no live DOM cannot resolve that, only an
+  element's own attribute is considered - an inherited or ambiguous
+  \code{contenteditable} state is not detected.
+  \code{:placeholder-shown} matches an \code{input} or \code{textarea}
+  that has a \code{placeholder} attribute and an empty current value
+  (for a \code{textarea}, its text content).
+  \code{:default} matches a selected \code{option}, a checked
+  \code{checkbox} or \code{radio} input, and the default submit button
+  of a form - the first \code{button} or \code{input} of type
+  \code{submit}/\code{image}, in document order, among the descendants
+  of its nearest enclosing \code{<form>}. The submit-button case is an
+  approximation: it does not follow a \code{form} attribute pointing at
+  a \code{<form>} elsewhere in the document, only the nearest ancestor.
 
   When the translator is set to \code{html}, all elements and
   attributes will be converted to lower case. This restriction is
