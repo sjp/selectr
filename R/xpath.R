@@ -422,11 +422,11 @@ known_local_element <- function(xpath) {
 # where 'condition' assumes the context node is already known to be
 # 'element' (no local-name(.) test of its own), and 'is_or' says whether
 # 'condition' is itself a bare top-level "or" expression that needs
-# parentheses once joined with something else. Item 4 of the
-# xpath-output-size issue: the HTML pseudo-class methods below built a
-# fixed disjunction over every element the HTML standard gives the
-# pseudo-class, even though the compound had already pinned the element
-# down (e.g. 'input:checked' carried the entire never-firing 'option'
+# parentheses once joined with something else. Without this pruning,
+# the HTML pseudo-class methods below would build a fixed disjunction
+# over every element the HTML standard gives the pseudo-class, even
+# though the compound had already pinned the element down (e.g.
+# 'input:checked' would carry the entire never-firing 'option'
 # disjunct, whose local-name(.) test can never be true once 'input' is
 # already known).
 #

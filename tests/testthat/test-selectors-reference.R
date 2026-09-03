@@ -1,8 +1,8 @@
 test_that("every xpath_*_pseudo/_function/_combinator method is on the man/selectors.Rd reference", {
     # Reflects over the translators' public methods so the reference page
-    # (see issue 010) cannot silently drift when a pseudo-class,
-    # function-notation pseudo-class or combinator is added, renamed or
-    # removed - see the method naming convention in R/xpath.R.
+    # cannot silently drift when a pseudo-class, function-notation
+    # pseudo-class or combinator is added, renamed or removed - see the
+    # method naming convention in R/xpath.R.
     all_methods <- union(names(GenericTranslator$public_methods),
                           names(HTMLTranslator$public_methods))
     reflected <- grep("^xpath_.*_(pseudo|function|combinator)$", all_methods,
