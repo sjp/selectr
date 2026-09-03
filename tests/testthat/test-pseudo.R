@@ -270,6 +270,47 @@ test_that(":default matches selected/checked controls and the first submit butto
     expect_equal(get_ids(":default"), c("o2", "c1", "b1"))
 })
 
+test_that(":default finds the enclosing form in the XHTML namespace", {
+    skip_if_not_installed("XML")
+    skip_if_not_installed("xml2")
+    # The "first submit button of its nearest enclosing form" branch
+    # walks up to a <form>, and that walk has to match by local name
+    # like every other element reference in the HTML pseudo-classes, or
+    # a form in the default XHTML namespace is invisible to it
+    doc_xml <- paste0(
+        '<html xmlns="http://www.w3.org/1999/xhtml"><body>',
+        '<form><input id="s1" type="submit"/>',
+        '<input id="s2" type="submit"/></form>',
+        '<form><button id="b1">Go</button>',
+        '<input id="s3" type="submit"/></form>',
+        '<input id="nf" type="submit"/>',
+        '</body></html>'
+    )
+    ns <- c(h = "http://www.w3.org/1999/xhtml")
+
+    library(xml2)
+    doc2 <- read_xml(doc_xml)
+    ids2 <- function(css) {
+        xml_attr(querySelectorAll(doc2, css, translator = "xhtml"), "id")
+    }
+    # the first submit control of each form, and nothing outside one
+    expect_equal(ids2("*|input:default"), "s1")
+    expect_equal(ids2("*|button:default"), "b1")
+    expect_equal(ids2(":default"), c("s1", "b1"))
+    expect_equal(xml_attr(querySelectorAllNS(doc2, "h|input:default", ns,
+                                             translator = "xhtml"), "id"),
+                 "s1")
+
+    library(XML)
+    doc <- xmlParse(doc_xml)
+    ids <- function(css) {
+        sapply(querySelectorAllNS(doc, css, ns, translator = "xhtml"),
+               xmlGetAttr, "id")
+    }
+    expect_equal(ids("h|input:default"), "s1")
+    expect_equal(ids("h|button:default"), "b1")
+})
+
 test_that(":empty keeps the Selectors 3 white space semantics", {
     skip_if_not_installed("XML")
     skip_if_not_installed("xml2")

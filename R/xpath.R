@@ -568,6 +568,11 @@ submit_control_condition <- paste0(
     " = 'submit')) or (local-name(.) = 'input' and (", fold_type,
     " = 'submit' or ", fold_type, " = 'image'))")
 
+# An enclosing <form>, matched by local-name() for the same reason
+# disabled_by_fieldset above is. The ancestor axis is a reverse axis, so
+# adding '[1]' to this picks the *nearest* enclosing form
+form_ancestor <- "ancestor::*[local-name() = 'form']"
+
 GenericTranslator <- R6Class("GenericTranslator",
     public = list(
         combinator_mapping = c(" " = "descendant",
@@ -1594,15 +1599,15 @@ HTMLTranslator <- R6Class("HTMLTranslator",
         # identity is tested the classic XPath 1.0 way instead: two
         # single-node node-sets denote the same node exactly when their
         # union still has one member (a distinct pair unions to two).
-        # "ancestor::form and" guards the degenerate case of a submit
-        # control with no enclosing form, where the right-hand node-set
-        # is empty and the union would otherwise vacuously equal ".", by
-        # requiring a form ancestor to exist before the count comparison
-        # is trusted
+        # The leading form_ancestor test guards the degenerate case of
+        # a submit control with no enclosing form, where the right-hand
+        # node-set is empty and the union would otherwise vacuously
+        # equal ".", by requiring a form ancestor to exist before the
+        # count comparison is trusted
         xpath_default_pseudo = function(xpath) {
             first_submit <- paste0(
-                "ancestor::form and count(. | ancestor::form[1]/descendant::*[",
-                submit_control_condition, "][1]) = 1")
+                form_ancestor, " and count(. | ", form_ancestor,
+                "[1]/descendant::*[", submit_control_condition, "][1]) = 1")
             add_disjunction(xpath, list(
                 list(element = "option", condition = "@selected"),
                 list(element = "input",
