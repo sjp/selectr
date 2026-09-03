@@ -2,20 +2,19 @@ test_that("xml lang function matches correct elements", {
     xmlLangText <- fixture_xmllang()
 
     skip_if_not_installed("xml2")
-    library(xml2)
-    xmldoc <- read_xml(xmlLangText)
+    xmldoc <- xml2::read_xml(xmlLangText)
     gt <- GenericTranslator$new()
 
     pid <- function(selector) {
         xpath <- gt$css_to_xpath(selector)
-        items <- xml_find_all(xmldoc, xpath)
+        items <- xml2::xml_find_all(xmldoc, xpath)
         n <- length(items)
         if (!n)
             return(NULL)
         result <- character(n)
         for (i in seq_len(n)) {
             element <- items[[i]]
-            tmp <- xml_attrs(element)["id"]
+            tmp <- xml2::xml_attrs(element)["id"]
             if (is.null(tmp))
                 tmp <- "nil"
             result[i] <- tmp

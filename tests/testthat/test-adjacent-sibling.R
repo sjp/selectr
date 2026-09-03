@@ -62,30 +62,29 @@ test_that("adjacent sibling combinator generates simplified XPath", {
 
 test_that("adjacent sibling combinator works correctly with querySelector", {
     skip_if_not_installed("XML")
-    library(XML)
 
     # Test with immediate adjacent siblings
-    doc1 <- htmlParse('<html><body><a id="a1">A</a><b id="b1">B</b></body></html>')
+    doc1 <- XML::htmlParse('<html><body><a id="a1">A</a><b id="b1">B</b></body></html>')
     results1 <- querySelectorAll(doc1, "a + b")
     expect_equal(length(results1), 1)
-    expect_equal(xmlGetAttr(results1[[1]], "id"), "b1")
+    expect_equal(XML::xmlGetAttr(results1[[1]], "id"), "b1")
 
     # Test with intervening element (should NOT match)
-    doc2 <- htmlParse('<html><body><a id="a1">A</a><c>C</c><b id="b1">B</b></body></html>')
+    doc2 <- XML::htmlParse('<html><body><a id="a1">A</a><c>C</c><b id="b1">B</b></body></html>')
     results2 <- querySelectorAll(doc2, "a + b")
     expect_equal(length(results2), 0)
 
     # Test with attributes on right side
-    doc3 <- htmlParse('<html><body>
+    doc3 <- XML::htmlParse('<html><body>
         <a>Link1</a><b id="b1">B1</b>
         <a>Link2</a><b>B2</b>
     </body></html>')
     results3 <- querySelectorAll(doc3, "a + b[id]")
     expect_equal(length(results3), 1)
-    expect_equal(xmlGetAttr(results3[[1]], "id"), "b1")
+    expect_equal(XML::xmlGetAttr(results3[[1]], "id"), "b1")
 
     # Test with classes on both sides
-    doc4 <- htmlParse('<html><body>
+    doc4 <- XML::htmlParse('<html><body>
         <a class="link">Link</a><b class="text">B1</b>
         <a>Link2</a><b class="text">B2</b>
     </body></html>')
@@ -93,22 +92,21 @@ test_that("adjacent sibling combinator works correctly with querySelector", {
     expect_equal(length(results4), 1)
 
     # Test with multiple adjacent pairs
-    doc5 <- htmlParse('<html><body>
+    doc5 <- XML::htmlParse('<html><body>
         <a>A1</a><b id="b1">B1</b>
         <a>A2</a><b id="b2">B2</b>
     </body></html>')
     results5 <- querySelectorAll(doc5, "a + b")
     expect_equal(length(results5), 2)
-    expect_equal(xmlGetAttr(results5[[1]], "id"), "b1")
-    expect_equal(xmlGetAttr(results5[[2]], "id"), "b2")
+    expect_equal(XML::xmlGetAttr(results5[[1]], "id"), "b1")
+    expect_equal(XML::xmlGetAttr(results5[[2]], "id"), "b2")
 })
 
 test_that("adjacent sibling maintains correct semantics", {
     skip_if_not_installed("XML")
-    library(XML)
 
     # Verify it only matches IMMEDIATE adjacent siblings
-    doc <- htmlParse('<html><body>
+    doc <- XML::htmlParse('<html><body>
         <section>
             <h1>Title</h1>
             <p id="p1">Immediate</p>
@@ -123,26 +121,26 @@ test_that("adjacent sibling maintains correct semantics", {
 
     results <- querySelectorAll(doc, "h1 + p, h2 + p")
     expect_equal(length(results), 2)
-    ids <- sapply(results, xmlGetAttr, "id")
+    ids <- sapply(results, XML::xmlGetAttr, "id")
     expect_true("p1" %in% ids)
     expect_true("p3" %in% ids)
     expect_false("p2" %in% ids)
 
     # Test that it respects element type
-    doc2 <- htmlParse('<html><body>
+    doc2 <- XML::htmlParse('<html><body>
         <a>Link</a><b>B</b><c>C</c>
     </body></html>')
 
     results_b <- querySelectorAll(doc2, "a + b")
     expect_equal(length(results_b), 1)
-    expect_equal(xmlName(results_b[[1]]), "b")
+    expect_equal(XML::xmlName(results_b[[1]]), "b")
 
     results_c <- querySelectorAll(doc2, "a + c")
     expect_equal(length(results_c), 0) # c is not immediately after a
 
     results_star <- querySelectorAll(doc2, "a + *")
     expect_equal(length(results_star), 1)
-    expect_equal(xmlName(results_star[[1]]), "b")
+    expect_equal(XML::xmlName(results_star[[1]]), "b")
 })
 
 test_that("adjacent sibling with pseudo-classes", {

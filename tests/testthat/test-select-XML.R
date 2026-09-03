@@ -2,18 +2,17 @@ test_that("selection works correctly on a large barrage of tests", {
     HTML_IDS <- fixture_html_ids()
 
     skip_if_not_installed("XML")
-    library(XML)
-    document <- xmlRoot(xmlParse(HTML_IDS))
+    document <- XML::xmlRoot(XML::xmlParse(HTML_IDS))
     gt <- GenericTranslator$new()
     ht <- HTMLTranslator$new()
 
     select_ids <- function(selector, html_only) {
         if (html_only) {
             xpath <- ht$css_to_xpath(selector)
-            items <- getNodeSet(document, xpath)
+            items <- XML::getNodeSet(document, xpath)
         } else {
             xpath <- gt$css_to_xpath(selector)
-            items <- getNodeSet(document, xpath)
+            items <- XML::getNodeSet(document, xpath)
         }
         n <- length(items)
         if (!n)
@@ -21,7 +20,7 @@ test_that("selection works correctly on a large barrage of tests", {
         result <- character(n)
         for (i in seq_len(n)) {
             element <- items[[i]]
-            tmp <- xmlAttrs(element)["id"]
+            tmp <- XML::xmlAttrs(element)["id"]
             if (is.null(tmp))
                 tmp <- "nil"
             result[i] <- tmp

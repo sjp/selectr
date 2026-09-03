@@ -7,7 +7,7 @@ test_that("querySelector methods present an error on non-XML/xml2 objects", {
 
 test_that("an R-level XML tree is reported as one, not as a foreign object", {
     skip_if_not_installed("XML")
-    # xmlTreeParse() and htmlTreeParse() build a tree of R lists rather
+    # XML::xmlTreeParse() and XML::htmlTreeParse() build a tree of R lists rather
     # than the internal document XPath needs, so the default method's
     # "not an 'XML' ... document" would describe the wrong problem
     tree <- XML::xmlTreeParse("<a><b/></a>", asText = TRUE)

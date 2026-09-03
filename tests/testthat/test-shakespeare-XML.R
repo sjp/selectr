@@ -2,14 +2,13 @@ test_that("selection works correctly on a shakespearean document", {
     HTML_SHAKESPEARE <- fixture_html_shakespeare()
 
     skip_if_not_installed("XML")
-    library(XML)
-    document <- xmlRoot(htmlParse(HTML_SHAKESPEARE))
-    body <- getNodeSet(document, "//body")[[1]]
+    document <- XML::xmlRoot(XML::htmlParse(HTML_SHAKESPEARE))
+    body <- XML::getNodeSet(document, "//body")[[1]]
     gt <- GenericTranslator$new()
 
     count <- function(selector) {
         xpath <- gt$css_to_xpath(selector)
-        results <- getNodeSet(body, xpath)
+        results <- XML::getNodeSet(body, xpath)
         length(results)
     }
 

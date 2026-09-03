@@ -65,7 +65,6 @@ test_that("a non-leading :scope is rejected", {
 
 test_that(":scope works correctly with XML documents", {
     skip_if_not_installed("XML")
-    library(XML)
 
     xml <- paste0(
         '<root>',
@@ -78,12 +77,12 @@ test_that(":scope works correctly with XML documents", {
         '</root>'
     )
 
-    doc <- xmlParse(xml)
-    section <- getNodeSet(doc, "//section")[[1]]
+    doc <- XML::xmlParse(xml)
+    section <- XML::getNodeSet(doc, "//section")[[1]]
 
     get_ids <- function(node, css) {
         results <- querySelectorAll(node, css)
-        sapply(results, function(x) xmlGetAttr(x, "id"))
+        sapply(results, function(x) XML::xmlGetAttr(x, "id"))
     }
 
     # Only the children of the queried node, not all descendants and
@@ -101,7 +100,7 @@ test_that(":scope works correctly with XML documents", {
 
     # A bare :scope matches the queried node itself
     scope <- querySelector(section, ":scope")
-    expect_equal(xmlGetAttr(scope, "id"), "s1")
+    expect_equal(XML::xmlGetAttr(scope, "id"), "s1")
 
     # A :scope constrained by other simple selectors only matches if
     # the queried node does
@@ -118,14 +117,13 @@ test_that(":scope works correctly with XML documents", {
     expect_equal(get_ids(doc, ":scope > section"),
                  "s1")
     root <- querySelector(doc, ":scope")
-    expect_equal(xmlName(root), "root")
+    expect_equal(XML::xmlName(root), "root")
     expect_equal(length(querySelectorAll(doc, ":scope > root")),
                  0)
 })
 
 test_that(":scope works correctly with xml2 documents", {
     skip_if_not_installed("xml2")
-    library(xml2)
 
     xml <- paste0(
         '<root>',
@@ -138,12 +136,12 @@ test_that(":scope works correctly with xml2 documents", {
         '</root>'
     )
 
-    doc <- read_xml(xml)
-    section <- xml_find_first(doc, "//section")
+    doc <- xml2::read_xml(xml)
+    section <- xml2::xml_find_first(doc, "//section")
 
     get_ids <- function(node, css) {
         results <- querySelectorAll(node, css)
-        xml_attr(results, "id")
+        xml2::xml_attr(results, "id")
     }
 
     # Only the children of the queried node, not all descendants and
@@ -161,7 +159,7 @@ test_that(":scope works correctly with xml2 documents", {
 
     # A bare :scope matches the queried node itself
     scope <- querySelector(section, ":scope")
-    expect_equal(xml_attr(scope, "id"), "s1")
+    expect_equal(xml2::xml_attr(scope, "id"), "s1")
 
     # A :scope constrained by other simple selectors only matches if
     # the queried node does
@@ -175,7 +173,7 @@ test_that(":scope works correctly with xml2 documents", {
     expect_equal(get_ids(doc, ":scope > section"),
                  "s1")
     root <- querySelector(doc, ":scope")
-    expect_equal(xml_name(root), "root")
+    expect_equal(xml2::xml_name(root), "root")
     expect_equal(length(querySelectorAll(doc, ":scope > root")),
                  0)
 })

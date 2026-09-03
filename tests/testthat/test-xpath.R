@@ -221,8 +221,7 @@ test_that("HTML translator handles :lang() extended-filtering wildcards", {
 
 test_that("HTML :lang() extended wildcards match the right elements", {
     skip_if_not_installed("xml2")
-    library(xml2)
-    doc <- read_xml(paste0(
+    doc <- xml2::read_xml(paste0(
         "<html>",
         "<a lang='fr-CH'/>",       # ch subtag    -> :lang(*-CH)
         "<b lang='de-CH-1996'/>",  # ch subtag    -> :lang(*-CH)
@@ -233,8 +232,8 @@ test_that("HTML :lang() extended wildcards match the right elements", {
         "<g lang='de-CH'/>",       # ch subtag, but no later de -> :lang(*-CH) only
         "</html>"))
     ids <- function(css) {
-        nodes <- xml_find_all(doc, css_to_xpath(css, translator = "html"))
-        paste(xml_name(nodes), collapse = ",")
+        nodes <- xml2::xml_find_all(doc, css_to_xpath(css, translator = "html"))
+        paste(xml2::xml_name(nodes), collapse = ",")
     }
     # every element carrying a "ch" subtag, in any position
     expect_equal(ids(":lang(*-CH)"), "a,b,d,f,g")
@@ -246,13 +245,12 @@ test_that("HTML :lang() extended wildcards match the right elements", {
 
 test_that("HTML :lang() applies extended filtering to exact multi-subtag ranges", {
     skip_if_not_installed("xml2")
-    library(xml2)
     # A range with no literal '*' but more than one subtag is still RFC
     # 4647 extended filtering, not a plain prefix test: any subtag may
     # be skipped between the ones named.
-    doc <- read_xml('<a lang="de-Latn-DE">x</a>')
+    doc <- xml2::read_xml('<a lang="de-Latn-DE">x</a>')
     xp <- css_to_xpath("*:lang(de-DE)", translator = "html")
-    expect_equal(xml_name(xml_find_all(doc, xp)), "a")
+    expect_equal(xml2::xml_name(xml2::xml_find_all(doc, xp)), "a")
 
     # A single subtag (with or without a trailing wildcard) is
     # unaffected: still a plain prefix test, so both translate to the
@@ -264,40 +262,38 @@ test_that("HTML :lang() applies extended filtering to exact multi-subtag ranges"
 
 test_that("generic translator's :lang() stays Selectors 3 prefix matching", {
     skip_if_not_installed("xml2")
-    library(xml2)
     # Unlike the html/xhtml translators, the generic translator has no
     # lang-attribute to walk by hand, so a multi-subtag exact range
     # still does a plain |=-style prefix match: it does not skip
     # subtags the way RFC 4647 extended filtering requires.
-    doc <- read_xml('<a xml:lang="de-Latn-DE">x</a>')
+    doc <- xml2::read_xml('<a xml:lang="de-Latn-DE">x</a>')
     xp <- css_to_xpath("*:lang(de-DE)")
-    expect_length(xml_find_all(doc, xp), 0)
+    expect_length(xml2::xml_find_all(doc, xp), 0)
 })
 
 test_that(':lang("") matches elements with no tagged language', {
     skip_if_not_installed("xml2")
-    library(xml2)
     # The document element itself carries no lang/xml:lang either, so
     # it counts as "not tagged" too, along with <a> (explicitly reset)
     # and <b> (never had one); <c> and its child <c1> both inherit a
     # real language and must not match.
-    doc <- read_xml(paste0(
+    doc <- xml2::read_xml(paste0(
         '<r>',
         '<a lang="">untagged-by-reset</a>',
         '<b>never-tagged</b>',
         '<c lang="en"><c1/></c>',            # inherits a real language
         '</r>'))
     xp <- css_to_xpath('*:lang("")', translator = "html")
-    expect_equal(xml_name(xml_find_all(doc, xp)), c("r", "a", "b"))
+    expect_equal(xml2::xml_name(xml2::xml_find_all(doc, xp)), c("r", "a", "b"))
 
-    generic <- read_xml(paste0(
+    generic <- xml2::read_xml(paste0(
         '<r>',
         '<a xml:lang="">untagged-by-reset</a>',
         '<b>never-tagged</b>',
         '<c xml:lang="en"><c1/></c>',
         '</r>'))
     xp2 <- css_to_xpath('*:lang("")')
-    expect_equal(xml_name(xml_find_all(generic, xp2)), c("r", "a", "b"))
+    expect_equal(xml2::xml_name(xml2::xml_find_all(generic, xp2)), c("r", "a", "b"))
 })
 
 test_that("generic translator rejects :lang() non-trailing wildcards", {
@@ -322,12 +318,11 @@ test_that("generic translator rejects :lang() non-trailing wildcards", {
 
 test_that(":lang(*) only matches elements with a known language", {
     skip_if_not_installed("xml2")
-    library(xml2)
     # The bare wildcard means "the language is known", not "always
     # true": an element with no language in its ancestry, or one whose
     # nearest declaration resets the language to unknown with an empty
     # value, must not match.
-    generic <- read_xml(paste0(
+    generic <- xml2::read_xml(paste0(
         "<r>",
         "<a/>",                                    # no language at all
         "<b xml:lang='en'><b1/></b>",              # declared, inherited
@@ -335,10 +330,10 @@ test_that(":lang(*) only matches elements with a known language", {
         "<d xml:lang='en'><d1 xml:lang=''/></d>",  # d1's nearest resets
         "</r>"))
     expect_equal(
-        xml_name(xml_find_all(generic, css_to_xpath(":lang(*)"))),
+        xml2::xml_name(xml2::xml_find_all(generic, css_to_xpath(":lang(*)"))),
         c("b", "b1", "d"))
 
-    html <- read_xml(paste0(
+    html <- xml2::read_xml(paste0(
         "<html>",
         "<a/>",
         "<b lang='en'><b1/></b>",
@@ -346,7 +341,7 @@ test_that(":lang(*) only matches elements with a known language", {
         "<d lang='en'><d1 lang=''/></d>",          # d1's nearest resets
         "</html>"))
     expect_equal(
-        xml_name(xml_find_all(
+        xml2::xml_name(xml2::xml_find_all(
             html, css_to_xpath(":lang(*)", translator = "html"))),
         c("b", "b1", "d"))
 })

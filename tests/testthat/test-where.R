@@ -47,7 +47,6 @@ test_that(":where() generates correct XPath", {
 
 test_that(":where() works correctly with XML documents", {
     skip_if_not_installed("XML")
-    library(XML)
 
     html <- paste0(
         '<root>',
@@ -62,11 +61,11 @@ test_that(":where() works correctly with XML documents", {
         '</root>'
     )
 
-    doc <- xmlRoot(xmlParse(html))
+    doc <- XML::xmlRoot(XML::xmlParse(html))
 
     get_ids <- function(css) {
         results <- querySelectorAll(doc, css)
-        sapply(results, function(x) xmlGetAttr(x, "id"))
+        sapply(results, function(x) XML::xmlGetAttr(x, "id"))
     }
 
     # Elements matching div OR p (via :where)
@@ -97,7 +96,6 @@ test_that(":where() works correctly with XML documents", {
 
 test_that(":where() works correctly with xml2 documents", {
     skip_if_not_installed("xml2")
-    library(xml2)
 
     html <- paste0(
         '<root>',
@@ -112,11 +110,11 @@ test_that(":where() works correctly with xml2 documents", {
         '</root>'
     )
 
-    doc <- read_xml(html)
+    doc <- xml2::read_xml(html)
 
     get_ids <- function(css) {
         results <- querySelectorAll(doc, css)
-        xml_attr(results, "id")
+        xml2::xml_attr(results, "id")
     }
 
     # Elements matching div OR p (via :where)
@@ -147,7 +145,6 @@ test_that(":where() works correctly with xml2 documents", {
 
 test_that(":where() has zero specificity", {
     skip_if_not_installed("XML")
-    library(XML)
 
     html <- paste0(
         '<root>',
@@ -155,7 +152,7 @@ test_that(":where() has zero specificity", {
         '</root>'
     )
 
-    doc <- xmlRoot(xmlParse(html))
+    doc <- XML::xmlRoot(XML::xmlParse(html))
 
     # All of these should match the same element
     # :where() doesn't add specificity regardless of what's inside
@@ -170,11 +167,10 @@ test_that(":where() has zero specificity", {
 
 test_that(":where() handles edge cases correctly", {
     skip_if_not_installed("XML")
-    library(XML)
 
     # Empty document case
     html1 <- '<root></root>'
-    doc1 <- xmlRoot(xmlParse(html1))
+    doc1 <- XML::xmlRoot(XML::xmlParse(html1))
     expect_equal(length(querySelectorAll(doc1, "*:where(div)")), 0)
 
     # Multiple classes
@@ -185,7 +181,7 @@ test_that(":where() handles edge cases correctly", {
         '  <div id="d3" class="bar">C</div>',
         '</root>'
     )
-    doc2 <- xmlRoot(xmlParse(html2))
+    doc2 <- XML::xmlRoot(XML::xmlParse(html2))
 
     # Divs with foo OR bar class
     result <- querySelectorAll(doc2, "div:where(.foo, .bar)")
@@ -193,7 +189,7 @@ test_that(":where() handles edge cases correctly", {
 
     # :where() with universal selector inside
     html4 <- '<root><div id="d1"/><p id="p1"/><span id="s1"/></root>'
-    doc4 <- xmlRoot(xmlParse(html4))
+    doc4 <- XML::xmlRoot(XML::xmlParse(html4))
 
     # This matches elements that are any type (essentially all elements plus root)
     result3 <- querySelectorAll(doc4, "*:where(*)")
@@ -203,7 +199,6 @@ test_that(":where() handles edge cases correctly", {
 
 test_that(":where() works with querySelector (returns first match)", {
     skip_if_not_installed("xml2")
-    library(xml2)
 
     html <- paste0(
         '<root>',
@@ -213,15 +208,15 @@ test_that(":where() works with querySelector (returns first match)", {
         '</root>'
     )
 
-    doc <- read_xml(html)
+    doc <- xml2::read_xml(html)
 
     # Should return first element with class foo
     result <- querySelector(doc, "*:where(.foo)")
-    expect_equal(xml_attr(result, "id"), "d1")
+    expect_equal(xml2::xml_attr(result, "id"), "d1")
 
     # Should return first div or p
     result2 <- querySelector(doc, "*:where(div, p)")
-    expect_equal(xml_attr(result2, "id"), "d1")
+    expect_equal(xml2::xml_attr(result2, "id"), "d1")
 
     # Should return NULL when no match
     result_none <- querySelector(doc, "*:where(article)")
@@ -230,7 +225,6 @@ test_that(":where() works with querySelector (returns first match)", {
 
 test_that(":where() and :is() behave similarly in matching", {
     skip_if_not_installed("XML")
-    library(XML)
 
     html <- paste0(
         '<root>',
@@ -240,11 +234,11 @@ test_that(":where() and :is() behave similarly in matching", {
         '</root>'
     )
 
-    doc <- xmlRoot(xmlParse(html))
+    doc <- XML::xmlRoot(XML::xmlParse(html))
 
     get_ids <- function(css) {
         results <- querySelectorAll(doc, css)
-        sapply(results, function(x) xmlGetAttr(x, "id"))
+        sapply(results, function(x) XML::xmlGetAttr(x, "id"))
     }
 
     # :where() and :is() should match the same elements
@@ -260,7 +254,6 @@ test_that(":where() and :is() behave similarly in matching", {
 
 test_that(":where() can be combined with other selectors", {
     skip_if_not_installed("xml2")
-    library(xml2)
 
     html <- paste0(
         '<root>',
@@ -275,11 +268,11 @@ test_that(":where() can be combined with other selectors", {
         '</root>'
     )
 
-    doc <- read_xml(html)
+    doc <- xml2::read_xml(html)
 
     get_ids <- function(css) {
         results <- querySelectorAll(doc, css)
-        xml_attr(results, "id")
+        xml2::xml_attr(results, "id")
     }
 
     # Descendant combinator: section containing divs or ps

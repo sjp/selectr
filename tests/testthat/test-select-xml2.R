@@ -2,18 +2,17 @@ test_that("selection works correctly on a large barrage of tests", {
     HTML_IDS <- fixture_html_ids()
 
     skip_if_not_installed("xml2")
-    library(xml2)
-    document <- read_xml(HTML_IDS)
+    document <- xml2::read_xml(HTML_IDS)
     gt <- GenericTranslator$new()
     ht <- HTMLTranslator$new()
 
     select_ids <- function(selector, html_only) {
         if (html_only) {
             xpath <- ht$css_to_xpath(selector)
-            items <- xml_find_all(document, xpath)
+            items <- xml2::xml_find_all(document, xpath)
         } else {
             xpath <- gt$css_to_xpath(selector)
-            items <- xml_find_all(document, xpath)
+            items <- xml2::xml_find_all(document, xpath)
         }
         n <- length(items)
         if (!n)
@@ -21,7 +20,7 @@ test_that("selection works correctly on a large barrage of tests", {
         result <- character(n)
         for (i in seq_len(n)) {
             element <- items[[i]]
-            tmp <- xml_attr(element, "id")
+            tmp <- xml2::xml_attr(element, "id")
             if (is.na(tmp))
                 tmp <- "nil"
             result[i] <- tmp
@@ -170,11 +169,10 @@ test_that("selection works correctly on a large barrage of tests", {
 
 test_that("of-type pseudo-classes work on unsafe element names", {
     skip_if_not_installed("xml2")
-    library(xml2)
-    doc <- read_xml(paste0('<r><é id="first"/><b id="b"/>',
+    doc <- xml2::read_xml(paste0('<r><é id="first"/><b id="b"/>',
                            '<é id="second"/><x id="only"/></r>'))
     ids <- function(css) {
-        result <- unlist(lapply(querySelectorAll(doc, css), xml_attr, "id"))
+        result <- unlist(lapply(querySelectorAll(doc, css), xml2::xml_attr, "id"))
         if (is.null(result)) NULL else result
     }
 
@@ -188,10 +186,9 @@ test_that("of-type pseudo-classes work on unsafe element names", {
 
 test_that(":only-child and :only-of-type match the root element", {
     skip_if_not_installed("xml2")
-    library(xml2)
-    doc <- read_xml("<root><a/></root>")
+    doc <- xml2::read_xml("<root><a/></root>")
     count <- function(css)
-        length(xml_find_all(doc, css_to_xpath(css)))
+        length(xml2::xml_find_all(doc, css_to_xpath(css)))
 
     # :only-child is defined as :first-child:last-child, which matches
     # the root element, so :only-child must match it too
@@ -204,8 +201,7 @@ test_that(":only-child and :only-of-type match the root element", {
 
 test_that(":enabled and :disabled match inputs with no type attribute", {
     skip_if_not_installed("xml2")
-    library(xml2)
-    doc <- read_html(paste0('<form>',
+    doc <- xml2::read_html(paste0('<form>',
                             '<input id="plain-disabled" disabled="" />',
                             '<input id="plain-enabled" />',
                             '<input type="hidden" id="hidden-disabled" disabled="" />',
@@ -213,7 +209,7 @@ test_that(":enabled and :disabled match inputs with no type attribute", {
                             '</form>'))
     ids <- function(css) {
         xpath <- css_to_xpath(css, translator = "html")
-        result <- unlist(lapply(xml_find_all(doc, xpath), xml_attr, "id"))
+        result <- unlist(lapply(xml2::xml_find_all(doc, xpath), xml2::xml_attr, "id"))
         if (is.null(result)) NULL else result
     }
 
@@ -225,11 +221,10 @@ test_that(":enabled and :disabled match inputs with no type attribute", {
 
 test_that("form pseudo-classes fold @type case-insensitively", {
     skip_if_not_installed("xml2")
-    library(xml2)
     # type is an enumerated attribute whose keywords match ASCII
     # case-insensitively; an HTML parser preserves the attribute value,
     # so uppercase spellings must still be recognised
-    doc <- read_html(paste0('<form>',
+    doc <- xml2::read_html(paste0('<form>',
                             '<input id="radio-up" type="RADIO" checked="checked" />',
                             '<input id="check-up" type="CheckBox" checked="checked" />',
                             '<input id="hidden-up" type="HIDDEN" disabled="disabled" />',
@@ -239,7 +234,7 @@ test_that("form pseudo-classes fold @type case-insensitively", {
                             '</form>'))
     ids <- function(css) {
         xpath <- css_to_xpath(css, translator = "html")
-        result <- unlist(lapply(xml_find_all(doc, xpath), xml_attr, "id"))
+        result <- unlist(lapply(xml2::xml_find_all(doc, xpath), xml2::xml_attr, "id"))
         if (is.null(result)) NULL else result
     }
 
@@ -253,11 +248,10 @@ test_that("form pseudo-classes fold @type case-insensitively", {
 
 test_that(":disabled/:enabled honour the disabled-fieldset legend carve-out", {
     skip_if_not_installed("xml2")
-    library(xml2)
     # A disabled <fieldset> disables its descendant controls except those
     # inside its first <legend> child. Nested disabled fieldsets still
     # disable a control protected by only one legend
-    doc <- read_html(paste0(
+    doc <- xml2::read_html(paste0(
         '<form>',
         '<fieldset disabled="disabled">',
         '<legend><input id="in-legend" /></legend>',
@@ -274,7 +268,7 @@ test_that(":disabled/:enabled honour the disabled-fieldset legend carve-out", {
         '</form>'))
     ids <- function(css) {
         xpath <- css_to_xpath(css, translator = "html")
-        result <- unlist(lapply(xml_find_all(doc, xpath), xml_attr, "id"))
+        result <- unlist(lapply(xml2::xml_find_all(doc, xpath), xml2::xml_attr, "id"))
         if (is.null(result)) NULL else result
     }
 
@@ -288,11 +282,10 @@ test_that(":disabled/:enabled honour the disabled-fieldset legend carve-out", {
 
 test_that(":disabled/:enabled partition options under a disabled optgroup", {
     skip_if_not_installed("xml2")
-    library(xml2)
     # An <option> is "actually disabled" when its own @disabled is set or
     # when its <optgroup> parent is disabled, so the two pseudo-classes
     # must partition the options
-    doc <- read_html(paste0(
+    doc <- xml2::read_html(paste0(
         '<select>',
         '<optgroup id="off" disabled="disabled">',
         '<option id="in-off">a</option>',
@@ -304,7 +297,7 @@ test_that(":disabled/:enabled partition options under a disabled optgroup", {
         '</select>'))
     ids <- function(css) {
         xpath <- css_to_xpath(css, translator = "html")
-        result <- unlist(lapply(xml_find_all(doc, xpath), xml_attr, "id"))
+        result <- unlist(lapply(xml2::xml_find_all(doc, xpath), xml2::xml_attr, "id"))
         if (is.null(result)) NULL else result
     }
 
@@ -317,13 +310,12 @@ test_that(":disabled/:enabled partition options under a disabled optgroup", {
 
 test_that(":enabled/:disabled cover the form elements and nothing else", {
     skip_if_not_installed("xml2")
-    library(xml2)
     # ':enabled' and ':disabled' partition the elements HTML allows to
     # be "actually disabled" and match nothing outside that set: not
     # hyperlinks (which an early draft made ':enabled', though no
     # browser matches 'a:enabled'), and not the obsolete <command> and
     # <keygen>, which ':checked' ignores as well
-    doc <- read_html(paste0(
+    doc <- xml2::read_html(paste0(
         '<body>',
         '<a id="link" href="#x">a</a>',
         '<form>',
@@ -349,7 +341,7 @@ test_that(":enabled/:disabled cover the form elements and nothing else", {
         '</body>'))
     ids <- function(css) {
         xpath <- css_to_xpath(css, translator = "html")
-        result <- unlist(lapply(xml_find_all(doc, xpath), xml_attr, "id"))
+        result <- unlist(lapply(xml2::xml_find_all(doc, xpath), xml2::xml_attr, "id"))
         if (is.null(result)) NULL else result
     }
 
@@ -376,12 +368,11 @@ test_that(":enabled/:disabled cover the form elements and nothing else", {
 
 test_that("HTML pseudo-classes see elements in the default XHTML namespace", {
     skip_if_not_installed("xml2")
-    library(xml2)
     # The xhtml translator tells its users to write '*|input' rather than
     # 'input' so a type selector matches an element in the default XHTML
     # namespace. The pseudo-class conditions must follow the same rule
     # so a selector that gets the subject right still gets a right answer
-    doc <- read_xml(paste0(
+    doc <- xml2::read_xml(paste0(
         '<html xmlns="http://www.w3.org/1999/xhtml"><body>',
         '<fieldset disabled="">',
         '<legend><input id="protected" /></legend>',
@@ -392,8 +383,8 @@ test_that("HTML pseudo-classes see elements in the default XHTML namespace", {
         '</body></html>'))
     ids <- function(css) {
         xpath <- css_to_xpath(css, translator = "xhtml")
-        result <- unlist(lapply(xml_find_all(doc, xpath, ns = xml_ns(doc)),
-                                 xml_attr, "id"))
+        result <- unlist(lapply(xml2::xml_find_all(doc, xpath, ns = xml2::xml_ns(doc)),
+                                 xml2::xml_attr, "id"))
         if (is.null(result)) NULL else result
     }
 
@@ -405,8 +396,7 @@ test_that("HTML pseudo-classes see elements in the default XHTML namespace", {
 
 test_that("HTML pseudo-classes see elements in a prefix-bound XHTML namespace", {
     skip_if_not_installed("xml2")
-    library(xml2)
-    doc <- read_xml(paste0(
+    doc <- xml2::read_xml(paste0(
         '<h:html xmlns:h="http://www.w3.org/1999/xhtml"><h:body>',
         '<h:select><h:option id="p1" selected="selected">a</h:option></h:select>',
         '<h:a id="lnk" href="x" />',
@@ -414,8 +404,8 @@ test_that("HTML pseudo-classes see elements in a prefix-bound XHTML namespace", 
         '</h:body></h:html>'))
     ids <- function(css) {
         xpath <- css_to_xpath(css, translator = "xhtml")
-        result <- unlist(lapply(xml_find_all(doc, xpath, ns = xml_ns(doc)),
-                                 xml_attr, "id"))
+        result <- unlist(lapply(xml2::xml_find_all(doc, xpath, ns = xml2::xml_ns(doc)),
+                                 xml2::xml_attr, "id"))
         if (is.null(result)) NULL else result
     }
 

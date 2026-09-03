@@ -68,7 +68,6 @@ test_that(":nth-last-child() generates correct XPath", {
 
 test_that(":nth-child() works correctly with XML documents", {
     skip_if_not_installed("XML")
-    library(XML)
 
     html <- paste0(
         '<root>',
@@ -87,11 +86,11 @@ test_that(":nth-child() works correctly with XML documents", {
         '</root>'
     )
 
-    doc <- xmlRoot(xmlParse(html))
+    doc <- XML::xmlRoot(XML::xmlParse(html))
 
     get_ids <- function(css) {
         results <- querySelectorAll(doc, css)
-        sapply(results, function(x) xmlGetAttr(x, "id"))
+        sapply(results, function(x) XML::xmlGetAttr(x, "id"))
     }
 
     # First child
@@ -141,7 +140,6 @@ test_that(":nth-child() works correctly with XML documents", {
 
 test_that(":nth-last-child() works correctly with XML documents", {
     skip_if_not_installed("XML")
-    library(XML)
 
     html <- paste0(
         '<root>',
@@ -160,11 +158,11 @@ test_that(":nth-last-child() works correctly with XML documents", {
         '</root>'
     )
 
-    doc <- xmlRoot(xmlParse(html))
+    doc <- XML::xmlRoot(XML::xmlParse(html))
 
     get_ids <- function(css) {
         results <- querySelectorAll(doc, css)
-        sapply(results, function(x) xmlGetAttr(x, "id"))
+        sapply(results, function(x) XML::xmlGetAttr(x, "id"))
     }
 
     # Last child
@@ -198,7 +196,6 @@ test_that(":nth-last-child() works correctly with XML documents", {
 
 test_that(":nth-child() works correctly with xml2 documents", {
     skip_if_not_installed("xml2")
-    library(xml2)
 
     html <- paste0(
         '<root>',
@@ -217,11 +214,11 @@ test_that(":nth-child() works correctly with xml2 documents", {
         '</root>'
     )
 
-    doc <- read_xml(html)
+    doc <- xml2::read_xml(html)
 
     get_ids <- function(css) {
         results <- querySelectorAll(doc, css)
-        xml_attr(results, "id")
+        xml2::xml_attr(results, "id")
     }
 
     # First child
@@ -247,7 +244,6 @@ test_that(":nth-child() works correctly with xml2 documents", {
 
 test_that(":nth-last-child() works correctly with xml2 documents", {
     skip_if_not_installed("xml2")
-    library(xml2)
 
     html <- paste0(
         '<root>',
@@ -261,11 +257,11 @@ test_that(":nth-last-child() works correctly with xml2 documents", {
         '</root>'
     )
 
-    doc <- read_xml(html)
+    doc <- xml2::read_xml(html)
 
     get_ids <- function(css) {
         results <- querySelectorAll(doc, css)
-        xml_attr(results, "id")
+        xml2::xml_attr(results, "id")
     }
 
     # Last child
@@ -283,7 +279,6 @@ test_that(":nth-last-child() works correctly with xml2 documents", {
 
 test_that(":nth-child() and :nth-last-child() can be combined", {
     skip_if_not_installed("XML")
-    library(XML)
 
     html <- paste0(
         '<root>',
@@ -297,11 +292,11 @@ test_that(":nth-child() and :nth-last-child() can be combined", {
         '</root>'
     )
 
-    doc <- xmlRoot(xmlParse(html))
+    doc <- XML::xmlRoot(XML::xmlParse(html))
 
     get_ids <- function(css) {
         results <- querySelectorAll(doc, css)
-        sapply(results, function(x) xmlGetAttr(x, "id"))
+        sapply(results, function(x) XML::xmlGetAttr(x, "id"))
     }
 
     # Second child AND second from last (middle element in list of 5)
@@ -320,27 +315,26 @@ test_that(":nth-child() and :nth-last-child() can be combined", {
 
 test_that(":nth-child() edge cases", {
     skip_if_not_installed("XML")
-    library(XML)
 
     # Empty list
     html1 <- '<root><ul id="empty"></ul></root>'
-    doc1 <- xmlRoot(xmlParse(html1))
+    doc1 <- XML::xmlRoot(XML::xmlParse(html1))
     expect_equal(length(querySelectorAll(doc1, "li:nth-child(1)")),
                  0)
 
     # Single child
     html2 <- '<root><ul><li id="only">Only</li></ul></root>'
-    doc2 <- xmlRoot(xmlParse(html2))
+    doc2 <- XML::xmlRoot(XML::xmlParse(html2))
 
     # Should match as first child
     result <- querySelectorAll(doc2, "li:nth-child(1)")
     expect_equal(length(result), 1)
-    expect_equal(xmlGetAttr(result[[1]], "id"), "only")
+    expect_equal(XML::xmlGetAttr(result[[1]], "id"), "only")
 
     # Should also match as last child
     result2 <- querySelectorAll(doc2, "li:nth-last-child(1)")
     expect_equal(length(result2), 1)
-    expect_equal(xmlGetAttr(result2[[1]], "id"), "only")
+    expect_equal(XML::xmlGetAttr(result2[[1]], "id"), "only")
 
     # Mixed element types
     html3 <- paste0(
@@ -353,11 +347,11 @@ test_that(":nth-child() edge cases", {
         '  </div>',
         '</root>'
     )
-    doc3 <- xmlRoot(xmlParse(html3))
+    doc3 <- XML::xmlRoot(XML::xmlParse(html3))
 
     get_ids <- function(css) {
         results <- querySelectorAll(doc3, css)
-        sapply(results, function(x) xmlGetAttr(x, "id"))
+        sapply(results, function(x) XML::xmlGetAttr(x, "id"))
     }
 
     # First child (p element that is first child)
@@ -375,7 +369,6 @@ test_that(":nth-child() edge cases", {
 
 test_that(":nth-child() with querySelector returns first match", {
     skip_if_not_installed("xml2")
-    library(xml2)
 
     html <- paste0(
         '<root>',
@@ -390,20 +383,19 @@ test_that(":nth-child() with querySelector returns first match", {
         '</root>'
     )
 
-    doc <- read_xml(html)
+    doc <- xml2::read_xml(html)
 
     # Should return first element that's a first child (li1)
     result <- querySelector(doc, "li:nth-child(1)")
-    expect_equal(xml_attr(result, "id"), "li1")
+    expect_equal(xml2::xml_attr(result, "id"), "li1")
 
     # Should return first element that's a second child (li2)
     result2 <- querySelector(doc, "li:nth-child(2)")
-    expect_equal(xml_attr(result2, "id"), "li2")
+    expect_equal(xml2::xml_attr(result2, "id"), "li2")
 })
 
 test_that(":nth-child() with different element types", {
     skip_if_not_installed("XML")
-    library(XML)
 
     # Test that :nth-child counts all siblings, not just same type
     html <- paste0(
@@ -417,11 +409,11 @@ test_that(":nth-child() with different element types", {
         '</root>'
     )
 
-    doc <- xmlRoot(xmlParse(html))
+    doc <- XML::xmlRoot(XML::xmlParse(html))
 
     get_ids <- function(css) {
         results <- querySelectorAll(doc, css)
-        sapply(results, function(x) xmlGetAttr(x, "id"))
+        sapply(results, function(x) XML::xmlGetAttr(x, "id"))
     }
 
     # p:nth-child(2) - p that is 2nd child (p1)
@@ -443,7 +435,6 @@ test_that(":nth-child() with different element types", {
 
 test_that(":nth-child() with complex selectors", {
     skip_if_not_installed("xml2")
-    library(xml2)
 
     html <- paste0(
         '<root>',
@@ -455,11 +446,11 @@ test_that(":nth-child() with complex selectors", {
         '</root>'
     )
 
-    doc <- read_xml(html)
+    doc <- xml2::read_xml(html)
 
     get_ids <- function(css) {
         results <- querySelectorAll(doc, css)
-        xml_attr(results, "id")
+        xml2::xml_attr(results, "id")
     }
 
     # Class selector with :nth-child
@@ -481,7 +472,6 @@ test_that(":nth-child() with complex selectors", {
 
 test_that(":nth-child() early-exit condition 1: a=1, b-1<=0 (matches all)", {
     skip_if_not_installed("XML")
-    library(XML)
 
     html <- paste0(
         '<root>',
@@ -494,11 +484,11 @@ test_that(":nth-child() early-exit condition 1: a=1, b-1<=0 (matches all)", {
         '</root>'
     )
 
-    doc <- xmlRoot(xmlParse(html))
+    doc <- XML::xmlRoot(XML::xmlParse(html))
 
     get_ids <- function(css) {
         results <- querySelectorAll(doc, css)
-        sapply(results, function(x) xmlGetAttr(x, "id"))
+        sapply(results, function(x) XML::xmlGetAttr(x, "id"))
     }
 
     # :nth-child(n) -> a=1, b=0, b-1=-1<=0 -> matches all
@@ -528,7 +518,6 @@ test_that(":nth-child() early-exit condition 1: a=1, b-1<=0 (matches all)", {
 
 test_that(":nth-child() early-exit condition 1 with selector list", {
     skip_if_not_installed("xml2")
-    library(xml2)
 
     html <- paste0(
         '<root>',
@@ -541,11 +530,11 @@ test_that(":nth-child() early-exit condition 1 with selector list", {
         '</root>'
     )
 
-    doc <- read_xml(html)
+    doc <- xml2::read_xml(html)
 
     get_ids <- function(css) {
         results <- querySelectorAll(doc, css)
-        xml_attr(results, "id")
+        xml2::xml_attr(results, "id")
     }
 
     # :nth-child(n of .item) -> a=1, b=0 -> but filtered by .item
@@ -563,7 +552,6 @@ test_that(":nth-child() early-exit condition 1 with selector list", {
 
 test_that(":nth-last-child() early-exit condition 1: a=1, b-1<=0", {
     skip_if_not_installed("XML")
-    library(XML)
 
     html <- paste0(
         '<root>',
@@ -575,11 +563,11 @@ test_that(":nth-last-child() early-exit condition 1: a=1, b-1<=0", {
         '</root>'
     )
 
-    doc <- xmlRoot(xmlParse(html))
+    doc <- XML::xmlRoot(XML::xmlParse(html))
 
     get_ids <- function(css) {
         results <- querySelectorAll(doc, css)
-        sapply(results, function(x) xmlGetAttr(x, "id"))
+        sapply(results, function(x) XML::xmlGetAttr(x, "id"))
     }
 
     # :nth-last-child(n) -> a=1, b=0, b-1=-1<=0 -> matches all
@@ -597,7 +585,6 @@ test_that(":nth-last-child() early-exit condition 1: a=1, b-1<=0", {
 
 test_that(":nth-child() early-exit condition 2: a<0, b-1<0 (matches none)", {
     skip_if_not_installed("XML")
-    library(XML)
 
     html <- paste0(
         '<root>',
@@ -609,7 +596,7 @@ test_that(":nth-child() early-exit condition 2: a<0, b-1<0 (matches none)", {
         '</root>'
     )
 
-    doc <- xmlRoot(xmlParse(html))
+    doc <- XML::xmlRoot(XML::xmlParse(html))
 
     # :nth-child(-n) -> a=-1, b=0, b-1=-1<0 -> impossible, matches none
     expect_equal(length(querySelectorAll(doc, "li:nth-child(-n)")),
@@ -634,18 +621,16 @@ test_that(":nth-child() early-exit condition 2: a<0, b-1<0 (matches none)", {
 
 test_that(":nth-child(0) uses the same early-exit form as :nth-child(-n)", {
     skip_if_not_installed("xml2")
-    library(xml2)
     # a=0, b=0, b-1=-1<0: an impossible count, just like a<0/b-1<0. Both
     # should produce the tidy "[0]" early exit rather than an always-false
     # "count(...) = -1" comparison built from the literal b-1
     expect_equal(css_to_xpath("li:nth-child(0)"), css_to_xpath("li:nth-child(-n)"))
-    expect_equal(length(querySelectorAll(read_xml(
+    expect_equal(length(querySelectorAll(xml2::read_xml(
         "<root><li/><li/></root>"), "li:nth-child(0)")), 0)
 })
 
 test_that(":nth-child() early-exit condition 2 with selector list", {
     skip_if_not_installed("xml2")
-    library(xml2)
 
     html <- paste0(
         '<root>',
@@ -656,7 +641,7 @@ test_that(":nth-child() early-exit condition 2 with selector list", {
         '</root>'
     )
 
-    doc <- read_xml(html)
+    doc <- xml2::read_xml(html)
 
     # :nth-child(-n of .item) -> a=-1, b=0 -> impossible even with selector
     expect_equal(length(querySelectorAll(doc, "li:nth-child(-n of .item)")),
@@ -674,7 +659,6 @@ test_that(":nth-child() early-exit condition 2 with selector list", {
 
 test_that(":nth-last-child() early-exit condition 2: a<0, b-1<0", {
     skip_if_not_installed("XML")
-    library(XML)
 
     html <- paste0(
         '<root>',
@@ -686,7 +670,7 @@ test_that(":nth-last-child() early-exit condition 2: a<0, b-1<0", {
         '</root>'
     )
 
-    doc <- xmlRoot(xmlParse(html))
+    doc <- XML::xmlRoot(XML::xmlParse(html))
 
     # :nth-last-child(-n) -> a=-1, b=0, b-1=-1<0 -> impossible
     expect_equal(length(querySelectorAll(doc, "li:nth-last-child(-n)")),
@@ -703,7 +687,6 @@ test_that(":nth-last-child() early-exit condition 2: a<0, b-1<0", {
 
 test_that(":nth-child() boundary between early-exit conditions", {
     skip_if_not_installed("xml2")
-    library(xml2)
 
     html <- paste0(
         '<root>',
@@ -715,11 +698,11 @@ test_that(":nth-child() boundary between early-exit conditions", {
         '</root>'
     )
 
-    doc <- read_xml(html)
+    doc <- xml2::read_xml(html)
 
     get_ids <- function(css) {
         results <- querySelectorAll(doc, css)
-        xml_attr(results, "id")
+        xml2::xml_attr(results, "id")
     }
 
     # :nth-child(-n+0) -> a=-1, b=0, b-1=-1 -> NOT early-exit (b-1<0 but a<0 not b-1<0)
@@ -782,9 +765,6 @@ test_that("large An+B values select the right nodes", {
     skip_if_not_installed("XML")
     skip_if_not_installed("xml2")
 
-    library(XML)
-    library(xml2)
-
     html <- paste0(
         "<root>",
         "  <ul>",
@@ -794,14 +774,14 @@ test_that("large An+B values select the right nodes", {
         "  </ul>",
         "</root>"
     )
-    docs <- list(XML = xmlParse(html), xml2 = read_xml(html))
+    docs <- list(XML = XML::xmlParse(html), xml2 = xml2::read_xml(html))
 
     ids <- function(doc, css) {
         results <- querySelectorAll(doc, css)
         if (inherits(doc, "XMLInternalDocument"))
-            as.character(sapply(results, xmlGetAttr, "id"))
+            as.character(sapply(results, XML::xmlGetAttr, "id"))
         else
-            xml_attr(results, "id")
+            xml2::xml_attr(results, "id")
     }
 
     for (doc in docs) {

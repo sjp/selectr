@@ -132,9 +132,8 @@ test_that(":required and :optional translate from the @required attribute", {
 
 test_that(":required and :optional match form elements correctly", {
     skip_if_not_installed("xml2")
-    library(xml2)
 
-    form <- read_xml(paste0(
+    form <- xml2::read_xml(paste0(
         '<form>',
         '<input id="i1" type="text" required="required"/>',
         '<input id="i2" type="text"/>',
@@ -151,7 +150,7 @@ test_that(":required and :optional match form elements correctly", {
 
     get_ids <- function(css) {
         results <- querySelectorAll(form, css, translator = "html")
-        xml_attr(results, "id")
+        xml2::xml_attr(results, "id")
     }
 
     # Only form elements that can take @required and have it; a hidden
@@ -179,9 +178,8 @@ test_that(paste(":read-write, :read-only, :placeholder-shown and",
 
 test_that(":read-write and :read-only classify editable HTML elements", {
     skip_if_not_installed("xml2")
-    library(xml2)
 
-    doc <- read_xml(paste0(
+    doc <- xml2::read_xml(paste0(
         '<form id="form1">',
         '<input id="i1" type="text"/>',
         '<input id="i2" type="text" readonly="readonly"/>',
@@ -199,7 +197,7 @@ test_that(":read-write and :read-only classify editable HTML elements", {
         '</form>'
     ))
     get_ids <- function(css) {
-        xml_attr(querySelectorAll(doc, css, translator = "html"), "id")
+        xml2::xml_attr(querySelectorAll(doc, css, translator = "html"), "id")
     }
 
     # 'i4' (checkbox) does not support @readonly, so it is neither
@@ -224,9 +222,8 @@ test_that(":read-write and :read-only classify editable HTML elements", {
 
 test_that(":placeholder-shown matches an empty placeholder-bearing control", {
     skip_if_not_installed("xml2")
-    library(xml2)
 
-    doc <- read_xml(paste0(
+    doc <- xml2::read_xml(paste0(
         '<form>',
         '<input id="i1" placeholder="hi" value=""/>',
         '<input id="i2" placeholder="hi" value="filled"/>',
@@ -237,7 +234,7 @@ test_that(":placeholder-shown matches an empty placeholder-bearing control", {
         '</form>'
     ))
     get_ids <- function(css) {
-        xml_attr(querySelectorAll(doc, css, translator = "html"), "id")
+        xml2::xml_attr(querySelectorAll(doc, css, translator = "html"), "id")
     }
 
     expect_equal(get_ids(":placeholder-shown"), c("i1", "i3", "t1"))
@@ -245,9 +242,8 @@ test_that(":placeholder-shown matches an empty placeholder-bearing control", {
 
 test_that(":default matches selected/checked controls and the first submit button", {
     skip_if_not_installed("xml2")
-    library(xml2)
 
-    doc <- read_xml(paste0(
+    doc <- xml2::read_xml(paste0(
         '<div>',
         '<form>',
         '<select><option id="o1"/><option id="o2" selected="selected"/></select>',
@@ -261,7 +257,7 @@ test_that(":default matches selected/checked controls and the first submit butto
         '</div>'
     ))
     get_ids <- function(css) {
-        xml_attr(querySelectorAll(doc, css, translator = "html"), "id")
+        xml2::xml_attr(querySelectorAll(doc, css, translator = "html"), "id")
     }
 
     # 'o2' (selected), 'c1' (checked) and 'b1' (first submit button in
@@ -288,24 +284,22 @@ test_that(":default finds the enclosing form in the XHTML namespace", {
     )
     ns <- c(h = "http://www.w3.org/1999/xhtml")
 
-    library(xml2)
-    doc2 <- read_xml(doc_xml)
+    doc2 <- xml2::read_xml(doc_xml)
     ids2 <- function(css) {
-        xml_attr(querySelectorAll(doc2, css, translator = "xhtml"), "id")
+        xml2::xml_attr(querySelectorAll(doc2, css, translator = "xhtml"), "id")
     }
     # the first submit control of each form, and nothing outside one
     expect_equal(ids2("*|input:default"), "s1")
     expect_equal(ids2("*|button:default"), "b1")
     expect_equal(ids2(":default"), c("s1", "b1"))
-    expect_equal(xml_attr(querySelectorAllNS(doc2, "h|input:default", ns,
+    expect_equal(xml2::xml_attr(querySelectorAllNS(doc2, "h|input:default", ns,
                                              translator = "xhtml"), "id"),
                  "s1")
 
-    library(XML)
-    doc <- xmlParse(doc_xml)
+    doc <- XML::xmlParse(doc_xml)
     ids <- function(css) {
         sapply(querySelectorAllNS(doc, css, ns, translator = "xhtml"),
-               xmlGetAttr, "id")
+               XML::xmlGetAttr, "id")
     }
     expect_equal(ids("h|input:default"), "s1")
     expect_equal(ids("h|button:default"), "b1")
@@ -328,15 +322,13 @@ test_that(":empty keeps the Selectors 3 white space semantics", {
         '</root>'
     )
 
-    library(XML)
-    doc <- xmlRoot(xmlParse(doc_xml))
+    doc <- XML::xmlRoot(XML::xmlParse(doc_xml))
     ids <- sapply(querySelectorAll(doc, "p:empty"),
-                  function(x) xmlGetAttr(x, "id"))
+                  function(x) XML::xmlGetAttr(x, "id"))
     expect_equal(ids, c("truly-empty", "comment"))
 
-    library(xml2)
-    doc2 <- read_xml(doc_xml)
-    expect_equal(xml_attr(querySelectorAll(doc2, "p:empty"), "id"),
+    doc2 <- xml2::read_xml(doc_xml)
+    expect_equal(xml2::xml_attr(querySelectorAll(doc2, "p:empty"), "id"),
                  c("truly-empty", "comment"))
 })
 
@@ -370,7 +362,6 @@ test_that("HTML pseudo-classes prune disjuncts the compound rules out", {
     # 'option' disjunct. Confirm both the shrunk XPath text and that the
     # pruned and unpruned forms select the same nodes
     skip_if_not_installed("xml2")
-    library(xml2)
 
     fold <- paste0("translate(@type, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
                    "'abcdefghijklmnopqrstuvwxyz')")
@@ -388,7 +379,7 @@ test_that("HTML pseudo-classes prune disjuncts the compound rules out", {
                               translator = "html"),
                  "button[0]")
 
-    doc <- read_xml(paste0(
+    doc <- xml2::read_xml(paste0(
         "<form>",
         "<input id='i1' type='checkbox' checked='checked'/>",
         "<option id='o1' selected='selected'>x</option>",
@@ -396,7 +387,7 @@ test_that("HTML pseudo-classes prune disjuncts the compound rules out", {
         "<p id='p1'>z</p>",
         "</form>"))
     get_ids <- function(css) {
-        xml_attr(querySelectorAll(doc, css, translator = "html"), "id")
+        xml2::xml_attr(querySelectorAll(doc, css, translator = "html"), "id")
     }
     expect_equal(get_ids("input:checked"), "i1")
     expect_equal(get_ids("option:checked"), "o1")

@@ -43,9 +43,8 @@ test_that("attribute existence guards are safely omitted", {
     # an element missing the attribute, one with it empty, and one with
     # a near-miss value
     skip_if_not_installed("xml2")
-    library(xml2)
 
-    doc <- read_xml(paste0(
+    doc <- xml2::read_xml(paste0(
         "<r>",
         "<a/>",
         "<b foo=''/>",
@@ -55,7 +54,7 @@ test_that("attribute existence guards are safely omitted", {
         "</r>"))
 
     match_names <- function(css) {
-        xml_name(xml_find_all(doc, css_to_xpath(css)))
+        xml2::xml_name(xml2::xml_find_all(doc, css_to_xpath(css)))
     }
 
     expect_equal(match_names("[foo^=bar]"), c("c", "d"))
@@ -68,9 +67,9 @@ test_that("attribute existence guards are safely omitted", {
 
     # An 'and'-joined dash-match keeps the right precedence without its
     # own parentheses (is_or_group)
-    doc2 <- read_xml("<r><m foo='bar' bar='1'/><n foo='bar'/></r>")
+    doc2 <- xml2::read_xml("<r><m foo='bar' bar='1'/><n foo='bar'/></r>")
     match_names2 <- function(css) {
-        xml_name(xml_find_all(doc2, css_to_xpath(css)))
+        xml2::xml_name(xml2::xml_find_all(doc2, css_to_xpath(css)))
     }
     expect_equal(match_names2("[foo|=bar][bar]"), "m")
     expect_equal(match_names2("[bar][foo|=bar]"), "m")

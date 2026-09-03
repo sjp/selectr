@@ -10,6 +10,9 @@ test_that("every xpath_*_pseudo/_function/_combinator method is on the man/selec
 
     # Kept in sync by hand with man/selectors.Rd; a mismatch here means
     # that page needs a row added (or this list trimmed) for the method.
+    # The page itself is not parsed, so editing one without the other is
+    # what this catches - not a row that says the wrong thing, which the
+    # example expectations below cover instead.
     documented <- c(
         "xpath_active_pseudo", "xpath_any_link_pseudo", "xpath_checked_pseudo",
         "xpath_child_combinator", "xpath_default_pseudo",

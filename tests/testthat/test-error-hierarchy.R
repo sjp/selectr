@@ -74,3 +74,14 @@ test_that("selectr_parse_error is a selectr_error", {
     expect_s3_class(e, "selectr_parse_error")
     expect_s3_class(e, "selectr_error")
 })
+
+test_that("internal_stop() marks a failure as a bug rather than bad input", {
+    # Only reachable from a hand-built (not parser-produced) selector
+    # tree, so it is called directly here to pin the prefix that makes
+    # an escaped invariant recognisable in a bug report
+    e <- tryCatch(selectr:::internal_stop("unknown combinator '%'"),
+                  error = identity)
+    expect_equal(conditionMessage(e),
+                 "internal error, please report: unknown combinator '%'")
+    expect_false(inherits(e, "selectr_error"))
+})

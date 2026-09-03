@@ -77,19 +77,17 @@ test_that(":has() generates correct XPath", {
 
 test_that(":has() union parenthesization matches the same nodes", {
     skip_if_not_installed("xml2")
-    library(xml2)
 
     # g has both an 'h' and a 'k' descendant, so 'g:has(h, i):has(k)'
     # must match it: '(.//h | .//i) and .//k', not './/h | (.//i and
     # .//k)', which the missing parentheses would parse as
-    doc <- read_xml("<r><g><h/><i/><k/></g><j><k/></j></r>")
-    expect_equal(xml_name(querySelectorAll(doc, "g:has(h, i):has(k)")), "g")
+    doc <- xml2::read_xml("<r><g><h/><i/><k/></g><j><k/></j></r>")
+    expect_equal(xml2::xml_name(querySelectorAll(doc, "g:has(h, i):has(k)")), "g")
     expect_equal(length(querySelectorAll(doc, "g:has(z)")), 0)
 })
 
 test_that(":has() with complex arguments matches correctly", {
     skip_if_not_installed("xml2")
-    library(xml2)
 
     # d1 has ul > li; d2 has a li not inside a ul; d3 has nothing but is
     # followed by a sibling ul with a li
@@ -101,9 +99,9 @@ test_that(":has() with complex arguments matches correctly", {
         '  <ul><li/></ul>',
         '</root>'
     )
-    doc <- read_xml(html)
+    doc <- xml2::read_xml(html)
     get_ids <- function(css) {
-        xml_attr(querySelectorAll(doc, css), "id")
+        xml2::xml_attr(querySelectorAll(doc, css), "id")
     }
 
     # descendant chains stay inside the subtree: the sibling ul li
@@ -146,7 +144,6 @@ test_that("nested :has() is rejected", {
 
 test_that(":has() works correctly with XML documents", {
     skip_if_not_installed("XML")
-    library(XML)
 
     # Create test document
     html <- paste0(
@@ -172,12 +169,12 @@ test_that(":has() works correctly with XML documents", {
         '</root>'
     )
 
-    doc <- xmlRoot(xmlParse(html))
+    doc <- XML::xmlRoot(XML::xmlParse(html))
 
     # Helper to get IDs
     get_ids <- function(css) {
         results <- querySelectorAll(doc, css)
-        sapply(results, function(x) xmlGetAttr(x, "id"))
+        sapply(results, function(x) XML::xmlGetAttr(x, "id"))
     }
 
     # Section containing a p element
@@ -220,7 +217,6 @@ test_that(":has() works correctly with XML documents", {
 
 test_that(":has() works correctly with xml2 documents", {
     skip_if_not_installed("xml2")
-    library(xml2)
 
     # Create test document
     html <- paste0(
@@ -246,12 +242,12 @@ test_that(":has() works correctly with xml2 documents", {
         '</root>'
     )
 
-    doc <- read_xml(html)
+    doc <- xml2::read_xml(html)
 
     # Helper to get IDs
     get_ids <- function(css) {
         results <- querySelectorAll(doc, css)
-        xml_attr(results, "id")
+        xml2::xml_attr(results, "id")
     }
 
     # Section containing a p element
@@ -294,16 +290,15 @@ test_that(":has() works correctly with xml2 documents", {
 
 test_that(":has() handles edge cases correctly", {
     skip_if_not_installed("XML")
-    library(XML)
 
     # Empty elements
     html1 <- '<root><div id="d1"></div><div id="d2"><p></p></div></root>'
-    doc1 <- xmlRoot(xmlParse(html1))
+    doc1 <- XML::xmlRoot(XML::xmlParse(html1))
 
     # Only d2 has a p descendant
     result1 <- querySelectorAll(doc1, "div:has(p)")
     expect_equal(length(result1), 1)
-    expect_equal(xmlGetAttr(result1[[1]], "id"), "d2")
+    expect_equal(XML::xmlGetAttr(result1[[1]], "id"), "d2")
 
     # Nested :has()
     html2 <- paste0(
@@ -322,7 +317,7 @@ test_that(":has() handles edge cases correctly", {
         '  </section>',
         '</root>'
     )
-    doc2 <- xmlRoot(xmlParse(html2))
+    doc2 <- XML::xmlRoot(XML::xmlParse(html2))
 
     # Nested :has() is invalid (selectors-4 excludes :has() from its
     # own argument grammar); the descendant form expresses the same match
@@ -330,26 +325,25 @@ test_that(":has() handles edge cases correctly", {
                  "Got nested :has()")
     result2 <- querySelectorAll(doc2, "section:has(div)")
     expect_equal(length(result2), 1)
-    expect_equal(xmlGetAttr(result2[[1]], "id"), "s1")
+    expect_equal(XML::xmlGetAttr(result2[[1]], "id"), "s1")
 
     # Section containing p.highlight
     result3 <- querySelectorAll(doc2, "section:has(p.highlight)")
     expect_equal(length(result3), 1)
-    expect_equal(xmlGetAttr(result3[[1]], "id"), "s1")
+    expect_equal(XML::xmlGetAttr(result3[[1]], "id"), "s1")
 
     # :has() with universal selector
     html3 <- '<root><div id="d1"><span/></div><div id="d2"></div></root>'
-    doc3 <- xmlRoot(xmlParse(html3))
+    doc3 <- XML::xmlRoot(XML::xmlParse(html3))
 
     # Div that has any descendant
     result4 <- querySelectorAll(doc3, "div:has(*)")
     expect_equal(length(result4), 1)
-    expect_equal(xmlGetAttr(result4[[1]], "id"), "d1")
+    expect_equal(XML::xmlGetAttr(result4[[1]], "id"), "d1")
 })
 
 test_that(":has() with leading combinators matches correctly", {
     skip_if_not_installed("xml2")
-    library(xml2)
 
     # d1 has a child img; d2 has only a grandchild img; d3 has none but
     # is followed by a sibling img
@@ -361,10 +355,10 @@ test_that(":has() with leading combinators matches correctly", {
         '  <img id="i3"/>',
         '</root>'
     )
-    doc <- read_xml(html)
+    doc <- xml2::read_xml(html)
     get_ids <- function(css) {
         results <- querySelectorAll(doc, css)
-        xml_attr(results, "id")
+        xml2::xml_attr(results, "id")
     }
 
     # implied descendant: child and grandchild both count
@@ -379,10 +373,10 @@ test_that(":has() with leading combinators matches correctly", {
         '  <a id="a1"/><p id="p1"/><a id="a2"/><b id="b1"/><p id="p2"/>',
         '</root>'
     )
-    doc2 <- read_xml(html2)
+    doc2 <- xml2::read_xml(html2)
     get_ids2 <- function(css) {
         results <- querySelectorAll(doc2, css)
-        xml_attr(results, "id")
+        xml2::xml_attr(results, "id")
     }
 
     # ~ subsequent sibling: both a elements precede a p
@@ -400,10 +394,10 @@ test_that(":has() with leading combinators matches correctly", {
         '  <section><div id="dc"/><p/></section>',
         '</root>'
     )
-    doc3 <- read_xml(html3)
-    ids3 <- xml_attr(querySelectorAll(doc3, "div:has(~ p)"), "id")
+    doc3 <- xml2::read_xml(html3)
+    ids3 <- xml2::xml_attr(querySelectorAll(doc3, "div:has(~ p)"), "id")
     expect_equal(ids3, "dc")
-    ids4 <- xml_attr(querySelectorAll(doc3, "div:has(+ p)"), "id")
+    ids4 <- xml2::xml_attr(querySelectorAll(doc3, "div:has(+ p)"), "id")
     expect_equal(ids4, "dc")
 
     # mixed relative list: child a OR subsequent-sibling p
@@ -412,7 +406,6 @@ test_that(":has() with leading combinators matches correctly", {
 
 test_that(":has() works with querySelector (returns first match)", {
     skip_if_not_installed("xml2")
-    library(xml2)
 
     html <- paste0(
         '<root>',
@@ -422,11 +415,11 @@ test_that(":has() works with querySelector (returns first match)", {
         '</root>'
     )
 
-    doc <- read_xml(html)
+    doc <- xml2::read_xml(html)
 
     # Should return first section with p
     result <- querySelector(doc, "section:has(p)")
-    expect_equal(xml_attr(result, "id"), "s1")
+    expect_equal(xml2::xml_attr(result, "id"), "s1")
 
     # Should return NULL when no match
     result_none <- querySelector(doc, "section:has(article)")
