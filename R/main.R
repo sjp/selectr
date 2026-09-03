@@ -187,6 +187,44 @@ querySelectorAllNS.default <- function(doc, selector, ns,
     argument_stop("The object given to querySelectorAllNS() is not an 'XML' or 'xml2' document or node.")
 }
 
+# XML::xmlTreeParse() and XML::htmlTreeParse() return a tree of R lists
+# rather than a libxml2 document, and XPath can only be evaluated over
+# the latter. Such a tree is an 'XML' document, so the default method's
+# message would send the reader looking for the wrong problem; point at
+# the parsers that give a searchable document instead.
+rLevelTreeStop <- function(fname) {
+    argument_stop("The object given to ", fname, "() is an R-level 'XML' ",
+                  "tree, which cannot be searched with XPath. Re-parse the ",
+                  "document with XML::xmlParse() or XML::htmlParse() ",
+                  "(equivalently, with useInternalNodes = TRUE).")
+}
+
+querySelector.XMLDocumentContent <-
+querySelector.XMLDocument <-
+querySelector.XMLNode <- function(doc, selector, ns = NULL, ...) {
+    rLevelTreeStop("querySelector")
+}
+
+querySelectorAll.XMLDocumentContent <-
+querySelectorAll.XMLDocument <-
+querySelectorAll.XMLNode <- function(doc, selector, ns = NULL, ...) {
+    rLevelTreeStop("querySelectorAll")
+}
+
+querySelectorNS.XMLDocumentContent <-
+querySelectorNS.XMLDocument <-
+querySelectorNS.XMLNode <- function(doc, selector, ns,
+                                    prefix = "descendant-or-self::", ...) {
+    rLevelTreeStop("querySelectorNS")
+}
+
+querySelectorAllNS.XMLDocumentContent <- # nolint: object_length_linter.
+querySelectorAllNS.XMLDocument <-
+querySelectorAllNS.XMLNode <- function(doc, selector, ns,
+                                       prefix = "descendant-or-self::", ...) {
+    rLevelTreeStop("querySelectorAllNS")
+}
+
 # The first step shared by the XML methods below: validate the
 # selector, settle on the translator for the document and translate,
 # and put the namespace object into the form XML::getNodeSet() takes.

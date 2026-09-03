@@ -293,6 +293,81 @@ test_that("parse errors are structured conditions", {
     expect_s3_class(tok, "selectr_parse_error")
 })
 
+test_that("a class selector must be identifier-shaped", {
+    # '.5' tokenizes as a number and '.-5' as a '.' followed by one, so
+    # neither reaches the ident rules; both get the same hint an ID does
+    expect_error(css_to_xpath("div.5"),
+                 "Invalid class selector '.5'; an identifier cannot start with a digit. Escape it: '.\\35 '", # nolint: line_length_linter.
+                 fixed = TRUE, class = "selectr_parse_error")
+    expect_error(css_to_xpath("div.-5"), "Escape it: '.-\\35 '",
+                 fixed = TRUE, class = "selectr_parse_error")
+    expect_error(css_to_xpath(".5"),
+                 "Invalid class selector '.5'; ",
+                 fixed = TRUE, class = "selectr_parse_error")
+    # the caret points at the '.', not at the offending digit
+    expect_equal(tryCatch(css_to_xpath("div .5"), error = identity)$pos, 5)
+    expect_equal(tryCatch(css_to_xpath("div.-5"), error = identity)$pos, 4)
+
+    # a stray number that is not a class name keeps the generic message
+    expect_error(css_to_xpath("div 5"),
+                 "Expected selector, got <NUMBER '5' at 5>", fixed = TRUE)
+    expect_error(css_to_xpath("div.+5"),
+                 "Expected ident, got <NUMBER '+5' at 5>", fixed = TRUE)
+
+    # the escapes the messages suggest are the class names they spell
+    expect_equal(css_to_xpath(".\\35 ", prefix = ""),
+                 "*[contains(concat(' ', normalize-space(@class), ' '), ' 5 ')]")
+    expect_equal(css_to_xpath(".-\\35 ", prefix = ""),
+                 "*[contains(concat(' ', normalize-space(@class), ' '), ' -5 ')]") # nolint: line_length_linter.
+})
+
+test_that("functional pseudo-elements are rejected by name", {
+    # The pseudo-element is at the end of the selector; it is the '('
+    # that is unsupported, so it must not be reported as misplaced
+    expect_error(css_to_xpath("::slotted(x)"),
+                 "The functional pseudo-element ::slotted() is not supported",
+                 fixed = TRUE, class = "selectr_parse_error")
+    expect_error(css_to_xpath("a::part(b)"),
+                 "The functional pseudo-element ::part() is not supported",
+                 fixed = TRUE, class = "selectr_parse_error")
+    # the legacy single-colon spelling of a pseudo-element too
+    expect_error(css_to_xpath("a:before(x)"),
+                 "The functional pseudo-element ::before() is not supported",
+                 fixed = TRUE, class = "selectr_parse_error")
+    # the caret points at the '('
+    expect_equal(tryCatch(css_to_xpath("a::part(b)"), error = identity)$pos, 8)
+
+    # an argument-less pseudo-element still reaches the translator's
+    # "not supported" message, and a misplaced one is still misplaced
+    expect_error(css_to_xpath("a::before"), "Pseudo-elements are not supported",
+                 fixed = TRUE, class = "selectr_translation_error")
+    expect_error(css_to_xpath("a::before:empty"),
+                 "Got pseudo-element ::before not at the end of a selector",
+                 fixed = TRUE, class = "selectr_parse_error")
+})
+
+test_that("an unquoted numeric attribute value names the fix", {
+    expect_error(css_to_xpath("[data-id=1]"),
+                 "Attribute values must be quoted unless they are identifiers: write [data-id=\"1\"]", # nolint: line_length_linter.
+                 fixed = TRUE, class = "selectr_parse_error")
+    # the operator and any namespace prefix are echoed back as given
+    expect_error(css_to_xpath("a[x|data-id^=1.5]"),
+                 "write [x|data-id^=\"1.5\"]",
+                 fixed = TRUE, class = "selectr_parse_error")
+    # the caret points at the value
+    expect_equal(tryCatch(css_to_xpath("[data-id=1]"), error = identity)$pos,
+                 10)
+
+    # a non-numeric value that is neither a string nor an ident keeps
+    # the general message
+    expect_error(css_to_xpath("[foo=#]"),
+                 "Expected string or ident, got <DELIM '#' at 6>", fixed = TRUE)
+
+    # the quoted form the message suggests is what it says it is
+    expect_equal(css_to_xpath("[data-id=\"1\"]", prefix = ""),
+                 "*[@data-id = '1']")
+})
+
 test_that("an ID selector must be identifier-shaped", {
     # Selectors requires the hash of an ID selector to be of type "id",
     # i.e. its name must start an identifier. Browsers throw a

@@ -514,6 +514,29 @@ reject_pseudo_element_not_last <- function(pseudo_element, pos) {
     }
 }
 
+# Rejects '::slotted(x)', '::part(x)' and friends. The pseudo-element is
+# functional rather than merely followed by more of the compound, so
+# reporting it here keeps reject_pseudo_element_not_last() from claiming
+# it is not last when the '(' is read as the next simple selector.
+reject_functional_pseudo_element <- function(name, stream) { # nolint: object_length_linter.
+    peek <- stream$peek()
+    if (token_equality(peek, "DELIM", "("))
+        parse_stop("The functional pseudo-element ::", name,
+                   "() is not supported", pos = peek$pos)
+}
+
+# Rejects a class name that is not identifier-shaped, e.g. '.5'. The
+# tokenizer reads '.5' as a single number and '.-5' as a '.' delimiter
+# followed by one, so neither reaches the ident rules that give '#5' its
+# hint; both spellings are caught by hand at the call sites. Returns
+# without erroring for anything else, leaving the stray-token error to
+# describe it.
+reject_invalid_class <- function(text, pos) {
+    hint <- ident_hint(substring(text, 2), ".")
+    if (!is.null(hint))
+        parse_stop("Invalid class selector '", text, "'; ", hint, pos = pos)
+}
+
 token_equality <- function(token, t, val) {
     if (token$type != t)
         return(FALSE)
@@ -603,6 +626,9 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
             result <- Hash$new(result, stream$nxt()$value)
         } else if (token_equality(peek, "DELIM", ".")) {
             stream$nxt()
+            after_dot <- stream$peek()
+            if (after_dot$type == "NUMBER")
+                reject_invalid_class(paste0(".", after_dot$value), peek$pos)
             result <- ClassSelector$new(result, stream$next_ident())
         } else if (token_equality(peek, "DELIM", "[")) {
             stream$nxt()
@@ -612,6 +638,7 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
             if (token_equality(peek, "DELIM", "::")) {
                 stream$nxt()
                 pseudo_element <- stream$next_ident()
+                reject_functional_pseudo_element(pseudo_element, stream)
                 next
             } else {
                 stream$nxt()
@@ -623,6 +650,7 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                 # Special case: CSS 2.1 pseudo-elements can have a single ':'
                 # Any new pseudo-element must have two.
                 pseudo_element <- ident
+                reject_functional_pseudo_element(ident, stream)
                 next
             }
             if (!token_equality(stream$peek(), "DELIM", "(")) {
@@ -771,6 +799,8 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                                        series = series)
             }
         } else {
+            if (peek$type == "NUMBER" && startsWith(peek$value, "."))
+                reject_invalid_class(peek$value, peek$pos)
             parse_stop("Expected selector, got ", token_repr(stream$peek()),
                        pos = stream$peek()$pos)
         }
@@ -944,6 +974,16 @@ parse_attrib <- function(selector, stream) {
     stream$skip_whitespace()
     value <- stream$nxt()
     if (!value$type %in% c("IDENT", "STRING")) {
+        # An unquoted number is never a valid attribute value, in any
+        # browser either, but it is a common mistake: name the fix
+        # rather than the grammar
+        if (value$type == "NUMBER") {
+            name <- if (is.null(namespace)) attrib
+                    else paste0(namespace, "|", attrib)
+            parse_stop("Attribute values must be quoted unless they are ",
+                       "identifiers: write [", name, op, "\"", value$value,
+                       "\"]", pos = value$pos)
+        }
         parse_stop("Expected string or ident, got ", token_repr(value),
                    pos = value$pos)
     }
@@ -1132,16 +1172,24 @@ format_parse_error <- function(message, css, pos) {
     paste0(message, "\n  |\n  | ", css, "\n  | ", caret)
 }
 
-# Explain why `name` (the text after '#') is not identifier-shaped, and
-# spell the intended id where there is one. The only ways match_hash can
-# match a non-ident name are a leading digit, a '-' before a digit, and a
-# lone '-', so the two branches below are exhaustive.
-hash_ident_hint <- function(name) {
+# Explain why `name` (the text after a '#' or '.') is not
+# identifier-shaped, and spell the intended id or class with the digit
+# escaped. NULL for a name that does not start with a digit (optionally
+# preceded by a '-'), which the caller reports its own way.
+ident_hint <- function(name, prefix) {
     m <- regmatches(name, regexec("^(-?)([0-9])(.*)$", name))[[1]]
     if (!length(m))
-        return("an ID cannot be '-' alone")
-    paste0("an identifier cannot start with a digit. Escape it: '#",
+        return(NULL)
+    paste0("an identifier cannot start with a digit. Escape it: '", prefix,
            m[2], "\\3", m[3], " ", m[4], "'")
+}
+
+# The only ways match_hash can match a non-ident name are a leading
+# digit, a '-' before a digit, and a lone '-', so the two branches here
+# are exhaustive.
+hash_ident_hint <- function(name) {
+    hint <- ident_hint(name, "#")
+    if (is.null(hint)) "an ID cannot be '-' alone" else hint
 }
 
 token_is_delim <- function(token, values) {

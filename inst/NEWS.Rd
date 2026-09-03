@@ -311,7 +311,18 @@
       shown by the caret gutter that \code{css_to_xpath()} already
       appends; where that gutter is suppressed (a selector spanning
       more than one line), the position is still given, as
-      "at position N".
+      "at position N". Four messages that pointed at the wrong problem
+      now name the actual one: an R-level \pkg{XML} tree, as returned
+      by \code{XML::xmlTreeParse()} or \code{XML::htmlTreeParse()}, is
+      reported as one, naming the parsers that give a document XPath
+      can search, rather than as "not an 'XML' or 'xml2' document or
+      node"; a functional pseudo-element such as \code{::slotted()} or
+      \code{::part()} is reported as unsupported rather than as "not
+      at the end of a selector", which it was not; a class name
+      starting with a digit (\code{div.5}) gets the same
+      escape-it-like-this hint that \code{#5} already did, instead of
+      a stray-token error; and an unquoted numeric attribute value
+      (\code{[data-id=1]}) is told to quote the value.
 
       \item The \code{html} and \code{xhtml} translators' \code{:lang()}
       now implements Selectors 4 / RFC 4647 extended filtering for a
