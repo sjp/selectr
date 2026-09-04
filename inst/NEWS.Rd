@@ -240,6 +240,23 @@
       \code{<datalist>} nested in a disabled \code{<select>} stays
       \code{:enabled}.
 
+      \item An \code{<input type="hidden">} is now \code{:disabled}
+      when it carries a \code{disabled} attribute (or sits inside a
+      disabled \code{<fieldset>}) and \code{:enabled} otherwise, under
+      the \code{html} and \code{xhtml} translators. Previously it was
+      neither, a carve-out the HTML standard does not make: the
+      \code{disabled} attribute applies to every \code{<input>}. The
+      hidden carve-out in \code{:required}/\code{:optional}, where
+      \code{required} genuinely does not apply, is unchanged.
+
+      \item A \code{<fieldset>} inside a disabled \code{<fieldset>} is
+      now \code{:disabled} under the \code{html} and \code{xhtml}
+      translators, even without a \code{disabled} attribute of its own,
+      following the same rule already applied to the form controls: a
+      disabled \code{<fieldset>} disables its descendants except those
+      inside its first \code{<legend>} child. Previously a
+      \code{<fieldset>} was \code{:disabled} only by its own attribute.
+
       \item \code{:link} and \code{:any-link} no longer match a
       \code{<link>} element with an \code{href} under the \code{html}
       and \code{xhtml} translators. The HTML standard's hyperlink

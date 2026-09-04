@@ -162,8 +162,10 @@ test_that("selection works correctly on a large barrage of tests", {
     ## HTML-specific
     expect_equal(pcss(':link', html_only = TRUE), c('tag-anchor', 'nofollow-anchor', 'area-href'))
     expect_equal(pcss(':visited', html_only = TRUE), NULL)
-    expect_equal(pcss(':enabled', html_only = TRUE), c('checkbox-unchecked', 'text-checked', 'checkbox-checked'))
-    expect_equal(pcss(':disabled', html_only = TRUE), c('checkbox-disabled', 'checkbox-disabled-checked', 'fieldset', 'checkbox-fieldset-disabled'))
+    # the 'nil' entries are the id-less type=hidden inputs: an <input> is
+    # :enabled/:disabled whatever its type
+    expect_equal(pcss(':enabled', html_only = TRUE), c('checkbox-unchecked', 'text-checked', 'nil', 'checkbox-checked'))
+    expect_equal(pcss(':disabled', html_only = TRUE), c('checkbox-disabled', 'nil', 'checkbox-disabled-checked', 'fieldset', 'checkbox-fieldset-disabled', 'nil'))
     expect_equal(pcss(':checked', html_only = TRUE), c('checkbox-checked', 'checkbox-disabled-checked'))
 })
 
@@ -214,9 +216,10 @@ test_that(":enabled and :disabled match inputs with no type attribute", {
     }
 
     # An <input> with no type attribute defaults to type=text, so it should
-    # participate in :enabled/:disabled; type=hidden inputs never do.
-    expect_equal(ids('input:disabled'), 'plain-disabled')
-    expect_equal(ids('input:enabled'), 'plain-enabled')
+    # participate in :enabled/:disabled; so does a type=hidden input, whose
+    # disabled attribute the HTML standard does not carve out
+    expect_equal(ids('input:disabled'), c('plain-disabled', 'hidden-disabled'))
+    expect_equal(ids('input:enabled'), c('plain-enabled', 'hidden-plain'))
 })
 
 test_that("form pseudo-classes fold @type case-insensitively", {
@@ -240,8 +243,8 @@ test_that("form pseudo-classes fold @type case-insensitively", {
 
     # type=RADIO / type=CheckBox are checkable controls
     expect_equal(ids('input:checked'), c('radio-up', 'check-up'))
-    # type=HIDDEN is excluded from :disabled, the uppercase text input is not
-    expect_equal(ids('input:disabled'), 'text-up')
+    # :disabled applies to every input type, hidden included
+    expect_equal(ids('input:disabled'), c('hidden-up', 'text-up'))
     # likewise type=Hidden cannot be :required
     expect_equal(ids('input:required'), 'text-req')
 })
@@ -278,6 +281,29 @@ test_that(":disabled/:enabled honour the disabled-fieldset legend carve-out", {
     expect_equal(ids('input:disabled'),
                  c('in-body', 'second-legend', 'nested-in-body'))
     expect_equal(ids('input:enabled'), 'in-legend')
+})
+
+test_that("a fieldset inside a disabled fieldset is :disabled", {
+    skip_if_not_installed("xml2")
+    # A <fieldset> is disabled by a disabled ancestor fieldset just as a
+    # form control is, with the same first-<legend> carve-out. Parsed as
+    # XML, since libxml2's HTML parser hoists a <fieldset> out of a
+    # <legend> and the carve-out would then have nothing to protect
+    doc <- xml2::read_xml(paste0(
+        '<form>',
+        '<fieldset id="fs1" disabled="disabled">',
+        '<legend><fieldset id="fs-legend"></fieldset></legend>',
+        '<fieldset id="fs2"></fieldset>',
+        '</fieldset>',
+        '</form>'))
+    ids <- function(css) {
+        xpath <- css_to_xpath(css, translator = "html")
+        result <- unlist(lapply(xml2::xml_find_all(doc, xpath), xml2::xml_attr, "id"))
+        if (is.null(result)) NULL else result
+    }
+
+    expect_equal(ids('fieldset:disabled'), c('fs1', 'fs2'))
+    expect_equal(ids('fieldset:enabled'), 'fs-legend')
 })
 
 test_that(":disabled/:enabled partition options under a disabled optgroup", {

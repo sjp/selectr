@@ -397,15 +397,9 @@ first_class_name <- function(obj) {
 # the uppercase keywords the way browsers do
 fold_type <- "translate(@type, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
 
-# An <input> whose type is not 'hidden' (compared case-insensitively),
-# the control that participates in the form-state pseudo-classes. Using
-# not(... = 'hidden') rather than @type != 'hidden' also matches an input
-# with no type attribute, which defaults to text
-input_not_hidden <- paste0("local-name(.) = 'input' and not(", fold_type,
-                           " = 'hidden')")
-
-# A disabled <fieldset> disables its descendant controls except those
-# inside its first <legend> child (HTML's "actually disabled" rule). A
+# A disabled <fieldset> disables its descendant controls - and its
+# descendant <fieldset>s - except those inside its first <legend> child
+# (HTML's "actually disabled" rule). A
 # control is disabled by a fieldset when it has more disabled-fieldset
 # ancestors than first-legend ancestors that protect it: each protecting
 # legend (first child of a disabled fieldset) cancels exactly the one
@@ -1765,24 +1759,24 @@ HTMLTranslator <- R6Class("HTMLTranslator",
         },
         xpath_disabled_pseudo = function(xpath) {
             # An element that can be disabled by an ancestor <fieldset>
-            # (input, button, select, textarea) is disabled by @disabled
-            # or by disabled_by_fieldset; a <fieldset> only by its own
-            # @disabled, and an <optgroup> or <option> by the rules
-            # below. input also excludes @type 'hidden', which cannot
-            # be disabled
+            # (input, button, select, textarea, and a <fieldset> itself)
+            # is disabled by @disabled or by disabled_by_fieldset; an
+            # <optgroup> or <option> by the rules below. No input type
+            # is carved out: the disabled attribute applies to every
+            # <input>, hidden ones included
             fieldset_disjunct <- paste0("@disabled or (", disabled_by_fieldset,
                                         ")")
             add_disjunction(xpath, list(
-                list(element = "input",
-                     condition = paste0("not(", fold_type, " = 'hidden') ",
-                                        "and (", fieldset_disjunct, ")")),
+                list(element = "input", condition = fieldset_disjunct,
+                     is_or = TRUE),
                 list(element = "button", condition = fieldset_disjunct,
                      is_or = TRUE),
                 list(element = "select", condition = fieldset_disjunct,
                      is_or = TRUE),
                 list(element = "textarea", condition = fieldset_disjunct,
                      is_or = TRUE),
-                list(element = "fieldset", condition = "@disabled"),
+                list(element = "fieldset", condition = fieldset_disjunct,
+                     is_or = TRUE),
                 # an <optgroup> or an <option> is "actually disabled"
                 # when its nearest ancestor <select> is disabled, and an
                 # <option> also when it is under a disabled <optgroup>,
@@ -1800,13 +1794,12 @@ HTMLTranslator <- R6Class("HTMLTranslator",
             not_fieldset_disabled <- paste0("not(@disabled or (",
                                             disabled_by_fieldset, "))")
             add_disjunction(xpath, list(
-                list(element = "fieldset", condition = "not(@disabled)"),
+                list(element = "fieldset",
+                     condition = not_fieldset_disabled),
                 list(element = "optgroup",
                      condition = paste0("not(@disabled or ",
                                         nearest_select_disabled, ")")),
-                list(element = "input",
-                     condition = paste0("not(", fold_type, " = 'hidden') ",
-                                        "and ", not_fieldset_disabled)),
+                list(element = "input", condition = not_fieldset_disabled),
                 list(element = "button", condition = not_fieldset_disabled),
                 list(element = "select", condition = not_fieldset_disabled),
                 list(element = "textarea",

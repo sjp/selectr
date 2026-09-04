@@ -148,7 +148,9 @@ test_that("selection works correctly on a large barrage of tests", {
     ## HTML-specific
     expect_equal(pcss(':link', html_only = TRUE), c('tag-anchor', 'nofollow-anchor', 'area-href'))
     expect_equal(pcss(':visited', html_only = TRUE), NULL)
-    expect_equal(pcss(':enabled', html_only = TRUE), c('checkbox-unchecked', 'text-checked', 'checkbox-checked'))
-    expect_equal(pcss(':disabled', html_only = TRUE), c('checkbox-disabled', 'checkbox-disabled-checked', 'fieldset', 'checkbox-fieldset-disabled'))
+    # the NA entries are the id-less type=hidden inputs: an <input> is
+    # :enabled/:disabled whatever its type
+    expect_equal(pcss(':enabled', html_only = TRUE), c('checkbox-unchecked', 'text-checked', NA, 'checkbox-checked'))
+    expect_equal(pcss(':disabled', html_only = TRUE), c('checkbox-disabled', NA, 'checkbox-disabled-checked', 'fieldset', 'checkbox-fieldset-disabled', NA))
     expect_equal(pcss(':checked', html_only = TRUE), c('checkbox-checked', 'checkbox-disabled-checked'))
 })
