@@ -160,13 +160,12 @@ test_that("ASCII folds cope with a name containing a noncharacter", {
         expect_equal(translator$css_to_xpath(paste0("[", esc, "=x]"),
                                              prefix = ""),
                      paste0("*[attribute::*[name() = '", ch, "'] = 'x']"))
-        # A :lang() range, folded before it is dash-bracketed
-        expect_equal(translator$css_to_xpath(paste0(":lang(", esc, ")"),
-                                             prefix = ""),
-                     paste0("*[ancestor-or-self::*[@lang][1]",
-                            "[starts-with(concat(",
-                            xpath_ascii_lower("@lang"), ", '-'), '",
-                            ch, "-')]]"))
+        # A :lang() range: no fold to reach - a noncharacter cannot
+        # appear in an RFC 4647 language range - but the range still
+        # has to be named in a selectr condition, not crash the
+        # message-building
+        expect_error(translator$css_to_xpath(paste0(":lang(", esc, ")")),
+                     class = "selectr_translation_error")
         # A pseudo-class name, an attribute flag and an An+B argument
         # are all matched ASCII case-insensitively too; none of the
         # three is valid, and each must say so as a selectr condition
@@ -281,10 +280,77 @@ test_that(":lang() and :dir() reject a lone '-' argument", {
                      "Expected a single ident argument.*")
         expect_error(translator$css_to_xpath("e:lang(en, -)"),
                      "Expected string, ident, or \\* arguments.*")
-        # valid idents starting or ending with '-' keep working
-        expect_error(translator$css_to_xpath("e:lang(--x)"), NA)
-        expect_error(translator$css_to_xpath("e:lang(en--)"), NA)
+        # '--x' and 'en--' are valid idents, so they get past the
+        # argument check - and are then rejected as language ranges
+        # (see the extended-language-range tests below)
+        expect_error(translator$css_to_xpath("e:lang(--x)"),
+                     "not a well-formed extended language range")
+        expect_error(translator$css_to_xpath("e:lang(en--)"),
+                     "not a well-formed extended language range")
         expect_error(translator$css_to_xpath("e:lang(en-*)"), NA)
+    }
+})
+
+test_that(":lang() rejects an ill-formed extended language range", {
+    # Selectors 4 section 7.2 requires each range to be an RFC 4647
+    #   extended-language-range = (1*8ALPHA / "*") *("-" (1*8alphanum / "*"))
+    # so an empty, over-long or non-alphanumeric subtag, and a '*' that
+    # is not a whole subtag, are all ill-formed. The spec says such a
+    # range matches nothing while leaving the selector valid; XPath has
+    # no never-matching form that survives being combined with the rest
+    # of the expression, so the range is rejected by name instead of
+    # being normalised into a well-formed one - ":lang(en-)" used to
+    # translate as ":lang(en)" and select every English element.
+    ill_formed <- c("en-", '"en-"', "en--", "-en", "--x", "--", "en*",
+                    "de-*--de", '"*-CH-"', "abcdefghi", "x1", '"en-abcdefghi"')
+    for (translator in list(GenericTranslator$new(), HTMLTranslator$new(),
+                            HTMLTranslator$new(xhtml = TRUE))) {
+        for (range in ill_formed) {
+            expect_error(translator$css_to_xpath(paste0("e:lang(", range, ")")),
+                         "not a well-formed extended language range",
+                         class = "selectr_translation_error")
+            # and equally when it keeps company with a valid range
+            expect_error(
+                translator$css_to_xpath(paste0("e:lang(en, ", range, ")")),
+                "not a well-formed extended language range")
+        }
+        # well-formed ranges of every shape stay accepted, including
+        # the empty range, which Selectors 4 gives a meaning of its own
+        for (range in c('""', "en", "EN", "en-gb", "en-GB-1996", "*",
+                        "en-*", '"en-*"', "abcdefgh")) {
+            expect_error(translator$css_to_xpath(paste0("e:lang(", range, ")")),
+                         NA)
+        }
+    }
+})
+
+test_that(":lang() rejects an empty item of its comma-separated list", {
+    # The argument is an <ident>#-style list, in which an empty item is
+    # a grammar error - not a range that matches nothing, and not
+    # something to drop silently (":lang(en, )" used to translate as
+    # ":lang(en)")
+    msg <- "Expected a language range for :lang\\(\\), got "
+    for (translator in list(GenericTranslator$new(), HTMLTranslator$new(),
+                            HTMLTranslator$new(xhtml = TRUE))) {
+        # the token reported is the one found where the range should
+        # be: the ',' that follows the missing item, or the ')' (or
+        # EOF) that closes the list after a trailing comma
+        expect_error(translator$css_to_xpath("e:lang(en, )"),
+                     paste0(msg, "<DELIM '\\)' at 12>"),
+                     class = "selectr_translation_error")
+        expect_error(translator$css_to_xpath("e:lang(, en)"),
+                     paste0(msg, "<DELIM ',' at 8>"))
+        expect_error(translator$css_to_xpath("e:lang(en,, fr)"),
+                     paste0(msg, "<DELIM ',' at 11>"))
+        expect_error(translator$css_to_xpath("e:lang(en,"),
+                     paste0(msg, "<EOF at 11>"))
+        # a list of nothing but empty items is no more an argument list
+        # than ":lang()" is, and keeps that parse error
+        expect_error(translator$css_to_xpath("e:lang(,)"),
+                     "Expected at least one argument",
+                     class = "selectr_parse_error")
+        # an *empty range*, by contrast, is a range like any other
+        expect_error(translator$css_to_xpath('e:lang(en, "")'), NA)
     }
 })
 
@@ -320,12 +386,16 @@ test_that("HTML translator handles :lang() extended-filtering wildcards", {
     # neighbours without error
     expect_error(translator$css_to_xpath(":lang(en, *-CH)"), NA)
 
-    # An empty subtag from an embedded double dash is simply skipped,
-    # translating the same as if it were never there (R's strsplit()
-    # already drops a *trailing* empty subtag, e.g. ":lang(*-)", so
-    # this only matters for one embedded between two others)
-    expect_equal(translator$css_to_xpath(":lang(de-*--de)"),
-                 translator$css_to_xpath(":lang(de-*-de)"))
+    # An empty subtag makes the range ill-formed, wherever it falls: it
+    # is rejected rather than skipped, which would translate
+    # ":lang(de-*--de)" as the different range ":lang(de-*-de)"
+    expect_error(translator$css_to_xpath(":lang(de-*--de)"),
+                 "not a well-formed extended language range")
+
+    # An all-wildcard range constrains no subtag, so it matches any
+    # element with a known language, exactly as ":lang(*)" does
+    expect_equal(translator$css_to_xpath(':lang("*-*")'),
+                 translator$css_to_xpath(":lang(*)"))
 })
 
 test_that("HTML :lang() extended wildcards match the right elements", {

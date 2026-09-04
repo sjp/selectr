@@ -115,7 +115,7 @@
 \section{Linguistic and directionality pseudo-classes}{
   \tabular{lll}{
     \bold{Selector} \tab \bold{Status} \tab \bold{Notes} \cr
-    \code{:lang(range)} \tab supported, translator-dependent \tab generic: XPath \code{lang()}, prefix match only. \code{html}/\code{xhtml}: RFC 4647 extended filtering for multi-subtag ranges (a wildcard subtag may skip any position); see \code{\link{css_to_xpath}} for the full rules \cr
+    \code{:lang(range)} \tab supported, translator-dependent \tab generic: XPath \code{lang()}, prefix match only. \code{html}/\code{xhtml}: RFC 4647 extended filtering for multi-subtag ranges (a wildcard subtag may skip any position). Every translator rejects a range that is not an RFC 4647 extended language range (\code{:lang(en-)}, \code{:lang(en*)}); see \code{\link{css_to_xpath}} for the full rules \cr
     \code{:lang("")} \tab supported, every translator \tab matches an element with no content language anywhere in its ancestor-or-self chain \cr
     \code{:dir()} \tab never matches, every translator \tab \code{descendant-or-self::*[0]}; directionality needs a live DOM (\code{dir="auto"}, \code{bdi}, form controls) \cr
   }

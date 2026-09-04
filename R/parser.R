@@ -93,13 +93,18 @@ Function <- R6Class("Function",
         # validated and parsed by validate_series() at parse time; NULL
         # for every other function
         series = NULL,
+        # The comma-separated items of a :lang() argument list, one
+        # token each, reassembled at parse time (see
+        # lang_range_token()); NULL for every other function
+        ranges = NULL,
         initialize = function(selector, name, arguments, selector_list = NULL,
-                              series = NULL) {
+                              series = NULL, ranges = NULL) {
             self$selector <- selector
             self$name <- ascii_lower(name)
             self$arguments <- arguments
             self$selector_list <- selector_list
             self$series <- series
+            self$ranges <- ranges
         },
         repr = function() {
             token_values <- lapply(self$arguments,
@@ -714,6 +719,16 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                 # whitespace standing in for a comma is rejected.
                 has_arg <- FALSE
                 ws_since_arg <- FALSE
+                # The comma-separated items of a :lang() list, one
+                # token each, reassembled here where the commas are
+                # still visible: a single range may arrive as several
+                # adjacent tokens ("de-", '*', "-DE"), and once the
+                # commas are gone from `arguments` there is no telling
+                # that apart from two ranges written side by side
+                # ("en" '*'), which is not a range list at all.
+                ranges <- list()
+                range_value <- NULL
+                range_pos <- 0
 
                 while (TRUE) {
                     nt <- stream$nxt()
@@ -728,6 +743,11 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                         i <- i + 1
                         has_arg <- TRUE
                         ws_since_arg <- FALSE
+                        if (allow_commas) {
+                            if (is.null(range_value))
+                                range_pos <- nt$pos
+                            range_value <- paste0(range_value, nt$value)
+                        }
 
                         # Check if this is the 'of' keyword for an An+B
                         # function. It is only meaningful for
@@ -760,6 +780,9 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                         i <- i + 1
                         has_arg <- TRUE
                         ws_since_arg <- FALSE
+                        if (is.null(range_value))
+                            range_pos <- nt$pos
+                        range_value <- paste0(range_value, nt$value)
                     } else if (nt$type == "S") {
                         # Keep whitespace tokens for the An+B (nth-*)
                         # functions so parse_series() can validate
@@ -773,6 +796,9 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                         next
                     } else if (token_equality(nt, "DELIM", ",") && allow_commas) {
                         # For :lang(), commas separate multiple values
+                        ranges[[length(ranges) + 1]] <-
+                            lang_range_token(range_value, range_pos, nt)
+                        range_value <- NULL
                         stream$skip_whitespace()
                         has_arg <- FALSE
                         ws_since_arg <- FALSE
@@ -781,6 +807,10 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                                nt$type == "EOF") {
                         # EOF auto-closes the function (css-syntax):
                         # ':lang(fr' means ':lang(fr)'
+                        if (allow_commas &&
+                            (!is.null(range_value) || length(ranges) > 0))
+                            ranges[[length(ranges) + 1]] <-
+                                lang_range_token(range_value, range_pos, nt)
                         break
                     } else {
                         parse_stop("Expected an argument, got ",
@@ -804,7 +834,8 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                 }
 
                 result <- Function$new(result, ident, arguments, selector_list,
-                                       series = series)
+                                       series = series,
+                                       ranges = if (allow_commas) ranges)
             }
         } else {
             if (peek$type == "NUMBER" && startsWith(peek$value, "."))
@@ -1144,6 +1175,19 @@ Token <- function(type = "", value = NULL, pos = 1) {
 
 EOFToken <- function(pos = 1) {
     list(type = "EOF", value = NULL, pos = pos)
+}
+
+# One item of a :lang() argument list: a RANGE token holding the
+# item's tokens reassembled into a single range, starting at source
+# position `pos`. An item with no tokens at all (":lang(en, )") has no
+# range to report, so `delim` - the ',', ')' or EOF found where the
+# range should be - stands in its place, for the translator to reject
+# with the rest of its argument checks.
+lang_range_token <- function(value, pos, delim) {
+    if (is.null(value))
+        delim
+    else
+        Token("RANGE", value, pos)
 }
 
 token_repr <- function(token) {

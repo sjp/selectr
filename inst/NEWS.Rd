@@ -455,6 +455,27 @@
       matches per spec --- an element whose content language is not
       tagged at all --- rather than only a literal \code{lang=""}.
 
+      \item A \code{:lang()} language range that is not an RFC 4647
+      \emph{extended language range} --- one with an empty, over-long
+      or non-alphanumeric subtag, or a \code{*} that is not a whole
+      subtag, e.g. \code{":lang(en-)"}, \code{":lang(--x)"},
+      \code{":lang(en*)"} or \code{":lang(de-*--de)"} --- is now
+      rejected, naming the offending range. Previously such a range was
+      normalised into a well-formed one and matched elements it should
+      not have: \code{":lang(en-)"} selected every English element and
+      \code{":lang(en*)"} every tagged one, while \code{":lang(--)"}
+      produced an XPath that would not parse.
+
+      \item An empty item in the comma-separated \code{:lang()}
+      argument list (e.g. \code{":lang(en, )"} or \code{":lang(, en)"})
+      is now rejected rather than silently dropped: the argument is an
+      \code{<ident>#} list, in which an empty item is a grammar error.
+
+      \item A \code{:lang()} range of nothing but wildcards
+      (\code{":lang(\"*-*\")"}) now matches any element with a known
+      language, as \code{":lang(*)"} does, rather than producing an
+      empty XPath predicate.
+
     }
   }
 }

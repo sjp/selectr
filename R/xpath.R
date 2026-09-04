@@ -325,19 +325,58 @@ stop_lang_interior_wildcard <- function(range) {
         ":lang()")
 }
 
-# Classify a single (already reassembled) :lang() range:
-#   "any"      - a bare "*" (match any language)
+# A range that is not an RFC 4647 extended language range (see
+# lang_range_well_formed()). Selectors 4 says such a range matches
+# nothing while leaving the selector valid; XPath has no way to say
+# "this compound never matches" that survives being combined with the
+# rest of the expression, so the range is rejected by name instead -
+# never silently normalised into a well-formed one, which would select
+# the wrong elements (":lang(en-)" is not ":lang(en)").
+stop_lang_ill_formed <- function(range) {
+    translation_stop(
+        paste0("The :lang() language range \"", range, "\" is not a ",
+               "well-formed extended language range (RFC 4647)"),
+        ":lang()")
+}
+
+# Whether a (already reassembled) :lang() range matches the RFC 4647
+# grammar that Selectors 4 section 7.2 requires of it:
+#
+#   extended-language-range = (1*8ALPHA / "*") *("-" (1*8alphanum / "*"))
+#
+# so every subtag is non-empty, at most 8 characters and ASCII
+# alphanumeric (the first alphabetic), or a whole "*". The empty range
+# is not covered here: ":lang(\"\")" has a meaning of its own (see
+# lang_range_kind()) and is checked before this.
+lang_range_well_formed <- function(value) {
+    # strsplit() drops a trailing empty field, so "en-" would otherwise
+    # split as the well-formed "en"
+    if (grepl("-$", value))
+        return(FALSE)
+    subtags <- strsplit(value, "-", fixed = TRUE)[[1]]
+    isTRUE(grepl("^([A-Za-z]{1,8}|\\*)$", subtags[1], perl = TRUE)) &&
+        all(grepl("^([A-Za-z0-9]{1,8}|\\*)$", subtags[-1], perl = TRUE))
+}
+
+# Classify a single (already reassembled and validated) :lang() range:
+#   "none"     - the empty range, ':lang("")' (match only an element
+#                whose language is not tagged at all)
+#   "any"      - nothing but wildcards, "*" or "*-*" (match any
+#                language: an all-wildcard range constrains no subtag)
 #   "exact"    - no wildcard, e.g. "en" or "en-GB"
 #   "prefix"   - a single trailing wildcard, e.g. "en-*"
 #   "extended" - a wildcard in any other position, e.g. "*-CH", "de-*-DE"
 #                (RFC 4647 extended filtering)
 lang_range_kind <- function(value) {
-    n_star <- nchar(value) - nchar(gsub("*", "", value, fixed = TRUE))
-    if (value == "*") {
+    subtags <- strsplit(value, "-", fixed = TRUE)[[1]]
+    n_star <- sum(subtags == "*")
+    if (!nzchar(value)) {
+        "none"
+    } else if (n_star == length(subtags)) {
         "any"
     } else if (n_star == 0) {
         "exact"
-    } else if (n_star == 1 && grepl("-\\*$", value)) {
+    } else if (n_star == 1 && subtags[length(subtags)] == "*") {
         "prefix"
     } else {
         "extended"
@@ -371,37 +410,26 @@ validate_lang_args <- function(fn) {
     }
 }
 
-# The language values named by the arguments of :lang(), combining an
-# ident or string ending in '-' with a following '*' DELIM into a
-# single wildcard range (e.g. "en-" + "*" = "en-*")
-extract_lang_values <- function(fn) {
-    # The tokenizer splits a range at every '*', so a wildcard range
-    # arrives as several tokens: unquoted "*-CH" as ['*', "-CH"], "en-*"
-    # as ["en-", '*'], and "de-*-DE" as ["de-", '*', "-DE"]. A quoted
-    # range is a single STRING token carrying its wildcards verbatim.
-    # Reassemble each whole range: a '*' glues onto a value ending in '-'
-    # (the trailing-wildcard case), and a '-'-led continuation subtag
-    # glues onto a value still ending in '*' (the part after a '*' split).
-    # Commas between ranges are dropped during parsing, but a fresh range
-    # never begins with '-', so the leading '-' reliably marks a
-    # continuation rather than a new range.
-    ranges <- character(0)
-    for (arg in fn$arguments) {
-        n <- length(ranges)
-        if (arg$type == "DELIM" && arg$value == "*") {
-            if (n > 0 && grepl("-$", ranges[n])) {
-                ranges[n] <- paste0(ranges[n], "*")
-            } else {
-                ranges <- c(ranges, "*")
-            }
-        } else if (n > 0 && grepl("\\*$", ranges[n]) &&
-                   startsWith(arg$value, "-")) {
-            ranges[n] <- paste0(ranges[n], arg$value)
-        } else {
-            ranges <- c(ranges, arg$value)
+# The validated language ranges of a :lang() argument list: the
+# arguments must each be a string, ident or '*', no item of the
+# comma-separated list may be missing (the argument is an <ident>#
+# list, in which an empty item is a grammar error rather than a
+# range), and every range must be an RFC 4647 extended language range.
+# Shared by all three translators, so that a selector is accepted or
+# rejected alike whichever one is asked to translate it.
+lang_ranges <- function(fn) {
+    validate_lang_args(fn)
+    for (range in fn$ranges) {
+        if (range$type != "RANGE") {
+            translation_stop(
+                paste0("Expected a language range for :lang(), got ",
+                       token_repr(range)),
+                ":lang()")
         }
+        if (nzchar(range$value) && !lang_range_well_formed(range$value))
+            stop_lang_ill_formed(range$value)
     }
-    ranges
+    vapply(fn$ranges, function(range) range$value, character(1))
 }
 
 # The language string declared on an element, and the step selecting
@@ -441,7 +469,10 @@ lang_attr_value_lc <- function(xhtml) {
 # after a '*' may appear anywhere further along (contains, over the
 # tail re-bracketed with a leading dash so that it too matches whole
 # subtags only), and substring-after threads the remaining tail so
-# later subtags must follow earlier ones in order.
+# later subtags must follow earlier ones in order. The range arrives
+# validated (see lang_ranges()), so every subtag is non-empty and at
+# least one is a literal - an all-wildcard range is "any", not
+# "extended", and never reaches here with nothing to test.
 lang_extended_html_condition <- function(value, xhtml) {
     lang <- lang_attr_value_lc(xhtml)
     cursor <- paste0("concat(", lang, ", '-')")
@@ -455,8 +486,6 @@ lang_extended_html_condition <- function(value, xhtml) {
             anywhere <- TRUE
             next
         }
-        if (!nzchar(subtag))
-            next
         if (!anchored && !anywhere) {
             needle <- xpath_literal(paste0(subtag, "-"))
             conditions <- c(conditions,
@@ -1612,8 +1641,7 @@ GenericTranslator <- R6Class("GenericTranslator",
                                           add_name_test = FALSE)
         },
         xpath_lang_function = function(xpath, fn) {
-            validate_lang_args(fn)
-            lang_values <- extract_lang_values(fn)
+            lang_values <- lang_ranges(fn)
 
             # Build conditions for each language range
             conditions <- vapply(lang_values, function(value) {
@@ -1627,7 +1655,7 @@ GenericTranslator <- R6Class("GenericTranslator",
                 kind <- lang_range_kind(value)
                 if (kind == "any") {
                     known
-                } else if (value == "") {
+                } else if (kind == "none") {
                     # Selectors 4 defines :lang("") as matching elements
                     # whose content language is *not* tagged at all - the
                     # negation of "any" above, not a literal xml:lang=""
@@ -1994,8 +2022,7 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                                         first_submit))))
         },
         xpath_lang_function = function(xpath, fn) {
-            validate_lang_args(fn)
-            lang_values <- extract_lang_values(fn)
+            lang_values <- lang_ranges(fn)
 
             # Build conditions for each language range
             conditions <- vapply(lang_values, function(value) {
@@ -2009,7 +2036,7 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                 kind <- lang_range_kind(value)
                 if (kind == "any") {
                     known
-                } else if (value == "") {
+                } else if (kind == "none") {
                     # Selectors 4 defines :lang("") as matching elements
                     # whose content language is *not* tagged at all - the
                     # negation of "any" above (no language-attributed

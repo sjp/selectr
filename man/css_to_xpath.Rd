@@ -118,6 +118,20 @@ css_to_xpath(selector,
   matched as a prefix only - it does \emph{not} skip subtags the way
   the \code{html}/\code{xhtml} translators do.
 
+  Every range must be an RFC 4647 \emph{extended language range}:
+  each subtag is either a whole \code{*} or one to eight
+  alphanumeric characters (letters only, for the first), so an
+  empty, over-long or non-alphanumeric subtag, or a \code{*} glued to
+  a subtag, is rejected with an error naming the range
+  (\code{:lang(en-)}, \code{:lang(--x)}, \code{:lang(en*)},
+  \code{:lang(de-*--de)}). The specification says such a range simply
+  matches nothing while leaving the selector valid; XPath has no
+  never-matching form that survives being combined with the rest of the
+  expression, so the range is refused rather than translated into a
+  well-formed one that would select the wrong elements. An empty item
+  of the comma-separated list (\code{:lang(en, )}) is likewise an
+  error.
+
   \code{:lang("")} matches an element whose content language is not
   tagged at all: no \code{lang}/\code{xml:lang} (as applicable to the
   translator) anywhere in its ancestor-or-self chain, or only an empty
