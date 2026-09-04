@@ -391,3 +391,44 @@ test_that("an ID selector must be identifier-shaped", {
     expect_equal(css_to_xpath("#\\31 ", prefix = ""), "*[@id = '1']")
     expect_equal(css_to_xpath("#\\31 23", prefix = ""), "*[@id = '123']")
 })
+
+test_that("a '-' that names nothing is rejected rather than read as a name", {
+    # An element cannot be named '-', so reading one as a name never
+    # selected anything; the selectors below used to translate to
+    # expressions that matched no node, and now say what is wrong.
+    expect_error(css_to_xpath("-"),
+                 "Expected selector, got <DELIM '-' at 1>",
+                 fixed = TRUE, class = "selectr_parse_error")
+    expect_error(css_to_xpath(".-"),
+                 "Expected ident, got <DELIM '-' at 2>",
+                 fixed = TRUE, class = "selectr_parse_error")
+    # a combinator written with spaces around it, but never finished
+    expect_error(css_to_xpath("a - b"),
+                 "Expected selector, got <DELIM '-' at 3>",
+                 fixed = TRUE, class = "selectr_parse_error")
+    expect_error(css_to_xpath("a:not(-)"),
+                 "Expected selector, got <DELIM '-' at 7>",
+                 fixed = TRUE, class = "selectr_parse_error")
+
+    # A CDC and a CDO are each rejected whole, at the position they
+    # start; '-->' used to parse as the element '--' followed by a
+    # child combinator, and '<!--' failed on its first character
+    expect_error(css_to_xpath("-->a"),
+                 "Expected selector, got <CDC '-->' at 1>",
+                 fixed = TRUE, class = "selectr_parse_error")
+    expect_error(css_to_xpath("<!--a"),
+                 "Expected selector, got <CDO '<!--' at 1>",
+                 fixed = TRUE, class = "selectr_parse_error")
+    expect_equal(tryCatch(css_to_xpath("div -->a"), error = identity)$pos, 5)
+
+    # Names that do start an identifier are still names, escaped ones
+    # included: '\-' is the element '-', not a delimiter
+    expect_equal(css_to_xpath("-a", prefix = ""),
+                 "*[name() = '-a' and namespace-uri() = '']")
+    expect_equal(css_to_xpath("--a", prefix = ""),
+                 "*[name() = '--a' and namespace-uri() = '']")
+    expect_equal(css_to_xpath("\\-", prefix = ""),
+                 "*[name() = '-' and namespace-uri() = '']")
+    expect_equal(css_to_xpath(".-a", prefix = ""),
+                 "*[contains(concat(' ', normalize-space(@class), ' '), ' -a ')]")
+})

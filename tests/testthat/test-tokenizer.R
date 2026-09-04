@@ -248,3 +248,61 @@ test_that("a very long selector tokenizes in linear time", {
     expect_equal(token_repr(tokens[[length(tokens)]]),
                  paste0("<EOF at ", nchar(css) + 1, ">"))
 })
+
+test_that("a '-' that starts no name is a delimiter, and CDC and CDO are tokens", {
+    reprs <- function(css) {
+        unlist(lapply(tokenize(css), token_repr))
+    }
+
+    # css-syntax-3 "would start an ident sequence": a '-' begins a name
+    # only when a name-start code point, a second '-', or an escape
+    # follows it. On its own it is the '-' <delim-token>, which no
+    # selector has a use for, rather than the name of an element that
+    # cannot exist.
+    expect_equal(reprs("-"),
+                 c("<DELIM '-' at 1>", "<EOF at 2>"))
+    expect_equal(reprs(".-"),
+                 c("<DELIM '.' at 1>", "<DELIM '-' at 2>", "<EOF at 3>"))
+    expect_equal(reprs("a - b"),
+                 c("<IDENT 'a' at 1>", "<S ' ' at 2>", "<DELIM '-' at 3>",
+                   "<S ' ' at 4>", "<IDENT 'b' at 5>", "<EOF at 6>"))
+
+    # Names that do start an identifier are unaffected, including the
+    # ones a lone '-' is easily confused with
+    expect_equal(reprs("-a"), c("<IDENT '-a' at 1>", "<EOF at 3>"))
+    expect_equal(reprs("--"), c("<IDENT '--' at 1>", "<EOF at 3>"))
+    expect_equal(reprs("--a"), c("<IDENT '--a' at 1>", "<EOF at 4>"))
+    # An escape starts a name too, so an escaped '-' is the element '-'
+    expect_equal(reprs("\\-"), c("<IDENT '-' at 1>", "<EOF at 3>"))
+    # A number is claimed before either reading is reached
+    expect_equal(reprs("-1"), c("<NUMBER '-1' at 1>", "<EOF at 3>"))
+
+    # The CDC test comes before the identifier one, so '-->' is a
+    # single token and not the name '--' followed by a combinator,
+    # even though '--' does start a name
+    expect_equal(reprs("-->a"),
+                 c("<CDC '-->' at 1>", "<IDENT 'a' at 4>", "<EOF at 5>"))
+    expect_equal(reprs("<!--a"),
+                 c("<CDO '<!--' at 1>", "<IDENT 'a' at 5>", "<EOF at 6>"))
+
+    # Both tests are made only where a token starts, so a '-->' that a
+    # name is already running through is three name characters and a
+    # combinator, and a fourth '-' before one leaves nothing but a name
+    expect_equal(reprs("a-->b"),
+                 c("<IDENT 'a--' at 1>", "<DELIM '>' at 4>",
+                   "<IDENT 'b' at 5>", "<EOF at 6>"))
+    expect_equal(reprs("--->a"),
+                 c("<IDENT '---' at 1>", "<DELIM '>' at 4>",
+                   "<IDENT 'a' at 5>", "<EOF at 6>"))
+
+    # The sign before B in an An+B expression is the delimiter CSS
+    # makes it, which is what lets ':nth-child(2n - 1)' parse while
+    # the escaped ':nth-child(2n \2d 1)' does not (see test-series.R)
+    expect_equal(reprs(":nth-child(2n - 1)"),
+                 c("<DELIM ':' at 1>", "<IDENT 'nth-child' at 2>",
+                   "<DELIM '(' at 11>", "<NUMBER '2' at 12>",
+                   "<IDENT 'n' at 13>", "<S ' ' at 14>",
+                   "<DELIM '-' at 15>", "<S ' ' at 16>",
+                   "<NUMBER '1' at 17>", "<DELIM ')' at 18>",
+                   "<EOF at 19>"))
+})

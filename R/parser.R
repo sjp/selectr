@@ -1090,12 +1090,6 @@ anb_invalid_ident <- function(tokens) {
         value <- ascii_lower(token$value)
         if (grepl(anb_ident_re, value))
             next
-        # CSS tokenizes the sign before B as a delimiter, which this
-        # tokenizer's identifier pattern claims instead, so a lone '-'
-        # is the sign of ':nth-child(2n - 1)' -- but only where the user
-        # wrote one. Escaped it is a name, and no sign at all.
-        if (value == "-" && !isTRUE(token$escaped))
-            next
         return(token)
     }
     NULL
@@ -1230,13 +1224,6 @@ EOFToken <- function(pos = 1) {
     list(type = "EOF", value = NULL, pos = pos)
 }
 
-# An IDENT token whose name was written with at least one escape. Only
-# anb_invalid_ident() reads the flag, and only these tokens carry it, so
-# no other token is widened by a field it has no use for.
-EscapedIdentToken <- function(value, pos) {
-    list(type = "IDENT", value = value, pos = pos, escaped = TRUE)
-}
-
 # One item of a :lang() argument list: a RANGE token holding the
 # item's tokens reassembled into a single range, starting at source
 # position `pos`. An item with no tokens at all (":lang(en, )") has no
@@ -1327,7 +1314,7 @@ compile_ <- function(pattern) {
 }
 
 delims_2ch <- c("~=", "|=", "^=", "$=", "*=", "::")
-delims_1ch <- c(">", "+", "~", ",", ".", "*", "=", "[", "]", "(", ")", "|", ":", "#")
+delims_1ch <- c(">", "+", "-", "~", ",", ".", "*", "=", "[", "]", "(", ")", "|", ":", "#")
 delim_escapes <- paste0("\\", delims_1ch, collapse = "|")
 match_whitespace <- compile_("^[ \t\r\n\f]+")
 match_number <- compile_("^[+-]?(?:[0-9]*\\.[0-9]+|[0-9]+)")
@@ -1466,20 +1453,37 @@ tokenize <- function(s) {
             i <- i + 1
             next
         }
-        match <- match_window(match_ident, s, pos, len_s)
-        if (!anyNA(match) && match[1] == 1) {
-            match_end <- max(match[1], match[2])
-            value <- substring(s, pos, pos + match_end - 1)
-            # match_ident admits a backslash only as the start of an
-            # escape, so one in the source says the name was written
-            # with at least one
-            escaped <- grepl("\\", value, fixed = TRUE)
-            value <- decode_escapes(value)
-            results[[i]] <- if (escaped) EscapedIdentToken(value, pos)
-                            else Token("IDENT", value, pos)
-            pos <- pos + match_end
+        # css-syntax-3 "consume a token" tests for a CDC before it
+        # tests for an identifier, so '-->' is one token and not the
+        # name '--' followed by a child combinator, even though '--'
+        # does start an ident sequence. A CDC cannot appear anywhere
+        # in a selector; tokenizing it is what lets the parser say so
+        # about the whole of it, at the position it starts.
+        if (substring(s, pos, pos + 2) == "-->") {
+            results[[i]] <- Token("CDC", "-->", pos)
+            pos <- pos + 3
             i <- i + 1
             next
+        }
+        # css-syntax-3 "would start an ident sequence" is narrower than
+        # match_ident's character class, which also matches a lone '-'.
+        # A leading digit cannot reach here, since match_number above
+        # claims it, so '-' is the only start whose two readings can
+        # differ: one with nothing name-like after it is not a name at
+        # all, and falls through to the delimiter table below, which
+        # gives it the '-' <delim-token> the specification makes it.
+        starts_ident <- substring(s, pos, pos) != "-" ||
+            !anyNA(match_window(match_ident_start, s, pos, len_s))
+        if (starts_ident) {
+            match <- match_window(match_ident, s, pos, len_s)
+            if (!anyNA(match) && match[1] == 1) {
+                match_end <- max(match[1], match[2])
+                value <- substring(s, pos, pos + match_end - 1)
+                results[[i]] <- Token("IDENT", decode_escapes(value), pos)
+                pos <- pos + match_end
+                i <- i + 1
+                next
+            }
         }
         match <- match_window(match_hash, s, pos, len_s)
         if (!anyNA(match) && match[1] == 1) {
@@ -1562,6 +1566,16 @@ tokenize <- function(s) {
                 } else {
                     pos + rel_pos + 1
                 }
+            next
+        }
+        # The CDC's counterpart (css-syntax-3 "consume a token"). It is
+        # no more valid in a selector than a CDC is, and is read here
+        # for the same reason: so that the parser rejects the construct
+        # rather than the tokenizer rejecting its first character.
+        if (substring(s, pos, pos + 3) == "<!--") {
+            results[[i]] <- Token("CDO", "<!--", pos)
+            pos <- pos + 4
+            i <- i + 1
             next
         }
         # Every successful match ends in 'next', so reaching here means

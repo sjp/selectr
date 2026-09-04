@@ -294,6 +294,24 @@
       as well. Previously these were accepted and silently
       mistranslated.
 
+      \item A lone \code{-} is now a delimiter rather than a name, so
+      a selector that leans on it is rejected instead of translated
+      into an expression no document can match: \code{"-"} and
+      \code{"a - b"} (a combinator someone began and did not finish)
+      no longer name an element \code{-}, and \code{".-"} is no
+      longer a class selector. A \code{-} that does start a name is
+      unaffected, escaped ones included, so \code{"-a"},
+      \code{"--a"}, \code{"--"} and \code{"\\-"} translate as
+      before, as does the sign of \code{":nth-child(2n - 1)"}.
+
+      \item \code{-->} and \code{<!--} are now read as the single
+      CDC and CDO tokens that CSS makes them, and rejected whole at the
+      position they start. \code{"-->a"} previously parsed as an
+      element named \code{--} followed by a child combinator, and
+      \code{"<!--a"} failed on its first character. A \code{-->}
+      inside a name is unchanged, so \code{"a-->b"} still selects a
+      \code{b} child of an \code{a--}.
+
       \item An empty \code{:is()} or \code{:where()} argument list
       (e.g. \code{":is()"}) is now accepted, per its
       \code{<forgiving-selector-list>} grammar, and matches nothing,
