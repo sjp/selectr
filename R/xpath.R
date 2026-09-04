@@ -120,15 +120,19 @@ XPathExpr <- R6Class("XPathExpr",
             } else {
                 # A name XPath cannot express as a name test (e.g. one
                 # starting with a digit) has to be compared against
-                # name(), which - having no namespace map to consult -
-                # also matches the name in a default namespace. This
-                # branch is only reached from the element translation
-                # itself, so the looser match applies wherever such a
-                # name appears, top level included.
-                self$add_condition(paste0("name() = ",
-                                          xpath_literal(self$element)))
-                self$name_test <- paste0("*[name() = ",
-                                         xpath_literal(self$element), "]")
+                # name() instead - and name() returns the *qualified*
+                # name, which for an element in a default namespace is
+                # the bare local name. Pin namespace-uri() alongside it
+                # so a quoted name matches exactly what a name test
+                # would have: the name in no namespace. Only unprefixed
+                # names reach here (xpath_element() keeps a prefix in
+                # the node test), so the pin is always the right one.
+                condition <- paste0("name() = ",
+                                    xpath_literal(self$element))
+                self$add_condition(condition)
+                self$add_condition("namespace-uri() = ''")
+                self$name_test <- paste0("*[", condition,
+                                         " and namespace-uri() = '']")
             }
             self$element <- "*"
         },
@@ -225,6 +229,30 @@ of_type_nodetest_or_stop <- function(xpath, name) {
 # annotates a selectr_parse_error with a caret gutter.
 translation_stop <- function(message, feature) {
     selectr_abort(message, "selectr_translation_error", feature = feature)
+}
+
+# A namespace prefix that is not an XML NCName (see is_ncname()) cannot
+# appear in a node test, and XPath 1.0 offers no way to resolve it
+# without the namespace URI, which the translator never sees.
+#
+# The obvious symmetry with the local-name path - where a name that
+# cannot be a node test folds into a name() or local-name() comparison -
+# does not hold, which is why this is an error and not a third
+# fallback. Those fallbacks are exact rewrites: "name() = '123' and
+# namespace-uri() = ''" selects what the node test '123' would have
+# selected, and "svg:*[local-name() = 'di[v']" still resolves 'svg'
+# through the evaluator's namespace map. Comparing a whole
+# 'prefix:name' against name() is not a rewrite of anything: it tests
+# how the *document* spells its prefix, where every other prefix the
+# translator emits is resolved by what the caller bound it to. So a
+# prefix that is not a name is refused rather than matched by spelling -
+# and the caller could not bind it either way, since an XPath
+# expression has no way to name it.
+stop_unsafe_prefix <- function(prefix) {
+    translation_stop(
+        paste0("The namespace prefix '", prefix, "' is not an XPath name, ",
+               "so it cannot be translated"),
+        paste0(prefix, "|"))
 }
 
 # Shared translation for pseudo-classes that can never match in a
@@ -1050,29 +1078,40 @@ GenericTranslator <- R6Class("GenericTranslator",
             } else {
                 name <- selector$attrib
             }
-            # 'name' picks up the namespace prefix below; the
-            # case-insensitivity rule is keyed on the local name alone,
-            # and only for an attribute in no namespace
+            # The case-insensitivity rule is keyed on the local name
+            # alone, and only for an attribute in no namespace, so keep
+            # it under its own name rather than reusing 'name'
             local_name <- name
             safe <- is_safe_name(name)
-            if (identical(selector$namespace, "*")) {
+            namespace <- selector$namespace
+            if (identical(namespace, "*")) {
                 # '[*|attr]': 'attr' in any namespace, including none.
                 # An unprefixed XPath attribute test only matches
                 # attributes with no namespace, so test against
                 # local-name() instead.
                 attrib <- paste0(
                     "@*[local-name() = ", xpath_literal(name), "]")
+            } else if (!is.null(namespace)) {
+                if (!is_ncname(namespace))
+                    stop_unsafe_prefix(namespace)
+                # As in xpath_element(): the prefix stays in the node
+                # test so it resolves through the caller's namespace
+                # map, and only the local part is compared
+                attrib <-
+                    if (safe)
+                        paste0("@", namespace, ":", name)
+                    else
+                        paste0("@", namespace, ":*[local-name() = ",
+                               xpath_literal(name), "]")
             } else {
-                if (!is.null(selector$namespace)) {
-                    name <- paste0(selector$namespace, ":", name)
-                    safe <- safe && is_safe_name(selector$namespace)
-                }
-                if (safe) {
-                    attrib <- paste0("@", name)
-                } else {
-                    attrib <- paste0(
-                        "attribute::*[name() = ", xpath_literal(name), "]")
-                }
+                # An unprefixed attribute has no namespace, so name()
+                # is its local name and needs no pin of its own
+                attrib <-
+                    if (safe)
+                        paste0("@", name)
+                    else
+                        paste0("attribute::*[name() = ",
+                               xpath_literal(name), "]")
             }
             value <- selector$value
 
@@ -1138,40 +1177,53 @@ GenericTranslator <- R6Class("GenericTranslator",
             }
             if (identical(namespace, "")) {
                 # '|e': 'e' in no namespace, which is exactly what an
-                # unprefixed XPath name test matches.  '|*' needs an
-                # explicit namespace-uri() check.
+                # unprefixed XPath name test matches, so it is the plain
+                # 'e' translation below.  '|*' needs an explicit
+                # namespace-uri() check.
                 if (element == "*") {
                     xpath <- XPathExpr$new()
                     xpath$add_condition("namespace-uri() = ''")
                     return(xpath)
                 }
-                if (!safe) {
-                    # An unsafe name must not fall through to the name()
-                    # fallback below: name() is unprefixed for an element
-                    # in a *default* namespace too, so the null namespace
-                    # has to be pinned explicitly alongside the name test.
-                    xpath <- XPathExpr$new(element = element)
-                    xpath$add_name_test()
-                    xpath$add_condition("namespace-uri() = ''")
-                    # The of-type nodetest must carry the namespace pin
-                    # set by the condition above
-                    xpath$name_test <- paste0("*[name() = ",
-                                              xpath_literal(element),
-                                              " and namespace-uri() = '']")
-                    return(xpath)
-                }
                 namespace <- NULL
             }
-            if (!is.null(namespace) && namespace != "*") {
+            if (is.null(namespace)) {
+                # An unprefixed name: a name test if it can be one, and
+                # otherwise a name() comparison pinned to the null
+                # namespace, which is what add_name_test() emits
+                xpath <- XPathExpr$new(element = element)
+                if (!safe)
+                    xpath$add_name_test()
+                return(xpath)
+            }
+            if (namespace != "*") {
                 # Namespace prefixes are case-sensitive.
                 # https://www.w3.org/TR/css-namespaces-3/#prefixes
+                if (!is_ncname(namespace))
+                    stop_unsafe_prefix(namespace)
+                if (!safe) {
+                    # Only the local name needs quoting: keep the prefix
+                    # in the node test so the engine still resolves it
+                    # through the caller's namespace map, and compare
+                    # the local part alone.  Folding the whole
+                    # 'prefix:name' into a name() test would instead
+                    # match only documents that happen to use that very
+                    # prefix.
+                    #
+                    # No 'name_test' is recorded: the node test left in
+                    # 'element' is the namespaced wildcard 'ns:*', which
+                    # the of-type pseudo-classes reject (counting those
+                    # siblings would group them by namespace rather than
+                    # by expanded name), and it is what they see either
+                    # way - of_type_nodetest() prefers 'element'.
+                    xpath <- XPathExpr$new(element = paste0(namespace, ":*"))
+                    xpath$add_condition(paste0("local-name() = ",
+                                               xpath_literal(element)))
+                    return(xpath)
+                }
                 element <- paste0(namespace, ":", element)
-                safe <- safe && is_safe_name(namespace)
             }
-            xpath <- XPathExpr$new(element = element)
-            if (!safe)
-                xpath$add_name_test()
-            xpath
+            XPathExpr$new(element = element)
         },
         xpath_descendant_combinator = function(left, right) {
             left$join("//", right)

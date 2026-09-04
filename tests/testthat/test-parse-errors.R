@@ -169,7 +169,8 @@ test_that("constructs unclosed at EOF translate as their closed forms", {
 
 test_that("a trailing backslash at EOF decodes to U+FFFD in a selector", {
     expect_equal(css_to_xpath("a\\", prefix = ""),
-                 paste0("*[name() = 'a", "\uFFFD", "']"))
+                 paste0("*[name() = 'a", "\uFFFD",
+                        "' and namespace-uri() = '']"))
 })
 
 test_that("unsupported column constructs are rejected by name", {

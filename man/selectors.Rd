@@ -181,6 +181,14 @@
   argument passed to \code{\link[xml2]{xml_find_all}} /
   \code{\link[XML]{getNodeSet}} at query time, not through whatever
   prefix the document itself uses; see \code{\link{querySelectorAll}}.
+  A prefix is written into the generated XPath as it stands, so it has
+  to be a name XPath can parse (an XML \code{NCName}, which is not
+  restricted to ASCII); one that is not, such as the escaped
+  \code{\\31 ns|div}, is rejected with an error rather than compared
+  against the document's own prefix. Local names carry no such
+  restriction: one that cannot be written as a name test is compared
+  with \code{local-name()} instead, e.g. \code{d|\\31} becomes
+  \code{d:*[local-name() = '1']}.
   \code{HTMLTranslator} additionally lower-cases every element and
   attribute name - folding \code{A}-\code{Z} only, as an HTML parser
   does, so a non-ASCII name is left as written - including namespaced

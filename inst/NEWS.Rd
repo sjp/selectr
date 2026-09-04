@@ -324,11 +324,34 @@
       with a translation error, instead of silently counting siblings
       by namespace rather than by expanded name.
 
-      \item An attribute selector with a namespace prefix that is not a
-      valid XPath \code{NCName} (e.g. \code{"[\\31 ns|href]"}) now folds
-      the whole name into a \code{name()} comparison, as the equivalent
-      element name test already did, instead of emitting an XPath QName
-      that fails to compile.
+      \item An unprefixed element name that cannot be written as an
+      XPath name test, and so is compared against \code{name()}, is now
+      pinned to the null namespace (e.g. \code{"é"} translates to
+      \code{*[name() = 'é' and namespace-uri() = '']}), giving it the
+      same meaning as the name test a plain \code{"p"} becomes.
+      Previously such a name also matched an element in a default
+      namespace, which \code{"p"} does not. The no-namespace form
+      \code{"|é"} already had the pin.
+
+      \item An element or attribute name whose \emph{local part} cannot
+      be written as an XPath name test now keeps its namespace prefix
+      in the node test and compares the local part alone
+      (e.g. \code{"svg|di\\[v"} translates to
+      \code{svg:*[local-name() = 'di[v']}), so the prefix resolves
+      through the namespace map supplied at evaluation time, as every
+      other prefixed selector does. Previously the whole qualified name
+      was folded into a \code{name()} comparison, which instead matched
+      on the prefix the \emph{document} happens to use.
+
+      \item A namespace prefix that is not a valid XPath
+      \code{NCName} (e.g. \code{"\\31 ns|div"}, \code{"[\\31 ns|href]"})
+      is now rejected with a translation error. Such a prefix cannot be
+      named by an XPath expression at all, and the \code{name()}
+      comparison previously emitted for it was not an equivalent: it
+      tested the document's spelling of the prefix rather than the URI
+      the caller bound it to. A prefix that is a name outside ASCII
+      (e.g. \code{"äöü|a"}) is now translated rather than folded into
+      such a comparison.
 
       \item \code{NA} and empty-string values in the \code{ns} argument
       of the \code{querySelectorNS()} family are now rejected with an

@@ -11,9 +11,21 @@ test_that("namespace selectors translate faithfully", {
     expect_equal(xpath("|e"), "e")
     # '|e' with a name unusable as an XPath name test must still pin the
     # null namespace: a bare name() test is also unprefixed for an
-    # element in a default namespace
+    # element in a default namespace.  'e' means the same thing, so it
+    # gets the same pin
     expect_equal(xpath("|é"),
                  "*[name() = 'é' and namespace-uri() = '']")
+    expect_equal(xpath("é"),
+                 "*[name() = 'é' and namespace-uri() = '']")
+    # A prefixed name unusable as an XPath name test keeps the prefix in
+    # the node test, where the evaluator's namespace map still resolves
+    # it, and compares the local part alone
+    expect_equal(xpath("ns|é"), "ns:*[local-name() = 'é']")
+    # The node test left on the path step is then the namespaced
+    # wildcard, which the of-type pseudo-classes reject as they do
+    # 'ns|*' itself
+    expect_error(xpath("ns|é:first-of-type"),
+                 "\\*:first-of-type is not implemented")
     # '*|*' is equivalent to '*'
     expect_equal(xpath("*|*"), "*")
     # '|*' matches any element in no namespace
@@ -30,16 +42,17 @@ test_that("namespace selectors translate faithfully", {
     expect_equal(xpath("[|a]"), "*[@a]")
     expect_equal(xpath("[|a='v']"), "*[@a = 'v']")
     expect_equal(xpath("[ns|a]"), "*[@ns:a]")
-    # An unsafe prefix (not an NCName) forces a whole-name comparison
-    # on the attribute axis, mirroring the element path; a QName like
-    # '@1ns:href' is not valid XPath and would fail to compile
-    expect_equal(xpath("[\\31 ns|href]"),
-                 "*[attribute::*[name() = '1ns:href']]")
-    expect_equal(xpath("[\\31 ns|href='v']"),
-                 "*[attribute::*[name() = '1ns:href'] = 'v']")
-    # An unsafe local name already took this path; guard it still does
+    # An attribute name unusable as an XPath name test is compared with
+    # name(), which needs no namespace pin: an unprefixed attribute has
+    # no namespace, unlike an element in a default namespace
+    expect_equal(xpath("[\\31 href]"),
+                 "*[attribute::*[name() = '1href']]")
+    # An unsafe local name keeps the prefix in the node test, as on the
+    # element path
     expect_equal(xpath("[ns|\\31 href]"),
-                 "*[attribute::*[name() = 'ns:1href']]")
+                 "*[@ns:*[local-name() = '1href']]")
+    expect_equal(xpath("[ns|\\31 href='v']"),
+                 "*[@ns:*[local-name() = '1href'] = 'v']")
 
     # Composability
     expect_equal(xpath(":not(*|e)"), "*[not(local-name() = 'e')]")
@@ -88,6 +101,41 @@ test_that("namespace selector specificity is correct", {
     expect_equal(spec("|e"), c(0, 0, 1))
     expect_equal(spec("*|*"), c(0, 0, 0))
     expect_equal(spec("|*"), c(0, 0, 0))
+})
+
+test_that("a prefix that is not an XPath name is rejected", {
+    gt <- GenericTranslator$new()
+    css <- function(x) gt$css_to_xpath(x, prefix = "")
+
+    # A prefix is written into the node test as it stands, so it has to
+    # be a name XPath can parse. Unlike a local name, it has no
+    # fallback: comparing 'prefix:name' against name() would test how
+    # the document spells the prefix, where every prefix the translator
+    # emits is resolved by what the caller bound it to
+    expect_error(css("\\31 ns|div"),
+                 "The namespace prefix '1ns' is not an XPath name")
+    expect_error(css("[\\31 ns|href]"),
+                 "The namespace prefix '1ns' is not an XPath name")
+    expect_error(css("ns\\:x|div"),
+                 "The namespace prefix 'ns:x' is not an XPath name")
+    expect_error(css("ns\\|a|b"),
+                 "The namespace prefix 'ns\\|a' is not an XPath name")
+    expect_error(css("\\D800|a"), "is not an XPath name")
+
+    # The condition is an XML NCName, which is not restricted to ASCII:
+    # a prefix XPath can name is passed through whatever its script
+    expect_equal(css("äöü|a"), "äöü:a")
+    expect_equal(css("[äöü|a]"), "*[@äöü:a]")
+    # ... but only as XML 1.0 spelled it, which is what libxml2 (behind
+    # both the XML and the xml2 package) parses: the Fifth Edition
+    # widened the tables, and a prefix accepted here has to parse
+    # everywhere
+    expect_error(css("nsɂ|a"), "is not an XPath name")
+
+    # A translation error, so it carries the usual fields
+    err <- tryCatch(css("\\31 ns|div"), selectr_translation_error = identity)
+    expect_equal(err$feature, "1ns|")
+    expect_equal(err$selector, "\\31 ns|div")
 })
 
 test_that("malformed namespace selectors are rejected", {

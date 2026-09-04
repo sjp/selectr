@@ -130,10 +130,12 @@ test_that("the HTML translator folds names as an HTML parser does", {
     # attribute name reaches XPath as it was written
     expect_equal(translator$css_to_xpath("\\C4[\\C4=x]"),
                  paste0("descendant-or-self::*[name() = '\u00c4' and ",
+                        "namespace-uri() = '' and ",
                         "attribute::*[name() = '\u00c4'] = 'x']"))
     # U+041B CYRILLIC CAPITAL LETTER EL
     expect_equal(translator$css_to_xpath("\\41b"),
-                 "descendant-or-self::*[name() = '\u041b']")
+                 paste0("descendant-or-self::*[name() = '\u041b' and ",
+                        "namespace-uri() = '']"))
 })
 
 test_that("Generic translator handles :lang() wildcards and comma lists", {

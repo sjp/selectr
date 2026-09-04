@@ -35,7 +35,8 @@ test_that("translation from parsed objects to XPath works", {
     # Unicode escapes are decoded to the characters they represent,
     # in idents, hashes, and strings alike
     expect_equal(xpath("#\\31 23"), "*[@id = '123']")
-    expect_equal(xpath("\\31 23"), "*[name() = '123']")
+    expect_equal(xpath("\\31 23"),
+                 "*[name() = '123' and namespace-uri() = '']")
     expect_equal(xpath("[\\31 23]"),
                  "*[attribute::*[name() = '123']]")
     expect_equal(xpath("e[foo='\\31 23']"), "e[@foo = '123']")
@@ -129,17 +130,18 @@ test_that("translation from parsed objects to XPath works", {
     expect_equal(xpath('e:only-of-type'),
                  "e[count(preceding-sibling::e) = 0 and count(following-sibling::e) = 0]")
     # element names that cannot be used as an XPath name test still
-    # support the of-type pseudo-classes via a name() node test
+    # support the of-type pseudo-classes via a name() node test, which
+    # carries the null-namespace pin the name test would have implied
     expect_equal(xpath('é:first-of-type'),
-                 "*[name() = 'é' and count(preceding-sibling::*[name() = 'é']) = 0]")
+                 "*[name() = 'é' and namespace-uri() = '' and count(preceding-sibling::*[name() = 'é' and namespace-uri() = '']) = 0]")
     expect_equal(xpath('é:last-of-type'),
-                 "*[name() = 'é' and count(following-sibling::*[name() = 'é']) = 0]")
+                 "*[name() = 'é' and namespace-uri() = '' and count(following-sibling::*[name() = 'é' and namespace-uri() = '']) = 0]")
     expect_equal(xpath('é:only-of-type'),
-                 "*[name() = 'é' and count(preceding-sibling::*[name() = 'é']) = 0 and count(following-sibling::*[name() = 'é']) = 0]")
+                 "*[name() = 'é' and namespace-uri() = '' and count(preceding-sibling::*[name() = 'é' and namespace-uri() = '']) = 0 and count(following-sibling::*[name() = 'é' and namespace-uri() = '']) = 0]")
     expect_equal(xpath('é:nth-of-type(2)'),
-                 "*[name() = 'é' and count(preceding-sibling::*[name() = 'é']) = 1]")
+                 "*[name() = 'é' and namespace-uri() = '' and count(preceding-sibling::*[name() = 'é' and namespace-uri() = '']) = 1]")
     expect_equal(xpath('é:nth-last-of-type(2)'),
-                 "*[name() = 'é' and count(following-sibling::*[name() = 'é']) = 1]")
+                 "*[name() = 'é' and namespace-uri() = '' and count(following-sibling::*[name() = 'é' and namespace-uri() = '']) = 1]")
     # likewise for elements in any namespace, via local-name()
     expect_equal(xpath('*|e:first-of-type'),
                  "*[local-name() = 'e' and count(preceding-sibling::*[local-name() = 'e']) = 0]")
@@ -271,12 +273,12 @@ test_that("translation from parsed objects to XPath works", {
     charsets <- localeToCharset()
     if (!anyNA(charsets) && charsets[1] == "UTF-8") {
         expect_equal(xpath('di\ua0v'),
-                     "*[name() = 'di v']") # div\ua0v
+                     "*[name() = 'di v' and namespace-uri() = '']") # div\ua0v
         expect_equal(xpath('[h\ua0ref]'),
                      "*[attribute::*[name() = 'h ref']]") # h\ua0ref
     }
     expect_equal(xpath('di\\[v'),
-                 "*[name() = 'di[v']")
+                 "*[name() = 'di[v' and namespace-uri() = '']")
     expect_equal(xpath('[h\\]ref]'),
                  "*[attribute::*[name() = 'h]ref']]")
 })
@@ -334,7 +336,8 @@ test_that("invalid unicode escapes translate to U+FFFD", {
     # characters, not errors (css-syntax-3)
     for (esc in c("\\0", "\\D800", "\\DFFF", "\\110000", "\\FFFFFF")) {
         expect_equal(xpath(esc),
-                     paste0("*[name() = '", repl, "']"))
+                     paste0("*[name() = '", repl,
+                            "' and namespace-uri() = '']"))
         expect_equal(xpath(paste0("#", esc)),
                      paste0("*[@id = '", repl, "']"))
         expect_equal(xpath(paste0("[x=\"", esc, "\"]")),
