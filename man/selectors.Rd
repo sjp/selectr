@@ -108,7 +108,7 @@
 \section{Link and interaction-state pseudo-classes}{
   \tabular{lll}{
     \bold{Selector} \tab \bold{generic} \tab \bold{html / xhtml} \cr
-    \code{:link}, \code{:any-link} \tab never matches \tab matches \code{a}, \code{area}, \code{link} elements with an \code{href} \cr
+    \code{:link}, \code{:any-link} \tab never matches \tab matches \code{a} and \code{area} elements with an \code{href} (a \code{link} element is metadata, not a hyperlink) \cr
     \code{:visited} \tab never matches \tab never matches (no browser history in a static document) \cr
     \code{:hover}, \code{:active}, \code{:focus}, \code{:focus-within}, \code{:focus-visible} \tab never matches \tab never matches (runtime UI state) \cr
     \code{:target}, \code{:target-within} \tab never matches \tab never matches (needs the document's URL fragment) \cr

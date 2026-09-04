@@ -1746,19 +1746,21 @@ HTMLTranslator <- R6Class("HTMLTranslator",
 
             xpath
         },
+        # ':link' matches the HTML Standard's hyperlink elements that
+        # have an href: <a> and <area> only. A <link> in the <head> is
+        # not a hyperlink in that sense - it is metadata, and is never
+        # rendered - so it is deliberately outside the set
         xpath_link_pseudo = function(xpath) {
             add_disjunction(xpath, list(
                 list(element = "a", condition = "@href"),
-                list(element = "link", condition = "@href"),
                 list(element = "area", condition = "@href")))
         },
         xpath_any_link_pseudo = function(xpath) {
             # ':any-link' is ':link or :visited' (selectors-4 section
             # 9.1), and a static document has no visited state, so
             # every link is unvisited and ':any-link' collapses to
-            # ':link'. Sharing the :link condition (rather than the
-            # spec-exact a/area set, which omits 'link') keeps the
-            # subset relation between the two by construction
+            # ':link'. Sharing the :link condition keeps the subset
+            # relation between the two by construction
             self$xpath_link_pseudo(xpath)
         },
         xpath_disabled_pseudo = function(xpath) {

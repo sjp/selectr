@@ -160,7 +160,7 @@ test_that("selection works correctly on a large barrage of tests", {
     expect_equal(pcss('[h\ua0ref]', '[h\\]ref]'), NULL)
 
     ## HTML-specific
-    expect_equal(pcss(':link', html_only = TRUE), c('link-href', 'tag-anchor', 'nofollow-anchor', 'area-href'))
+    expect_equal(pcss(':link', html_only = TRUE), c('tag-anchor', 'nofollow-anchor', 'area-href'))
     expect_equal(pcss(':visited', html_only = TRUE), NULL)
     expect_equal(pcss(':enabled', html_only = TRUE), c('checkbox-unchecked', 'text-checked', 'checkbox-checked'))
     expect_equal(pcss(':disabled', html_only = TRUE), c('checkbox-disabled', 'checkbox-disabled-checked', 'fieldset', 'checkbox-fieldset-disabled'))

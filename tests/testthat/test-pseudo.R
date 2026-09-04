@@ -335,10 +335,8 @@ test_that(":empty keeps the Selectors 3 white space semantics", {
 test_that(":any-link matches the same elements as :link", {
     # ':any-link' is ':link or :visited'; the static-document
     # convention treats every link as unvisited, so the HTML
-    # translators give it the :link condition verbatim (the design
-    # shared with selectrs: internal consistency over the spec-exact
-    # a/area element set, which would omit 'link')
-    # 'e' names none of ':link''s elements (a, link, area), so once the
+    # translators give it the :link condition verbatim.
+    # 'e' names neither of ':link''s elements (a, area), so once the
     # HTML translator prunes against the compound's known element, the
     # predicate is a bare, always-false '0' - see add_disjunction() in
     # R/xpath.R
@@ -349,6 +347,18 @@ test_that(":any-link matches the same elements as :link", {
         expect_equal(css_to_xpath("e:any-link", translator = translator),
                      css_to_xpath("e:link", translator = translator))
     }
+
+    # A <link> is metadata rather than a hyperlink, so it is outside
+    # ':link''s element set and prunes away just as 'e' does
+    for (translator in c("html", "xhtml")) {
+        expect_equal(css_to_xpath("link:link", translator = translator),
+                     "descendant-or-self::link[0]")
+        expect_equal(css_to_xpath("link:any-link", translator = translator),
+                     "descendant-or-self::link[0]")
+    }
+    expect_equal(css_to_xpath(":link", translator = "html"),
+                 paste0("descendant-or-self::*[local-name(.) = 'a' and ",
+                        "(@href) or local-name(.) = 'area' and (@href)]"))
 
     # The generic translator has no link semantics: never matches
     expect_equal(css_to_xpath("e:any-link"),

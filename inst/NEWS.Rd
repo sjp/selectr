@@ -240,6 +240,14 @@
       \code{<datalist>} nested in a disabled \code{<select>} stays
       \code{:enabled}.
 
+      \item \code{:link} and \code{:any-link} no longer match a
+      \code{<link>} element with an \code{href} under the \code{html}
+      and \code{xhtml} translators. The HTML standard's hyperlink
+      elements for these pseudo-classes are \code{<a>} and
+      \code{<area>} only; a \code{<link>} in the document head is
+      metadata rather than a hyperlink, so \code{":link"} no longer
+      selects it and \code{"link:link"} now matches nothing.
+
       \item The of-type pseudo-classes (\code{:first-of-type},
       \code{:last-of-type}, \code{:only-of-type},
       \code{:nth-of-type()}, \code{:nth-last-of-type()}) now reject a
