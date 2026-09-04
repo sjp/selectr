@@ -397,6 +397,20 @@ first_class_name <- function(obj) {
 # the uppercase keywords the way browsers do
 fold_type <- "translate(@type, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
 
+# The condition "the input's type is none of 'types'", written as a
+# negated disjunction of equality tests on the folded @type. Both lists
+# below are written this way round - as the states an attribute does
+# *not* apply to - because 'type' is an enumerated attribute whose
+# missing *and* invalid value defaults are both Text: an <input> with no
+# type, or with an unrecognised one such as type="foo", is a text
+# control, and a missing or unknown @type folds to a string matching
+# none of the names listed
+type_not_one_of <- function(types) {
+    paste0("not(", paste(paste0(fold_type, " = ",
+                                vapply(types, xpath_literal, character(1))),
+                         collapse = " or "), ")")
+}
+
 # A disabled <fieldset> disables its descendant controls - and its
 # descendant <fieldset>s - except those inside its first <legend> child
 # (HTML's "actually disabled" rule). A
@@ -506,6 +520,11 @@ add_disjunction <- function(xpath, disjuncts) {
     xpath
 }
 
+# The 'required' content attribute applies to every <input> state
+# except these - HTML's list of the types it does *not* apply to
+required_inert_input_types <- c("hidden", "range", "color", "submit",
+                                "image", "reset", "button")
+
 # The disjuncts shared by xpath_required_pseudo() and
 # xpath_optional_pseudo(): both partition the same element set (input,
 # select, textarea) that can take @required, and differ only in whether
@@ -513,8 +532,8 @@ add_disjunction <- function(xpath, disjuncts) {
 required_optional_disjuncts <- function(required_condition) {
     list(
         list(element = "input",
-             condition = paste0(required_condition, " and not(", fold_type,
-                                " = 'hidden')")),
+             condition = paste0(required_condition, " and ",
+                                type_not_one_of(required_inert_input_types))),
         list(element = "select", condition = required_condition),
         list(element = "textarea", condition = required_condition))
 }
@@ -555,19 +574,11 @@ xpath_literal <- function(literal) {
 }
 
 # The 'readonly' content attribute applies to every <input> state
-# except these - HTML's list of the types it does *not* apply to. The
-# list is written this way round because 'type' is an enumerated
-# attribute whose missing *and* invalid value defaults are both Text:
-# an <input> with no type, or with an unrecognised one such as
-# type="foo", is a text control and so takes 'readonly'. A missing or
-# unknown @type folds to a string matching none of the names below
+# except these - HTML's list of the types it does *not* apply to
 readonly_inert_input_types <- c("hidden", "color", "checkbox", "radio",
                                 "file", "submit", "image", "reset",
                                 "button", "range")
-readonly_capable_condition <- paste0(
-    "not(", paste(paste0(fold_type, " = ",
-                         vapply(readonly_inert_input_types, xpath_literal,
-                                character(1))), collapse = " or "), ")")
+readonly_capable_condition <- type_not_one_of(readonly_inert_input_types)
 
 # 'contenteditable' is inherited: everything inside an editing host is
 # editable until a descendant sets a state of its own. Only these four
@@ -1634,13 +1645,11 @@ HTMLTranslator <- R6Class("HTMLTranslator",
         },
         # ':required' and ':optional' partition the form elements that
         # can take the required attribute (input, select, textarea);
-        # an element outside that set (e.g. a button) is neither. As
-        # in xpath_disabled_pseudo, a hidden input is excluded - the
-        # required attribute does not apply to it - but the rarer
-        # non-required input types (range, color, the button types)
-        # are not carved out. required_optional_disjuncts() is shared
-        # between the two pseudo-classes: only the leading condition
-        # differs
+        # an element outside that set (e.g. a button) is neither, and
+        # neither is an <input> in one of the states the required
+        # attribute does not apply to (see required_inert_input_types).
+        # required_optional_disjuncts() is shared between the two
+        # pseudo-classes: only the leading condition differs
         xpath_required_pseudo = function(xpath) {
             add_disjunction(xpath, required_optional_disjuncts("@required"))
         },

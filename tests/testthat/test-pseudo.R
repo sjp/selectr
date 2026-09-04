@@ -99,15 +99,20 @@ test_that(":required and :optional translate from the @required attribute", {
     # HTML form state readable from a document attribute: a real
     # translation on the HTML translator (like :checked), never-match
     # on the generic translator
-    not_hidden <- paste0(
-        "not(translate(@type, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
-        "'abcdefghijklmnopqrstuvwxyz') = 'hidden')")
+    fold <- paste0("translate(@type, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
+                   "'abcdefghijklmnopqrstuvwxyz')")
+    # The input types the 'required' attribute does not apply to
+    takes_required <- paste0(
+        "not(", paste(paste0(fold, " = '",
+                             c("hidden", "range", "color", "submit",
+                               "image", "reset", "button"), "'"),
+                      collapse = " or "), ")")
     # 'input' is the only element in the required/optional set the HTML
     # translator prunes against here, so the compound's known element
     # ('input') drops the 'select'/'textarea' disjuncts and their
     # local-name() tests entirely - see add_disjunction() in R/xpath.R
-    required_xpath <- paste("@required and", not_hidden)
-    optional_xpath <- paste("not(@required) and", not_hidden)
+    required_xpath <- paste("@required and", takes_required)
+    optional_xpath <- paste("not(@required) and", takes_required)
     for (translator in c("html", "xhtml")) {
         expect_equal(css_to_xpath("input:required", translator = translator),
                      paste0("descendant-or-self::input[",
@@ -139,6 +144,9 @@ test_that(":required and :optional match form elements correctly", {
         '<input id="i2" type="text"/>',
         '<input id="i3" type="hidden" required="required"/>',
         '<input id="i4" type="hidden"/>',
+        '<input id="i5" type="submit" required="required"/>',
+        '<input id="i6" type="range"/>',
+        '<input id="i7" type="FOO" required="required"/>',
         '<select id="s1" required="required"/>',
         '<select id="s2"/>',
         '<textarea id="t1" required="required"/>',
@@ -153,17 +161,20 @@ test_that(":required and :optional match form elements correctly", {
         xml2::xml_attr(results, "id")
     }
 
-    # Only form elements that can take @required and have it; a hidden
-    # input cannot be required, and a div's @required is meaningless
+    # Only form elements that can take @required and have it; the
+    # attribute does not apply to a hidden, submit or range input, and
+    # a div's @required is meaningless. An unknown type is a text
+    # control, so i7 is required
     expect_equal(get_ids("*:required"),
-                 c("i1", "s1", "t1"))
+                 c("i1", "i7", "s1", "t1"))
 
-    # The rest of the same element set; non-form elements (and hidden
-    # inputs) are neither :required nor :optional
+    # The rest of the same element set; non-form elements (and the
+    # input types @required does not apply to) are neither :required
+    # nor :optional
     expect_equal(get_ids("*:optional"),
                  c("i2", "s2", "t2"))
 
-    expect_equal(get_ids("input:required"), "i1")
+    expect_equal(get_ids("input:required"), c("i1", "i7"))
     expect_equal(get_ids("select:optional"), "s2")
 })
 

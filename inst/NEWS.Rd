@@ -134,6 +134,16 @@
   \subsection{BUG FIXES}{
     \itemize{
 
+      \item An \code{<input>} whose \code{type} is \code{range},
+      \code{color}, \code{submit}, \code{image}, \code{reset} or
+      \code{button} is now neither \code{:required} nor
+      \code{:optional} under the \code{html} and \code{xhtml}
+      translators, joining \code{type="hidden"}. The \code{required}
+      attribute does not apply to any of these states, so such an input
+      was previously reported as \code{:required} when it carried a
+      meaningless \code{required} attribute, and as \code{:optional}
+      when it did not.
+
       \item A large \code{An+B} value in \code{:nth-child()} and the
       other \code{:nth-*()} pseudo-classes is now written into the
       generated XPath in full. Values of five or more digits were
@@ -254,8 +264,9 @@
       the \code{html} and \code{xhtml} translators. Previously it was
       neither, a carve-out the HTML standard does not make: the
       \code{disabled} attribute applies to every \code{<input>}. The
-      hidden carve-out in \code{:required}/\code{:optional}, where
-      \code{required} genuinely does not apply, is unchanged.
+      carve-out in \code{:required}/\code{:optional}, where
+      \code{required} genuinely does not apply to a hidden input, is
+      unchanged.
 
       \item A \code{<fieldset>} inside a disabled \code{<fieldset>} is
       now \code{:disabled} under the \code{html} and \code{xhtml}
