@@ -92,17 +92,28 @@ XPathExpr <- R6Class("XPathExpr",
             if (identical(self$conditions, "0"))
                 return(invisible(NULL))
             if (length(self$conditions)) {
-                if (is_or_group)
-                    condition <- paste0("(", condition, ")")
+                grouped <- if (is_or_group)
+                    paste0("(", condition, ")")
+                else
+                    condition
+                # An exactly repeated conjunct asks a question already
+                # asked, and AND-ing an expression with itself changes
+                # nothing, so keep the first and drop the repeat. Doing
+                # so before either side is parenthesized leaves the
+                # first copy exactly as it was written, so that
+                # 'e:checked:checked' reads like 'e:checked' rather
+                # than gaining brackets around a group nothing was
+                # joined to. Both spellings are compared because the
+                # stored copy may already have been grouped by an
+                # earlier join.
+                if (any(self$conditions == condition) ||
+                    any(self$conditions == grouped))
+                    return(invisible(NULL))
                 if (self$condition_is_or) {
                     self$conditions <- paste0("(", self$conditions, ")")
                     self$condition_is_or <- FALSE
                 }
-                # An exactly repeated conjunct asks a question already
-                # asked, and AND-ing an expression with itself changes
-                # nothing, so keep the first and drop the repeat
-                if (!any(self$conditions == condition))
-                    self$conditions <- c(self$conditions, condition)
+                self$conditions <- c(self$conditions, grouped)
             } else {
                 self$conditions <- condition
                 self$condition_is_or <- is_or_group
@@ -567,10 +578,15 @@ fold_type <- xpath_ascii_lower("@type")
 # does not, so an absent or empty attribute is a non-member by default
 # and a member where the standard says it should be
 # (contenteditable's "" state)
-one_of_condition <- function(expr, values) {
+#
+# The guard only has to see whether the *raw* value holds a '|', so a
+# caller whose 'expr' is a case-folding translate() may pass the bare
+# attribute as 'pipe_guard': translate() over the two alphabets can
+# neither produce nor remove a '|', so the shorter test is the same one
+one_of_condition <- function(expr, values, pipe_guard = expr) {
     haystack <- paste0("|", paste(values, collapse = "|"), "|")
     paste0("contains(", xpath_literal(haystack), ", concat('|', ", expr,
-           ", '|')) and not(contains(", expr, ", '|'))")
+           ", '|')) and not(contains(", pipe_guard, ", '|'))")
 }
 
 # The condition "the input's type is none of 'types'". Both lists
@@ -654,11 +670,10 @@ placeholder_inert_input_types <- c("hidden", "checkbox", "radio", "file",
 # 'required_condition' is '@required' or 'not(@required)'
 required_optional_disjuncts <- function(required_condition) {
     list(
-        list(element = "input",
-             condition = paste0(required_condition, " and ",
-                                type_not_one_of(required_inert_input_types))),
-        list(element = "select", condition = required_condition),
-        list(element = "textarea", condition = required_condition))
+        list(element = "input", pre = required_condition,
+             post = type_not_one_of(required_inert_input_types)),
+        list(element = "select", pre = required_condition),
+        list(element = "textarea", pre = required_condition))
 }
 
 # XPath 1.0's Number production has no exponent form, and R's default
@@ -704,9 +719,11 @@ readonly_inert_input_types <- c("hidden", "color", "checkbox", "radio",
 readonly_capable_condition <- type_not_one_of(readonly_inert_input_types)
 
 # The elements named as an OR-joined run of local-name() tests, the
-# form every HTML pseudo-class below uses to ask "is the context node
+# form the HTML pseudo-classes below use to ask "is the context node
 # one of these?" - local-name() rather than name() so that the tests
-# hold in a namespaced (XHTML) document too
+# hold in a namespaced (XHTML) document too. A disjunction naming one
+# element per condition is built by disjunction_condition() instead,
+# which writes the same test for each of its disjuncts
 local_name_tests <- function(elements) {
     paste(paste0("local-name() = ",
                  vapply(elements, xpath_literal, character(1))),
@@ -770,11 +787,47 @@ known_local_element <- function(xpath) {
     NULL
 }
 
-# OR-join 'disjuncts' - each list(element, condition, is_or = FALSE) -
-# where 'condition' assumes the context node is already known to be
-# 'element' (no local-name() test of its own), and 'is_or' says whether
-# 'condition' is itself a bare top-level "or" expression that needs
-# parentheses once joined with something else. Without this pruning,
+# The conjuncts of one disjunct - each list(element, pre, post,
+# post_is_or = FALSE) - in the order they are written: 'pre', the
+# condition the pseudo-class asks of every candidate before it knows
+# which element it has (an attribute test such as '@required'); the
+# element test itself, unless the element is already settled; and
+# 'post', what the pseudo-class asks of that element alone (an
+# <input>'s type test). 'pre' and 'post' may each be absent, and 'post'
+# is parenthesized when it is a bare top-level "or" ('post_is_or') that
+# would otherwise absorb a conjunct written beside it.
+#
+# Naming the element early is what keeps the disjunct cheap to
+# evaluate: XPath evaluates an and-chain left to right, so the one-word
+# local-name() test rejects the candidate before the translate() calls
+# spelling out both alphabets are reached.
+disjunct_parts <- function(d, pre = TRUE, name_test = TRUE) {
+    parts <- c(if (pre) d$pre,
+               if (name_test) paste0("local-name() = ",
+                                     xpath_literal(d$element)))
+    post <- d$post
+    if (!is.null(post) && isTRUE(d$post_is_or) && length(parts))
+        post <- paste0("(", post, ")")
+    c(parts, post)
+}
+
+# 'parts' AND-ed together, parenthesized when there is more than one so
+# that the result reads as a unit beside the "or" joining the disjuncts
+and_group <- function(parts) {
+    if (length(parts) > 1)
+        paste0("(", paste(parts, collapse = " and "), ")")
+    else
+        parts
+}
+
+# OR-join 'disjuncts' into one list(condition, is_or), where 'is_or'
+# says whether the result is a bare top-level "or" expression that
+# needs parentheses once joined with something else (see
+# add_condition()). 'known' is the local name the compound has already
+# pinned, or NULL for "unknown, keep every disjunct".
+#
+# A known element prunes the disjunction to the single disjunct naming
+# it, whose element test is then redundant and dropped. Without that,
 # the HTML pseudo-class methods below would build a fixed disjunction
 # over every element the HTML standard gives the pseudo-class, even
 # though the compound had already pinned the element down (e.g.
@@ -782,65 +835,68 @@ known_local_element <- function(xpath) {
 # disjunct, whose local-name(.) test can never be true once 'input' is
 # already known).
 #
-# When the compound's element is not known (known_local_element() is
-# NULL - a bare ':checked', or one inside :not()/:is() applied to '*'),
-# every disjunct must still test its own local-name(), and they are
-# written condition-first, so that the elements sharing one condition
-# can be named beside it instead of repeating the condition once each
-# ('factored', below, and ':link', where every element asks for @href).
-#
 # When it is known and no disjunct names it, the predicate is genuinely
-# always-false for this element, and add_condition("0") is correct -
+# always-false for this element, and the "0" returned here is correct -
 # this is not the "no bare never-match" policy further down in this file
 # (the GenericTranslator "Policy:" comment above xpath_checked_pseudo and
 # its never-matching neighbours); that policy refuses to pretend an
 # *unsupported* pseudo-class matches something, while this is a
 # supported pseudo-class whose disjuncts have each been shown
 # unreachable for this specific, statically-known element.
-add_disjunction <- function(xpath, disjuncts, factored = NULL) {
-    known <- known_local_element(xpath)
+#
+# When it is not known (a bare ':checked', or one inside :not()/:is()
+# applied to '*'), every disjunct keeps its own element test - except
+# that a 'pre' shared by the whole set is asked once in front of them
+# all rather than repeated once per disjunct (':link', where every
+# element asks for @href; ':required', where every element asks for
+# @required and only the <input> has more to add).
+disjunction_condition <- function(disjuncts, known = NULL) {
     if (!is.null(known)) {
         disjuncts <- Filter(function(d) identical(d$element, known),
                             disjuncts)
-        if (!length(disjuncts)) {
-            xpath$add_condition("0")
-            return(xpath)
-        }
-        conditions <- vapply(disjuncts, `[[`, character(1), "condition")
-        is_or <- length(conditions) > 1 || isTRUE(disjuncts[[1]]$is_or)
-    } else {
-        if (!is.null(factored)) {
-            # A caller-supplied factoring of the same disjunction,
-            # for a set too large to spell out element by element
-            xpath$add_condition(factored)
-            return(xpath)
-        }
-        elements <- vapply(disjuncts, `[[`, character(1), "element")
-        conditions <- vapply(disjuncts, disjunct_condition, character(1))
-        if (length(unique(conditions)) == 1L) {
-            # One question asked of every element in the set: ask it
-            # once and name the elements beside it
-            tests <- local_name_tests(elements)
-            if (length(elements) > 1)
-                tests <- paste0("(", tests, ")")
-            xpath$add_condition(paste0(conditions[1], " and ", tests))
-            return(xpath)
-        }
-        conditions <- paste0("(", conditions, " and ",
-                             vapply(elements, local_name_tests, character(1),
-                                    USE.NAMES = FALSE), ")")
-        is_or <- length(conditions) > 1
+        if (!length(disjuncts))
+            return(list(condition = "0", is_or = FALSE))
+        parts <- lapply(disjuncts, disjunct_parts, name_test = FALSE)
+        conditions <- vapply(parts, paste, character(1), collapse = " and ")
+        return(list(condition = paste(conditions, collapse = " or "),
+                    is_or = length(conditions) > 1 ||
+                        (isTRUE(disjuncts[[1]]$post_is_or) &&
+                         length(parts[[1]]) == 1L)))
     }
-    xpath$add_condition(paste(conditions, collapse = " or "),
-                        is_or_group = is_or)
-    xpath
+    pres <- vapply(disjuncts,
+                   function(d) if (is.null(d$pre)) "" else d$pre,
+                   character(1))
+    if (nzchar(pres[1]) && length(unique(pres)) == 1L) {
+        rest <- vapply(disjuncts,
+                       function(d) and_group(disjunct_parts(d, pre = FALSE)),
+                       character(1))
+        inner <- paste(rest, collapse = " or ")
+        if (length(rest) > 1)
+            inner <- paste0("(", inner, ")")
+        return(list(condition = paste0(pres[1], " and ", inner),
+                    is_or = FALSE))
+    }
+    conditions <- vapply(disjuncts,
+                         function(d) and_group(disjunct_parts(d)),
+                         character(1))
+    list(condition = paste(conditions, collapse = " or "),
+         is_or = length(conditions) > 1)
 }
 
-# One disjunct's condition, parenthesized if it is a bare top-level
-# "or" and so would otherwise absorb the local-name() test AND-ed
-# beside it
-disjunct_condition <- function(d) {
-    if (isTRUE(d$is_or)) paste0("(", d$condition, ")") else d$condition
+# disjunction_condition() applied to the element 'xpath' has pinned,
+# and added to it. 'factored' is a caller-supplied factoring of the
+# same disjunction, used in place of the disjunct-by-disjunct form for
+# a set too large to spell out element by element
+add_disjunction <- function(xpath, disjuncts, factored = NULL) {
+    known <- known_local_element(xpath)
+    if (is.null(known) && !is.null(factored)) {
+        xpath$add_condition(factored)
+        return(xpath)
+    }
+    condition <- disjunction_condition(disjuncts, known)
+    xpath$add_condition(condition$condition,
+                        is_or_group = condition$is_or)
+    xpath
 }
 
 # 'contenteditable' is inherited: everything inside an editing host is
@@ -858,7 +914,8 @@ fold_contenteditable <- paste0(
     "'abcdefghijklmnopqrstuvwxyz')")
 contenteditable_state_cond <- paste0(
     "@contenteditable and ",
-    one_of_condition(fold_contenteditable, contenteditable_states))
+    one_of_condition(fold_contenteditable, contenteditable_states,
+                     pipe_guard = "@contenteditable"))
 contenteditable_condition <- paste0(
     "ancestor-or-self::*[", contenteditable_state_cond, "][1]",
     "[not(", fold_contenteditable, " = 'false')]")
@@ -875,25 +932,24 @@ contenteditable_condition <- paste0(
 # branch
 read_write_condition <- function(xpath) {
     known <- known_local_element(xpath)
+    if (!is.null(known) && !known %in% c("input", "textarea"))
+        return(list(condition = contenteditable_condition, is_or = FALSE))
     mutable_form_control <- paste0(
         "not(@readonly) and not(@disabled or ", disabled_by_fieldset, ")")
-    input_branch <- paste0("(", readonly_capable_condition, ") and ",
-                           mutable_form_control)
-    form_branch <- if (identical(known, "input")) {
-        input_branch
-    } else if (identical(known, "textarea")) {
-        mutable_form_control
-    } else if (is.null(known)) {
-        paste0("(", input_branch, " and local-name() = 'input') or (",
-               mutable_form_control, " and local-name() = 'textarea')")
-    } else {
-        NULL
-    }
-    if (is.null(form_branch))
-        list(condition = contenteditable_condition, is_or = FALSE)
+    form_branch <- disjunction_condition(list(
+        list(element = "input",
+             post = paste0(readonly_capable_condition, " and ",
+                           mutable_form_control)),
+        list(element = "textarea", post = mutable_form_control)), known)
+    # A pruned disjunction is a bare and-chain, so it needs the
+    # parentheses the unpruned one already gives each of its disjuncts
+    # before the contenteditable branch is OR-ed on
+    condition <- if (is.null(known))
+        form_branch$condition
     else
-        list(condition = paste(form_branch, "or", contenteditable_condition),
-             is_or = TRUE)
+        paste0("(", form_branch$condition, ")")
+    list(condition = paste(condition, "or", contenteditable_condition),
+         is_or = TRUE)
 }
 
 # A <button> is in the Submit Button state unless its 'type' names one
@@ -906,10 +962,21 @@ button_submit_condition <- paste0(
 # The static definition of an HTML submit button (button/submit), shared
 # between the ':default' submit-button branch below and its own
 # lookup of the first such control within the nearest enclosing <form>
-submit_control_condition <- paste0(
-    "(", button_submit_condition, " and local-name() = 'button') or ((",
-    fold_type, " = 'submit' or ", fold_type,
-    " = 'image') and local-name() = 'input')")
+submit_control_disjuncts <- list(
+    list(element = "button", post = button_submit_condition),
+    list(element = "input",
+         post = paste0("(", fold_type, " = 'submit' or ", fold_type,
+                       " = 'image')")))
+submit_control_condition <-
+    disjunction_condition(submit_control_disjuncts)$condition
+
+# A selected <option> or a checked checkbox or radio <input>: the whole
+# of ':checked', and the first two of ':default''s three branches
+checked_disjuncts <- list(
+    list(element = "option", pre = "@selected"),
+    list(element = "input", pre = "@checked",
+         post = paste0("(", fold_type, " = 'checkbox' or ", fold_type,
+                       " = 'radio')")))
 
 # An enclosing <form>, matched by local-name() for the same reason
 # disabled_by_fieldset above is. The ancestor axis is a reverse axis, so
@@ -1082,10 +1149,13 @@ GenericTranslator <- R6Class("GenericTranslator",
                 return(NULL)
             # A list whose every alternative is impossible is itself
             # impossible, and "0 or 0" says nothing "0" does not. A
-            # *mixed* list keeps its "0": there the dead alternative
-            # still shows which part of the selector cannot match
-            if (all(exprs == "0"))
+            # *mixed* list keeps one "0": there the dead alternatives
+            # still show that some of what was asked for cannot match,
+            # but one of them says that as well as several do
+            impossible <- exprs == "0"
+            if (all(impossible))
                 return(list(condition = "0", is_or = FALSE))
+            exprs <- exprs[!impossible | !duplicated(impossible)]
             list(condition = paste0(exprs, collapse = " or "),
                  is_or = length(exprs) > 1 || conditions[[1]]$is_or)
         },
@@ -1961,12 +2031,7 @@ HTMLTranslator <- R6Class("HTMLTranslator",
         # made ':enabled', are deliberately not matched - no browser
         # matches 'a:enabled' either; ':link'/':any-link' select links
         xpath_checked_pseudo = function(xpath) {
-            add_disjunction(xpath, list(
-                list(element = "option", condition = "@selected"),
-                list(element = "input",
-                     condition = paste0("@checked and (", fold_type,
-                                        " = 'checkbox' or ", fold_type,
-                                        " = 'radio')"))))
+            add_disjunction(xpath, checked_disjuncts)
         },
         # ':required' and ':optional' partition the form elements that
         # can take the required attribute (input, select, textarea);
@@ -2001,19 +2066,20 @@ HTMLTranslator <- R6Class("HTMLTranslator",
         # nothing), the current value must be empty, and for an <input>
         # the type must be one the placeholder attribute applies to (see
         # placeholder_inert_input_types). A <textarea>'s value is its
-        # text content rather than an attribute, hence string() (the
-        # context node's string-value) instead of string(@value)
+        # text content rather than an attribute, hence string-length()
+        # (the length of the context node's string-value) instead of
+        # string-length(@value)
         xpath_placeholder_shown_pseudo = function(xpath) {
             has_placeholder <- "string-length(@placeholder) > 0"
             add_disjunction(xpath, list(
                 list(element = "input",
-                     condition = paste0(
+                     post = paste0(
                          has_placeholder, " and ",
                          type_not_one_of(placeholder_inert_input_types),
-                         " and not(string(@value))")),
+                         " and not(string-length(@value))")),
                 list(element = "textarea",
-                     condition = paste0(has_placeholder,
-                                        " and not(string())"))))
+                     post = paste0(has_placeholder,
+                                   " and not(string-length())"))))
         },
         # ':default' matches a selected <option>, a checked checkbox or
         # radio <input>, and the default submit button of a form (the
@@ -2034,21 +2100,45 @@ HTMLTranslator <- R6Class("HTMLTranslator",
         # equal ".", by requiring a form ancestor to exist before the
         # count comparison is trusted
         xpath_default_pseudo = function(xpath) {
+            known <- known_local_element(xpath)
             first_submit <- paste0(
                 form_ancestor, " and count(. | ", form_ancestor,
                 "[1]/descendant::*[", submit_control_condition, "][1]) = 1")
-            add_disjunction(xpath, list(
-                list(element = "option", condition = "@selected"),
-                list(element = "input",
-                     condition = paste0(
-                         "(@checked and (", fold_type, " = 'checkbox' or ",
-                         fold_type, " = 'radio')) or ((", fold_type,
-                         " = 'submit' or ", fold_type, " = 'image') and ",
-                         first_submit, ")"),
-                     is_or = TRUE),
-                list(element = "button",
-                     condition = paste0(button_submit_condition, " and ",
-                                        first_submit))))
+            # ':default' asks ':checked''s question of the same two
+            # elements, and asks a submit button - the same static
+            # definition its own lookup uses - whether it is the first
+            # one in its form. Either half can prune away entirely
+            # (a <button> is never ':checked', an <option> never a
+            # submit control), leaving only the other
+            branches <- list()
+            checked <- disjunction_condition(checked_disjuncts, known)
+            if (!identical(checked$condition, "0"))
+                branches <- c(branches, list(checked))
+            submit <- disjunction_condition(submit_control_disjuncts, known)
+            if (!identical(submit$condition, "0")) {
+                control <- if (submit$is_or)
+                    paste0("(", submit$condition, ")")
+                else
+                    submit$condition
+                branches <- c(branches, list(list(
+                    condition = paste0(control, " and ", first_submit),
+                    is_or = FALSE)))
+            }
+            if (!length(branches)) {
+                xpath$add_condition("0")
+                return(xpath)
+            }
+            # Each and-chain becomes one operand of the joining "or"
+            conditions <- vapply(branches, function(b) {
+                if (length(branches) > 1 && !b$is_or)
+                    paste0("(", b$condition, ")")
+                else
+                    b$condition
+            }, character(1))
+            xpath$add_condition(
+                paste(conditions, collapse = " or "),
+                is_or_group = length(conditions) > 1 || branches[[1]]$is_or)
+            xpath
         },
         xpath_lang_function = function(xpath, fn) {
             lang_values <- lang_ranges(fn)
@@ -2112,8 +2202,8 @@ HTMLTranslator <- R6Class("HTMLTranslator",
         # rendered - so it is deliberately outside the set
         xpath_link_pseudo = function(xpath) {
             add_disjunction(xpath, list(
-                list(element = "a", condition = "@href"),
-                list(element = "area", condition = "@href")))
+                list(element = "a", pre = "@href"),
+                list(element = "area", pre = "@href")))
         },
         xpath_any_link_pseudo = function(xpath) {
             # ':any-link' is ':link or :visited' (selectors-4 section
@@ -2134,28 +2224,28 @@ HTMLTranslator <- R6Class("HTMLTranslator",
             add_disjunction(xpath, factored = paste0(
                 "(", disableable_element_test, ") and (",
                 actually_disabled_condition, ")"), disjuncts = list(
-                list(element = "input", condition = fieldset_disjunct,
-                     is_or = TRUE),
-                list(element = "button", condition = fieldset_disjunct,
-                     is_or = TRUE),
-                list(element = "select", condition = fieldset_disjunct,
-                     is_or = TRUE),
-                list(element = "textarea", condition = fieldset_disjunct,
-                     is_or = TRUE),
-                list(element = "fieldset", condition = fieldset_disjunct,
-                     is_or = TRUE),
+                list(element = "input", post = fieldset_disjunct,
+                     post_is_or = TRUE),
+                list(element = "button", post = fieldset_disjunct,
+                     post_is_or = TRUE),
+                list(element = "select", post = fieldset_disjunct,
+                     post_is_or = TRUE),
+                list(element = "textarea", post = fieldset_disjunct,
+                     post_is_or = TRUE),
+                list(element = "fieldset", post = fieldset_disjunct,
+                     post_is_or = TRUE),
                 # an <optgroup> or an <option> is "actually disabled"
                 # when its nearest ancestor <select> is disabled, and an
                 # <option> also when it is under a disabled <optgroup>,
                 # each without any @disabled of its own
                 list(element = "optgroup",
-                     condition = paste0("@disabled or ",
-                                        nearest_select_disabled),
-                     is_or = TRUE),
+                     post = paste0("@disabled or ",
+                                   nearest_select_disabled),
+                     post_is_or = TRUE),
                 list(element = "option",
-                     condition = paste0(option_own_disabled, " or ",
-                                        nearest_select_disabled),
-                     is_or = TRUE)))
+                     post = paste0(option_own_disabled, " or ",
+                                   nearest_select_disabled),
+                     post_is_or = TRUE)))
         },
         xpath_enabled_pseudo = function(xpath) {
             not_fieldset_disabled <- paste0("not(@disabled or ",
@@ -2164,18 +2254,18 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                 "(", disableable_element_test, ") and not(",
                 actually_disabled_condition, ")"), disjuncts = list(
                 list(element = "fieldset",
-                     condition = not_fieldset_disabled),
+                     post = not_fieldset_disabled),
                 list(element = "optgroup",
-                     condition = paste0("not(@disabled or ",
-                                        nearest_select_disabled, ")")),
-                list(element = "input", condition = not_fieldset_disabled),
-                list(element = "button", condition = not_fieldset_disabled),
-                list(element = "select", condition = not_fieldset_disabled),
+                     post = paste0("not(@disabled or ",
+                                   nearest_select_disabled, ")")),
+                list(element = "input", post = not_fieldset_disabled),
+                list(element = "button", post = not_fieldset_disabled),
+                list(element = "select", post = not_fieldset_disabled),
                 list(element = "textarea",
-                     condition = not_fieldset_disabled),
+                     post = not_fieldset_disabled),
                 list(element = "option",
-                     condition = paste0("not(", option_own_disabled, " or ",
-                                        nearest_select_disabled, ")"))
+                     post = paste0("not(", option_own_disabled, " or ",
+                                   nearest_select_disabled, ")"))
             ))
         }
     )

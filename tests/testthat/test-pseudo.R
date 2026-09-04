@@ -275,6 +275,17 @@ test_that(":read-write follows inherited contenteditable", {
                  c("ce1", "ce2", "ce5", "ce6", "ce8"))
     expect_equal(get_ids("[contenteditable]:read-only"),
                  c("ce3", "ce4", "ce7", "ce8p"))
+
+    # A value carrying a '|' of its own would span two entries of the
+    # delimited set, so it is excluded - and the guard reads the
+    # attribute itself, folding being unable to add or remove a '|'
+    doc2 <- xml2::read_xml('<body><div id="ce9" contenteditable="a|b"/></body>')
+    expect_equal(xml2::xml_attr(
+        querySelectorAll(doc2, "[contenteditable]:read-write",
+                         translator = "html"), "id"), character(0))
+    expect_true(grepl("not(contains(@contenteditable, '|'))",
+                      css_to_xpath("div:read-write", translator = "html"),
+                      fixed = TRUE))
 })
 
 test_that(":placeholder-shown matches an empty placeholder-bearing control", {
@@ -311,6 +322,17 @@ test_that(":placeholder-shown matches an empty placeholder-bearing control", {
     expect_equal(get_ids("input:placeholder-shown"),
                  c("i1", "i3", "i9", "i10"))
     expect_equal(get_ids("textarea:placeholder-shown"), "t1")
+
+    # "the value is empty" is asked as a length, which is shorter than
+    # - and false in exactly the same cases as - a string() taken as a
+    # boolean
+    expect_equal(css_to_xpath("textarea:placeholder-shown", prefix = "",
+                              translator = "html"),
+                 paste0("textarea[string-length(@placeholder) > 0 and ",
+                        "not(string-length())]"))
+    expect_true(grepl("not(string-length(@value))",
+                      css_to_xpath("input:placeholder-shown",
+                                   translator = "html"), fixed = TRUE))
 })
 
 test_that(":default matches selected/checked controls and the first submit button", {
@@ -504,6 +526,40 @@ test_that("HTML pseudo-classes prune disjuncts the compound rules out", {
     # The pruned, single-element form still matches the same nodes as
     # the unpruned, element-less form
     expect_equal(get_ids(":checked"), c("i1", "o1"))
+})
+
+test_that("an unpruned disjunct names its element before questioning it", {
+    # With no element pinned every disjunct keeps a local-name() test,
+    # written ahead of anything else the disjunct asks so that XPath's
+    # left-to-right evaluation of the conjunction rejects a candidate
+    # on the one-word name test rather than on a translate() call -
+    # and a condition every disjunct shares is asked once in front of
+    # them all instead of once per disjunct
+    ht <- HTMLTranslator$new()
+    fold <- paste0("translate(@type, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
+                   "'abcdefghijklmnopqrstuvwxyz')")
+    expect_equal(ht$css_to_xpath(":checked", prefix = ""),
+                 paste0("*[(@selected and local-name() = 'option') or ",
+                        "(@checked and local-name() = 'input' and (",
+                        fold, " = 'checkbox' or ", fold, " = 'radio'))]"))
+    # Every element in the ':link' set asks the same question, so the
+    # whole disjunction is one @href test beside the element names
+    expect_equal(ht$css_to_xpath(":link", prefix = ""),
+                 "*[@href and (local-name() = 'a' or local-name() = 'area')]")
+    # ':required' shares @required and only the <input> has more to add
+    takes_required <- paste0(
+        "not(contains('|hidden|range|color|submit|image|reset|button|', ",
+        "concat('|', ", fold, ", '|')) and not(contains(", fold, ", '|')))")
+    expect_equal(ht$css_to_xpath(":required", prefix = ""),
+                 paste0("*[@required and ((local-name() = 'input' and ",
+                        takes_required, ") or local-name() = 'select'",
+                        " or local-name() = 'textarea')]"))
+    # A pseudo-class the compound repeats reads exactly as one does:
+    # the repeat is dropped without bracketing the copy that was kept
+    expect_equal(ht$css_to_xpath(":checked:checked", prefix = ""),
+                 ht$css_to_xpath(":checked", prefix = ""))
+    expect_equal(ht$css_to_xpath(":required:required", prefix = ""),
+                 ht$css_to_xpath(":required", prefix = ""))
 })
 
 test_that("a namespaced compound prunes by the local name it pins", {

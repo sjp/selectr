@@ -339,6 +339,10 @@ test_that("a selector list of impossible alternatives is itself just 0", {
     # A *mixed* list keeps its "0": the dead alternative still shows
     # which part of the selector cannot match
     expect_equal(xpath("e:is(f:is(), g)"), "e[0 or self::g]")
+    # ... but only one of them, however many alternatives died: the
+    # second "0" says nothing the first has not
+    expect_equal(xpath(":is(:hover, :visited, p)"), "*[0 or self::p]")
+    expect_equal(xpath(":is(:hover, p, :visited)"), "*[0 or self::p]")
 })
 
 test_that("a conjunct the compound repeats exactly is kept once", {

@@ -153,6 +153,32 @@
       As before, code comparing \code{css_to_xpath()} output against
       stored strings will need updating.
 
+      \item Generated XPath expressions are shorter and cheaper to
+      evaluate once more, again with no change to the node set
+      selected. The per-element disjuncts of the \code{html} and
+      \code{xhtml} form pseudo-classes now name the element before
+      asking anything else of it, so that XPath's left-to-right
+      evaluation of the conjunction rejects a candidate on the
+      one-word \code{local-name()} test rather than on a
+      \code{translate()} call spelling out both alphabets:
+      \code{":checked"} gives
+      \code{"(@selected and local-name() = 'option') or (@checked and local-name() = 'input' and (...))"}.
+      A condition every disjunct shares is asked once in front of them
+      all, so \code{":required"} and \code{":optional"} ask for
+      \code{@required} once instead of once per element. The
+      \code{contenteditable} guard behind \code{:read-write} and
+      \code{:read-only} tests the attribute itself for a \code{|}
+      rather than its case-folded copy, which cannot differ. The
+      empty-value test in \code{:placeholder-shown} is written
+      \code{not(string-length(@value))} rather than
+      \code{not(string(@value))}. A selector list mixing impossible
+      alternatives with live ones keeps one \code{0} instead of one
+      per dead alternative (\code{":is(:hover, :visited, p)"} gives
+      \code{"*[0 or self::p]"}). And a condition a compound repeats
+      exactly, already kept once, no longer gains parentheses around
+      the copy that was kept (\code{":checked:checked"} now reads
+      exactly as \code{":checked"} does).
+
     }
   }
   \subsection{BUG FIXES}{
