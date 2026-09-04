@@ -609,12 +609,19 @@ read_write_condition <- function(xpath) {
              is_or = TRUE)
 }
 
+# A <button> is in the Submit Button state unless its 'type' names one
+# of the other two states: the attribute's missing *and* invalid value
+# defaults are both Submit, so an unknown type such as type='foo'
+# submits just like a bare <button> does
+button_submit_condition <- paste0(
+    "not(", fold_type, " = 'reset' or ", fold_type, " = 'button')")
+
 # The static definition of an HTML submit button (button/submit), shared
 # between the ':default' submit-button branch below and its own
 # lookup of the first such control within the nearest enclosing <form>
 submit_control_condition <- paste0(
-    "(local-name(.) = 'button' and (not(@type) or ", fold_type,
-    " = 'submit')) or (local-name(.) = 'input' and (", fold_type,
+    "(local-name(.) = 'button' and ", button_submit_condition,
+    ") or (local-name(.) = 'input' and (", fold_type,
     " = 'submit' or ", fold_type, " = 'image'))")
 
 # An enclosing <form>, matched by local-name() for the same reason
@@ -1682,8 +1689,8 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                          first_submit, ")"),
                      is_or = TRUE),
                 list(element = "button",
-                     condition = paste0("(not(@type) or ", fold_type,
-                                        " = 'submit') and ", first_submit))))
+                     condition = paste0(button_submit_condition, " and ",
+                                        first_submit))))
         },
         xpath_lang_function = function(xpath, fn) {
             validate_lang_args(fn)

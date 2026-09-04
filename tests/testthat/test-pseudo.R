@@ -266,6 +266,30 @@ test_that(":default matches selected/checked controls and the first submit butto
     expect_equal(get_ids(":default"), c("o2", "c1", "b1"))
 })
 
+test_that(":default treats a <button> of unknown type as a submit button", {
+    skip_if_not_installed("xml2")
+
+    doc <- xml2::read_xml(paste0(
+        '<div>',
+        '<form>',
+        '<button id="r1" type="reset">Reset</button>',
+        '<button id="p1" type="button">Push</button>',
+        '<button id="u1" type="foo">Unknown</button>',
+        '<input id="s1" type="submit"/>',
+        '</form>',
+        '</div>'
+    ))
+    get_ids <- function(css) {
+        xml2::xml_attr(querySelectorAll(doc, css, translator = "html"), "id")
+    }
+
+    # The 'type' attribute defaults to the Submit Button state for both
+    # a missing and an invalid value, so 'u1' is the form's default
+    # button while the reset and push buttons before it are skipped
+    expect_equal(get_ids(":default"), "u1")
+    expect_equal(get_ids("button:default"), "u1")
+})
+
 test_that(":default finds the enclosing form in the XHTML namespace", {
     skip_if_not_installed("XML")
     skip_if_not_installed("xml2")
