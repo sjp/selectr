@@ -101,12 +101,16 @@ test_that(":required and :optional translate from the @required attribute", {
     # on the generic translator
     fold <- paste0("translate(@type, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
                    "'abcdefghijklmnopqrstuvwxyz')")
-    # The input types the 'required' attribute does not apply to
+    # The input types the 'required' attribute does not apply to,
+    # written as one containment test over a '|'-delimited set rather
+    # than one folded comparison per type - with the guard that keeps
+    # the encoding exact for a value carrying a '|' of its own
     takes_required <- paste0(
-        "not(", paste(paste0(fold, " = '",
-                             c("hidden", "range", "color", "submit",
-                               "image", "reset", "button"), "'"),
-                      collapse = " or "), ")")
+        "not(contains('|", paste(c("hidden", "range", "color", "submit",
+                                   "image", "reset", "button"),
+                                 collapse = "|"),
+        "|', concat('|', ", fold, ", '|')) and not(contains(", fold,
+        ", '|')))")
     # 'input' is the only element in the required/optional set the HTML
     # translator prunes against here, so the compound's known element
     # ('input') drops the 'select'/'textarea' disjuncts and their
@@ -449,9 +453,11 @@ test_that(":any-link matches the same elements as :link", {
         expect_equal(css_to_xpath("link:any-link", translator = translator),
                      "descendant-or-self::link[0]")
     }
+    # With no element pinned, both members of the set are named - and
+    # since they ask the same question, it is asked once
     expect_equal(css_to_xpath(":link", translator = "html"),
-                 paste0("descendant-or-self::*[local-name(.) = 'a' and ",
-                        "(@href) or local-name(.) = 'area' and (@href)]"))
+                 paste0("descendant-or-self::*[@href and ",
+                        "(local-name() = 'a' or local-name() = 'area')]"))
 
     # The generic translator has no link semantics: never matches
     expect_equal(css_to_xpath("e:any-link"),
@@ -498,6 +504,56 @@ test_that("HTML pseudo-classes prune disjuncts the compound rules out", {
     # The pruned, single-element form still matches the same nodes as
     # the unpruned, element-less form
     expect_equal(get_ids(":checked"), c("i1", "o1"))
+})
+
+test_that("a namespaced compound prunes by the local name it pins", {
+    # The form-state disjunctions compare local-name(), so the local
+    # part of a prefixed node test ('h|input') or of a '*|' qualifier
+    # ('*|input') rules the other disjuncts out just as a bare name
+    # does - the prefixed name matches a subset of what the local name
+    # matches, and the '*|' name matches exactly it
+    fold <- paste0("translate(@type, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
+                   "'abcdefghijklmnopqrstuvwxyz')")
+    expect_equal(css_to_xpath("h|input:checked", prefix = "",
+                              translator = "html"),
+                 paste0("h:input[@checked and (", fold, " = 'checkbox' or ",
+                        fold, " = 'radio')]"))
+    expect_equal(css_to_xpath("*|option:checked", prefix = "",
+                              translator = "html"),
+                 "*[local-name() = 'option' and @selected]")
+    # An element in neither disjunct still collapses to '0', taking the
+    # local-name() test of the '*|' form with it
+    expect_equal(css_to_xpath("h|p:checked", prefix = "",
+                              translator = "html"),
+                 "h:p[0]")
+    expect_equal(css_to_xpath("*|p:checked", prefix = "",
+                              translator = "html"),
+                 "*[0]")
+
+    # A namespaced wildcard pins no local name: every disjunct stays,
+    # exactly as for the element-less form
+    expect_equal(sub("^h:\\*", "*",
+                     css_to_xpath("h|*:checked", prefix = "",
+                                  translator = "html")),
+                 css_to_xpath(":checked", prefix = "", translator = "html"))
+})
+
+test_that(":enabled and :disabled spell the fieldset walk once", {
+    # Both pseudo-classes apply the same three "actually disabled"
+    # rules to the same seven elements, each rule guarded by the
+    # elements it applies to - rather than repeating every rule once
+    # per element, which spelled the fieldset walk (the longest
+    # fragment in the package) six times over
+    ht <- HTMLTranslator$new()
+    fieldset_walk <- "preceding-sibling::*[local-name() = 'legend']"
+    for (css in c(":enabled", ":disabled")) {
+        xp <- ht$css_to_xpath(css)
+        expect_equal(
+            length(gregexpr(fieldset_walk, xp, fixed = TRUE)[[1]]), 1L)
+        for (element in c("button", "input", "select", "textarea",
+                          "optgroup", "option", "fieldset"))
+            expect_true(grepl(paste0("'", element, "'"), xp, fixed = TRUE))
+    }
 })
 
 test_that("pseudo-class names spelled with underscores are unknown", {

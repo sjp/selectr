@@ -42,10 +42,10 @@ test_that("HTML translator validates language arguments", {
     # the single-subtag prefix test used for "en" above
     expect_equal(translator$css_to_xpath("html:lang(en-nz)"),
                  paste0("descendant-or-self::html[ancestor-or-self::*[@lang][1][",
-                        "starts-with(concat('-', translate(@lang, ",
-                        "'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '-'), '-en-') and ",
-                        "contains(substring-after(concat('-', translate(@lang, ",
-                        "'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '-'), '-en'), '-nz-')]]"))
+                        "starts-with(concat(translate(@lang, ",
+                        "'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '-'), 'en-') and ",
+                        "contains(concat('-', substring-after(concat(translate(@lang, ",
+                        "'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '-'), 'en-')), '-nz-')]]"))
 
     expect_error(translator$css_to_xpath("html:lang()"), "Expected at least one argument.*")
     expect_error(translator$css_to_xpath("html:lang(1)"), "Expected string, ident, or \\* arguments.*")
@@ -311,8 +311,9 @@ test_that("HTML translator handles :lang() extended-filtering wildcards", {
     # the tail so "de-CH" alone does not match).
     expect_equal(translator$css_to_xpath(":lang(de-*-DE)"),
                  sprintf(paste0("descendant-or-self::*[ancestor-or-self::*[@lang][1]",
-                                "[starts-with(concat('-', %1$s, '-'), '-de-') and ",
-                                "contains(substring-after(concat('-', %1$s, '-'), '-de'), '-de-')]]"),
+                                "[starts-with(concat(%1$s, '-'), 'de-') and ",
+                                "contains(concat('-', substring-after(concat(%1$s, '-'), ",
+                                "'de-')), '-de-')]]"),
                          lc))
 
     # A non-trailing wildcard in a comma list translates alongside its

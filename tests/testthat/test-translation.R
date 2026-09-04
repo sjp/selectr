@@ -323,6 +323,53 @@ test_that("an escaped delimiter names an element instead of being one", {
                  "*[name() = 'a:b' and namespace-uri() = '']")
 })
 
+test_that("a selector list of impossible alternatives is itself just 0", {
+    gt <- GenericTranslator$new()
+    xpath <- function(css) {
+        gt$css_to_xpath(css, prefix = "")
+    }
+
+    # "0 or 0" says no more than "0" does, so a list whose every
+    # alternative is impossible folds to the single "0"
+    expect_equal(xpath(":is(:hover, :visited)"), "*[0]")
+    expect_equal(xpath(":not(:hover, :visited)"), "*[not(0)]")
+    expect_equal(xpath("e:is(:is(), :where())"), "e[0]")
+    expect_equal(HTMLTranslator$new()$css_to_xpath(
+        "a:is(p:checked, p:required)", prefix = ""), "a[0]")
+    # A *mixed* list keeps its "0": the dead alternative still shows
+    # which part of the selector cannot match
+    expect_equal(xpath("e:is(f:is(), g)"), "e[0 or self::g]")
+})
+
+test_that("a conjunct the compound repeats exactly is kept once", {
+    gt <- GenericTranslator$new()
+    xpath <- function(css) {
+        gt$css_to_xpath(css, prefix = "")
+    }
+    class_test <- function(name) {
+        paste0("contains(concat(' ', normalize-space(@class), ' '), ' ",
+               name, " ')")
+    }
+
+    # AND-ing a condition with itself changes nothing, and a selector
+    # naming the same simple selector twice is routine in generated CSS
+    expect_equal(xpath("div.scene.scene"),
+                 paste0("div[", class_test("scene"), "]"))
+    expect_equal(xpath("div.scene.scene.scene"), xpath("div.scene"))
+    expect_equal(xpath("e:not(.a):not(.a)"),
+                 paste0("e[not(", class_test("a"), ")]"))
+    expect_equal(xpath("e[href][href]"), "e[@href]")
+    expect_equal(xpath("e:nth-child(2):nth-child(2)"),
+                 "e[count(preceding-sibling::*) = 1]")
+
+    # Only an exact repeat is dropped
+    expect_equal(xpath("div.scene.warning"),
+                 paste0("div[", class_test("scene"), " and ",
+                        class_test("warning"), "]"))
+    expect_equal(xpath("e[href][href='x']"),
+                 "e[@href and @href = 'x']")
+})
+
 test_that("an always-false condition absorbs the rest of the compound", {
     gt <- GenericTranslator$new()
     xpath <- function(css) {

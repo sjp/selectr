@@ -129,6 +129,30 @@
       selected is unchanged --- both forms match nothing --- so only
       code inspecting the output of \code{css_to_xpath()} is affected.
 
+      \item Generated XPath expressions are shorter again, and every
+      change below leaves the node set selected exactly as it was. The
+      \code{html} and \code{xhtml} pseudo-class translations now prune
+      their per-element disjuncts against a prefixed or
+      \code{*|}-qualified compound as well, since those pin the same
+      local name the disjuncts test (\code{"h|input:required"} and
+      \code{"*|input:required"} lose the \code{select} and
+      \code{textarea} branches, as \code{"input:required"} already
+      did). The enumerated attribute-value sets behind
+      \code{:required}, \code{:optional}, \code{:read-write},
+      \code{:read-only}, \code{:placeholder-shown} and
+      \code{contenteditable} are written as one \code{contains()} over
+      a delimited set rather than one folded comparison per member.
+      \code{:enabled} and \code{:disabled} name their seven elements
+      once and guard each disabling rule by the elements it applies to,
+      instead of repeating every rule --- the \code{fieldset} walk
+      included --- once per element. A selector list whose every
+      alternative is impossible folds to a single \code{0}
+      (\code{":is(:hover, :visited)"} gives \code{"*[0]"} rather than
+      \code{"*[0 or 0]"}), and a condition a compound repeats exactly
+      is now kept once (\code{"div.scene.scene"} tests the class once).
+      As before, code comparing \code{css_to_xpath()} output against
+      stored strings will need updating.
+
     }
   }
   \subsection{BUG FIXES}{

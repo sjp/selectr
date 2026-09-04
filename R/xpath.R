@@ -8,11 +8,22 @@ XPathExpr <- R6Class("XPathExpr",
         # predicates is significant: a positional predicate such as [1]
         # filters the node set produced by the predicates before it
         predicates = character(0),
-        condition = "",
+        # The conjuncts of the predicate, AND-joined by the 'condition'
+        # binding below. Held apart rather than accumulated into one
+        # string so that a conjunct already asked for can be recognised
+        # and dropped: a compound may name the same simple selector
+        # twice ('div.scene.scene'), which hand-written CSS rarely does
+        # but generated CSS does routinely
+        conditions = character(0),
         # Whether 'condition' is a top-level or-expression stored
         # alone (unparenthesized); it must be wrapped if another
         # condition is ever AND-joined to it
         condition_is_or = FALSE,
+        # The local part of the element name the compound pins, when
+        # that name is not carried by 'element' itself: '*|e' matches
+        # any namespace, so its name lives in a local-name() condition
+        # (see xpath_element()) rather than in a node test
+        local_name = NULL,
         star_prefix = FALSE,
         # When an explicit element name cannot be used as an XPath name
         # test (and so 'element' has been folded into a condition on
@@ -74,22 +85,26 @@ XPathExpr <- R6Class("XPathExpr",
             # whichever way round it was written, giving 'e.warning:is()'
             # the plain "e[0]" instead of a class test AND-ed with 0.
             if (identical(condition, "0")) {
-                self$condition <- "0"
+                self$conditions <- "0"
                 self$condition_is_or <- FALSE
                 return(invisible(NULL))
             }
-            if (identical(self$condition, "0"))
+            if (identical(self$conditions, "0"))
                 return(invisible(NULL))
-            if (nzchar(self$condition)) {
+            if (length(self$conditions)) {
                 if (is_or_group)
                     condition <- paste0("(", condition, ")")
                 if (self$condition_is_or) {
-                    self$condition <- paste0("(", self$condition, ")")
+                    self$conditions <- paste0("(", self$conditions, ")")
                     self$condition_is_or <- FALSE
                 }
-                self$condition <- paste0(self$condition, " and ", condition)
+                # An exactly repeated conjunct asks a question already
+                # asked, and AND-ing an expression with itself changes
+                # nothing, so keep the first and drop the repeat
+                if (!any(self$conditions == condition))
+                    self$conditions <- c(self$conditions, condition)
             } else {
-                self$condition <- condition
+                self$conditions <- condition
                 self$condition_is_or <- is_or_group
             }
         },
@@ -143,14 +158,24 @@ XPathExpr <- R6Class("XPathExpr",
             self$path <- paste0(self$str(), combiner, other$path)
             self$element <- other$element
             self$predicates <- other$predicates
-            self$condition <- other$condition
+            self$conditions <- other$conditions
             self$condition_is_or <- other$condition_is_or
             self$name_test <- other$name_test
+            self$local_name <- other$local_name
             self
         },
         show = function() { # nocov start
             cat(self$repr(), "\n")
         } # nocov end
+    ),
+    active = list(
+        # The accumulated conjuncts as the single expression that goes
+        # into the predicate, and "" when there are none. Read-only:
+        # conditions are added through add_condition(), which is where
+        # the parenthesizing and the folding live
+        condition = function() {
+            paste(self$conditions, collapse = " and ")
+        }
     ))
 
 ascii_upper_letters <- "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -410,14 +435,17 @@ lang_attr_value_lc <- function(xhtml) {
 # The HTML :lang() translation of an RFC 4647 extended-filtering range
 # (one with a wildcard in non-trailing position, e.g. "*-CH" or
 # "de-*-DE"). It tests the nearest language-attributed ancestor,
-# dash-bracketing the lowercased language string as "-<lang>-" so that
+# dash-terminating the lowercased language string as "<lang>-" so that
 # each subtag is delimited, then walks the range's subtags left to
 # right: a literal first subtag must start the tag, a literal subtag
-# after a '*' may appear anywhere further along (contains), and
-# substring-after threads the remaining tail so later subtags must
-# follow earlier ones in order.
+# after a '*' may appear anywhere further along (contains, over the
+# tail re-bracketed with a leading dash so that it too matches whole
+# subtags only), and substring-after threads the remaining tail so
+# later subtags must follow earlier ones in order.
 lang_extended_html_condition <- function(value, xhtml) {
-    cursor <- paste0("concat('-', ", lang_attr_value_lc(xhtml), ", '-')")
+    lang <- lang_attr_value_lc(xhtml)
+    cursor <- paste0("concat(", lang, ", '-')")
+    fresh <- TRUE  # is 'cursor' still the whole language string?
     subtags <- strsplit(ascii_lower(value), "-", fixed = TRUE)[[1]]
     conditions <- character(0)
     anywhere <- FALSE  # may the next literal subtag be preceded by others?
@@ -429,16 +457,23 @@ lang_extended_html_condition <- function(value, xhtml) {
         }
         if (!nzchar(subtag))
             next
-        needle <- xpath_literal(paste0("-", subtag, "-"))
         if (!anchored && !anywhere) {
+            needle <- xpath_literal(paste0(subtag, "-"))
             conditions <- c(conditions,
                             paste0("starts-with(", cursor, ", ", needle, ")"))
         } else {
+            # The tail carries no leading dash, so one is put back for
+            # the delimited search - and the whole, untouched language
+            # string is bracketed in a single concat() rather than
+            # wrapped in a second one
+            cursor <- if (fresh) paste0("concat('-', ", lang, ", '-')")
+                      else paste0("concat('-', ", cursor, ")")
+            needle <- xpath_literal(paste0("-", subtag, "-"))
             conditions <- c(conditions,
                             paste0("contains(", cursor, ", ", needle, ")"))
         }
-        cursor <- paste0("substring-after(", cursor, ", ",
-                         xpath_literal(paste0("-", subtag)), ")")
+        cursor <- paste0("substring-after(", cursor, ", ", needle, ")")
+        fresh <- FALSE
         anywhere <- FALSE
         anchored <- TRUE
     }
@@ -473,18 +508,37 @@ html_case_insensitive_attrs <- c(
 # the uppercase keywords the way browsers do
 fold_type <- xpath_ascii_lower("@type")
 
-# The condition "the input's type is none of 'types'", written as a
-# negated disjunction of equality tests on the folded @type. Both lists
-# below are written this way round - as the states an attribute does
-# *not* apply to - because 'type' is an enumerated attribute whose
+# The condition "the string 'expr' is one of 'values'", written as a
+# single containment test rather than one equality test per value:
+# 'expr' is evaluated once instead of once per member, which matters
+# because every 'expr' here is a translate() call spelling out both
+# alphabets. The members are joined into a '|'-delimited haystack and
+# the candidate is bracketed with the same delimiter, so that only a
+# whole entry can match - and the "no pipe in the candidate" guard is
+# what makes the encoding exact, since a value containing a '|' of its
+# own (type="hidden|range") would otherwise span two entries of the
+# haystack and match.
+#
+# The empty string is a member exactly when the haystack is written
+# with an empty entry: '||true|...' contains '||', while '|true|...'
+# does not, so an absent or empty attribute is a non-member by default
+# and a member where the standard says it should be
+# (contenteditable's "" state)
+one_of_condition <- function(expr, values) {
+    haystack <- paste0("|", paste(values, collapse = "|"), "|")
+    paste0("contains(", xpath_literal(haystack), ", concat('|', ", expr,
+           ", '|')) and not(contains(", expr, ", '|'))")
+}
+
+# The condition "the input's type is none of 'types'". Both lists
+# below are written this way round - as the states an attribute
+# does *not* apply to - because 'type' is an enumerated attribute whose
 # missing *and* invalid value defaults are both Text: an <input> with no
 # type, or with an unrecognised one such as type="foo", is a text
 # control, and a missing or unknown @type folds to a string matching
 # none of the names listed
 type_not_one_of <- function(types) {
-    paste0("not(", paste(paste0(fold_type, " = ",
-                                vapply(types, xpath_literal, character(1))),
-                         collapse = " or "), ")")
+    paste0("not(", one_of_condition(fold_type, types), ")")
 }
 
 # A disabled <fieldset> disables its descendant controls - and its
@@ -522,79 +576,20 @@ nearest_select_disabled <- paste0(
     " or local-name() = 'hr' or local-name() = 'option'][1]",
     "[local-name() = 'select'][@disabled]")
 
-# An <option>'s own disabledness: its @disabled, or the nearest ancestor
-# among <optgroup>, <select>, <datalist>, <hr> and <option> being a
+# An <option> is disabled by its <optgroup> when the nearest ancestor
+# among <optgroup>, <select>, <datalist>, <hr> and <option> is a
 # disabled <optgroup>. An <option> can be a nested descendant of an
 # <optgroup> in the customizable-<select> markup, so this is a walk up
 # to the nearest of those elements rather than a test on the parent
-option_own_disabled <- paste0(
-    "@disabled or ancestor::*[local-name() = 'optgroup'",
+option_optgroup_disabled <- paste0(
+    "ancestor::*[local-name() = 'optgroup'",
     " or local-name() = 'select' or local-name() = 'datalist'",
     " or local-name() = 'hr' or local-name() = 'option'][1]",
     "[local-name() = 'optgroup'][@disabled]")
 
-# The compound's element name, for pruning the HTML pseudo-class
-# disjunctions below against it - but only when 'xpath$element' is a
-# plain, unprefixed name usable as an XPath name test. is_safe_name()
-# already excludes the universal selector '*' and a namespaced name such
-# as 'svg:input' (a colon fails the regex); an unsafe name has instead
-# been folded into a name() condition by add_quoted_name_test(), leaving
-# 'element' as '*' - so both cases fall through to the same NULL result,
-# meaning "unknown, keep every disjunct". This also means a pseudo-class
-# argument translated against a fresh, element-less selector (e.g. the
-# ':checked' in 'input:not(:checked)', which xpath_argument_condition()
-# translates from '*') is never pruned - exactly as it should be, since
-# that '*' says nothing about the candidate element the compound pins.
-known_local_element <- function(xpath) {
-    if (is_safe_name(xpath$element)) xpath$element else NULL
-}
-
-# OR-join 'disjuncts' - each list(element, condition, is_or = FALSE) -
-# where 'condition' assumes the context node is already known to be
-# 'element' (no local-name(.) test of its own), and 'is_or' says whether
-# 'condition' is itself a bare top-level "or" expression that needs
-# parentheses once joined with something else. Without this pruning,
-# the HTML pseudo-class methods below would build a fixed disjunction
-# over every element the HTML standard gives the pseudo-class, even
-# though the compound had already pinned the element down (e.g.
-# 'input:checked' would carry the entire never-firing 'option'
-# disjunct, whose local-name(.) test can never be true once 'input' is
-# already known).
-#
-# When the compound's element is not known (known_local_element() is
-# NULL - a bare ':checked', or one inside :not()/:is() applied to '*'),
-# every disjunct must still test its own local-name(.), exactly as
-# before this pruning existed.
-#
-# When it is known and no disjunct names it, the predicate is genuinely
-# always-false for this element, and add_condition("0") is correct -
-# this is not the "no bare never-match" policy further down in this file
-# (the GenericTranslator "Policy:" comment above xpath_checked_pseudo and
-# its never-matching neighbours); that policy refuses to pretend an
-# *unsupported* pseudo-class matches something, while this is a
-# supported pseudo-class whose disjuncts have each been shown
-# unreachable for this specific, statically-known element.
-add_disjunction <- function(xpath, disjuncts) {
-    known <- known_local_element(xpath)
-    if (!is.null(known)) {
-        disjuncts <- Filter(function(d) identical(d$element, known),
-                            disjuncts)
-        if (!length(disjuncts)) {
-            xpath$add_condition("0")
-            return(xpath)
-        }
-        conditions <- vapply(disjuncts, `[[`, character(1), "condition")
-        is_or <- length(conditions) > 1 || isTRUE(disjuncts[[1]]$is_or)
-    } else {
-        conditions <- vapply(disjuncts, function(d)
-            paste0("local-name(.) = ", xpath_literal(d$element),
-                  " and (", d$condition, ")"), character(1))
-        is_or <- length(conditions) > 1
-    }
-    xpath$add_condition(paste(conditions, collapse = " or "),
-                        is_or_group = is_or)
-    xpath
-}
+# An <option>'s own disabledness: its @disabled, or that of its
+# <optgroup>
+option_own_disabled <- paste0("@disabled or ", option_optgroup_disabled)
 
 # The 'required' content attribute applies to every <input> state
 # except these - HTML's list of the types it does *not* apply to
@@ -665,6 +660,146 @@ readonly_inert_input_types <- c("hidden", "color", "checkbox", "radio",
                                 "button", "range")
 readonly_capable_condition <- type_not_one_of(readonly_inert_input_types)
 
+# The elements named as an OR-joined run of local-name() tests, the
+# form every HTML pseudo-class below uses to ask "is the context node
+# one of these?" - local-name() rather than name() so that the tests
+# hold in a namespaced (XHTML) document too
+local_name_tests <- function(elements) {
+    paste(paste0("local-name() = ",
+                 vapply(elements, xpath_literal, character(1))),
+          collapse = " or ")
+}
+
+# The elements HTML lets be "actually disabled", and so the element set
+# that ':enabled' and ':disabled' partition between them
+disableable_elements <- c("button", "input", "select", "textarea",
+                          "optgroup", "option", "fieldset")
+
+# "the context node is actually disabled", for a context node already
+# known to be one of disableable_elements. Written with each rule
+# guarded by the elements it applies to rather than as one disjunct per
+# element, so that the three rules - and in particular the fieldset
+# walk, the longest fragment in the package - are each spelled once:
+# every element answers to @disabled, an <option> also to its
+# <optgroup>, an <option> or <optgroup> to its <select>, and everything
+# else to an ancestor <fieldset>
+actually_disabled_condition <- paste0(
+    "@disabled",
+    " or (local-name() = 'option' and ", option_optgroup_disabled, ")",
+    " or ((local-name() = 'option' or local-name() = 'optgroup') and ",
+    nearest_select_disabled, ")",
+    " or (not(local-name() = 'optgroup' or local-name() = 'option') and ",
+    disabled_by_fieldset, ")")
+
+# The disableable elements named as one local-name() disjunction, the
+# element test both ':enabled' and ':disabled' apply their rules within
+disableable_element_test <- local_name_tests(disableable_elements)
+
+# The local name of the element the compound pins, for pruning the HTML
+# pseudo-class disjunctions below against it - or NULL when no name is
+# pinned, meaning "unknown, keep every disjunct".
+#
+# The *local* name is what those disjunctions test (they compare
+# local-name(), which ignores the namespace), so a prefixed name test
+# such as 'h:input' pins them just as well as a bare 'input' does: the
+# elements 'h|input' can match are a subset of the elements
+# "local-name() = 'input'" matches, and the disjuncts naming any other
+# element are just as unreachable. '*|e' pins the same local name from
+# the other direction, and records it in 'local_name' because its node
+# test stays '*'. A namespaced wildcard ('svg|*', kept as the node test
+# 'svg:*') pins no local name and stays unknown, as does an unsafe name
+# folded into a name() condition by add_quoted_name_test().
+#
+# A pseudo-class argument translated against a fresh, element-less
+# selector (e.g. the ':checked' in 'input:not(:checked)', which
+# xpath_argument_condition() translates from '*') is never pruned -
+# exactly as it should be, since that '*' says nothing about the
+# candidate element the compound pins.
+known_local_element <- function(xpath) {
+    if (!is.null(xpath$local_name))
+        return(xpath$local_name)
+    if (is_safe_nodetest(xpath$element)) {
+        parts <- strsplit(xpath$element, ":", fixed = TRUE)[[1]]
+        local <- parts[length(parts)]
+        if (local != "*")
+            return(local)
+    }
+    NULL
+}
+
+# OR-join 'disjuncts' - each list(element, condition, is_or = FALSE) -
+# where 'condition' assumes the context node is already known to be
+# 'element' (no local-name() test of its own), and 'is_or' says whether
+# 'condition' is itself a bare top-level "or" expression that needs
+# parentheses once joined with something else. Without this pruning,
+# the HTML pseudo-class methods below would build a fixed disjunction
+# over every element the HTML standard gives the pseudo-class, even
+# though the compound had already pinned the element down (e.g.
+# 'input:checked' would carry the entire never-firing 'option'
+# disjunct, whose local-name(.) test can never be true once 'input' is
+# already known).
+#
+# When the compound's element is not known (known_local_element() is
+# NULL - a bare ':checked', or one inside :not()/:is() applied to '*'),
+# every disjunct must still test its own local-name(), and they are
+# written condition-first, so that the elements sharing one condition
+# can be named beside it instead of repeating the condition once each
+# ('factored', below, and ':link', where every element asks for @href).
+#
+# When it is known and no disjunct names it, the predicate is genuinely
+# always-false for this element, and add_condition("0") is correct -
+# this is not the "no bare never-match" policy further down in this file
+# (the GenericTranslator "Policy:" comment above xpath_checked_pseudo and
+# its never-matching neighbours); that policy refuses to pretend an
+# *unsupported* pseudo-class matches something, while this is a
+# supported pseudo-class whose disjuncts have each been shown
+# unreachable for this specific, statically-known element.
+add_disjunction <- function(xpath, disjuncts, factored = NULL) {
+    known <- known_local_element(xpath)
+    if (!is.null(known)) {
+        disjuncts <- Filter(function(d) identical(d$element, known),
+                            disjuncts)
+        if (!length(disjuncts)) {
+            xpath$add_condition("0")
+            return(xpath)
+        }
+        conditions <- vapply(disjuncts, `[[`, character(1), "condition")
+        is_or <- length(conditions) > 1 || isTRUE(disjuncts[[1]]$is_or)
+    } else {
+        if (!is.null(factored)) {
+            # A caller-supplied factoring of the same disjunction,
+            # for a set too large to spell out element by element
+            xpath$add_condition(factored)
+            return(xpath)
+        }
+        elements <- vapply(disjuncts, `[[`, character(1), "element")
+        conditions <- vapply(disjuncts, disjunct_condition, character(1))
+        if (length(unique(conditions)) == 1L) {
+            # One question asked of every element in the set: ask it
+            # once and name the elements beside it
+            tests <- local_name_tests(elements)
+            if (length(elements) > 1)
+                tests <- paste0("(", tests, ")")
+            xpath$add_condition(paste0(conditions[1], " and ", tests))
+            return(xpath)
+        }
+        conditions <- paste0("(", conditions, " and ",
+                             vapply(elements, local_name_tests, character(1),
+                                    USE.NAMES = FALSE), ")")
+        is_or <- length(conditions) > 1
+    }
+    xpath$add_condition(paste(conditions, collapse = " or "),
+                        is_or_group = is_or)
+    xpath
+}
+
+# One disjunct's condition, parenthesized if it is a bare top-level
+# "or" and so would otherwise absorb the local-name() test AND-ed
+# beside it
+disjunct_condition <- function(d) {
+    if (isTRUE(d$is_or)) paste0("(", d$condition, ")") else d$condition
+}
+
 # 'contenteditable' is inherited: everything inside an editing host is
 # editable until a descendant sets a state of its own. Only these four
 # values set a state - the empty string, "true" and "plaintext-only"
@@ -679,10 +814,8 @@ fold_contenteditable <- paste0(
     "translate(@contenteditable, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
     "'abcdefghijklmnopqrstuvwxyz')")
 contenteditable_state_cond <- paste0(
-    "@contenteditable and (",
-    paste(paste0(fold_contenteditable, " = ",
-                 vapply(contenteditable_states, xpath_literal,
-                        character(1))), collapse = " or "), ")")
+    "@contenteditable and ",
+    one_of_condition(fold_contenteditable, contenteditable_states))
 contenteditable_condition <- paste0(
     "ancestor-or-self::*[", contenteditable_state_cond, "][1]",
     "[not(", fold_contenteditable, " = 'false')]")
@@ -700,7 +833,7 @@ contenteditable_condition <- paste0(
 read_write_condition <- function(xpath) {
     known <- known_local_element(xpath)
     mutable_form_control <- paste0(
-        "not(@readonly) and not(@disabled or (", disabled_by_fieldset, "))")
+        "not(@readonly) and not(@disabled or ", disabled_by_fieldset, ")")
     input_branch <- paste0("(", readonly_capable_condition, ") and ",
                            mutable_form_control)
     form_branch <- if (identical(known, "input")) {
@@ -708,8 +841,8 @@ read_write_condition <- function(xpath) {
     } else if (identical(known, "textarea")) {
         mutable_form_control
     } else if (is.null(known)) {
-        paste0("(local-name(.) = 'input' and (", input_branch, ")) or ",
-              "(local-name(.) = 'textarea' and (", mutable_form_control, "))")
+        paste0("(", input_branch, " and local-name() = 'input') or (",
+               mutable_form_control, " and local-name() = 'textarea')")
     } else {
         NULL
     }
@@ -731,9 +864,9 @@ button_submit_condition <- paste0(
 # between the ':default' submit-button branch below and its own
 # lookup of the first such control within the nearest enclosing <form>
 submit_control_condition <- paste0(
-    "(local-name(.) = 'button' and ", button_submit_condition,
-    ") or (local-name(.) = 'input' and (", fold_type,
-    " = 'submit' or ", fold_type, " = 'image'))")
+    "(", button_submit_condition, " and local-name() = 'button') or ((",
+    fold_type, " = 'submit' or ", fold_type,
+    " = 'image') and local-name() = 'input')")
 
 # An enclosing <form>, matched by local-name() for the same reason
 # disabled_by_fieldset above is. The ancestor axis is a reverse axis, so
@@ -904,6 +1037,12 @@ GenericTranslator <- R6Class("GenericTranslator",
             exprs <- vapply(conditions, `[[`, character(1), "condition")
             if (any(exprs == "true()"))
                 return(NULL)
+            # A list whose every alternative is impossible is itself
+            # impossible, and "0 or 0" says nothing "0" does not. A
+            # *mixed* list keeps its "0": there the dead alternative
+            # still shows which part of the selector cannot match
+            if (all(exprs == "0"))
+                return(list(condition = "0", is_or = FALSE))
             list(condition = paste0(exprs, collapse = " or "),
                  is_or = length(exprs) > 1 || conditions[[1]]$is_or)
         },
@@ -1186,6 +1325,7 @@ GenericTranslator <- R6Class("GenericTranslator",
                                            xpath_literal(element)))
                 xpath$name_test <- paste0("*[local-name() = ",
                                           xpath_literal(element), "]")
+                xpath$local_name <- element
                 return(xpath)
             }
             if (identical(namespace, "")) {
@@ -1934,9 +2074,10 @@ HTMLTranslator <- R6Class("HTMLTranslator",
             # <optgroup> or <option> by the rules below. No input type
             # is carved out: the disabled attribute applies to every
             # <input>, hidden ones included
-            fieldset_disjunct <- paste0("@disabled or (", disabled_by_fieldset,
-                                        ")")
-            add_disjunction(xpath, list(
+            fieldset_disjunct <- paste0("@disabled or ", disabled_by_fieldset)
+            add_disjunction(xpath, factored = paste0(
+                "(", disableable_element_test, ") and (",
+                actually_disabled_condition, ")"), disjuncts = list(
                 list(element = "input", condition = fieldset_disjunct,
                      is_or = TRUE),
                 list(element = "button", condition = fieldset_disjunct,
@@ -1961,9 +2102,11 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                      is_or = TRUE)))
         },
         xpath_enabled_pseudo = function(xpath) {
-            not_fieldset_disabled <- paste0("not(@disabled or (",
-                                            disabled_by_fieldset, "))")
-            add_disjunction(xpath, list(
+            not_fieldset_disabled <- paste0("not(@disabled or ",
+                                            disabled_by_fieldset, ")")
+            add_disjunction(xpath, factored = paste0(
+                "(", disableable_element_test, ") and not(",
+                actually_disabled_condition, ")"), disjuncts = list(
                 list(element = "fieldset",
                      condition = not_fieldset_disabled),
                 list(element = "optgroup",
