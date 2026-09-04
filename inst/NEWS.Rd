@@ -230,7 +230,15 @@
       \item An \code{<option>} inside a disabled \code{<optgroup>} is
       now \code{:disabled} under the \code{html} and \code{xhtml}
       translators, even without a \code{disabled} attribute of its own,
-      matching how a browser determines an option's disabled state.
+      matching how a browser determines an option's disabled state. An
+      \code{<optgroup>} or \code{<option>} whose nearest ancestor
+      \code{<select>} is disabled is likewise \code{:disabled} rather
+      than \code{:enabled}, following the current definition of "actually
+      disabled" in the HTML standard. Both walks stop at the elements
+      the standard stops at (\code{<select>}, \code{<datalist>},
+      \code{<hr>} and \code{<option>}), so an \code{<option>} in a
+      \code{<datalist>} nested in a disabled \code{<select>} stays
+      \code{:enabled}.
 
       \item The of-type pseudo-classes (\code{:first-of-type},
       \code{:last-of-type}, \code{:only-of-type},

@@ -283,8 +283,8 @@ test_that(":disabled/:enabled honour the disabled-fieldset legend carve-out", {
 test_that(":disabled/:enabled partition options under a disabled optgroup", {
     skip_if_not_installed("xml2")
     # An <option> is "actually disabled" when its own @disabled is set or
-    # when its <optgroup> parent is disabled, so the two pseudo-classes
-    # must partition the options
+    # when the nearest <optgroup> above it is disabled, so the two
+    # pseudo-classes must partition the options
     doc <- xml2::read_html(paste0(
         '<select>',
         '<optgroup id="off" disabled="disabled">',
@@ -306,6 +306,51 @@ test_that(":disabled/:enabled partition options under a disabled optgroup", {
     # the optgroups themselves follow their own @disabled
     expect_equal(ids('optgroup:disabled'), 'off')
     expect_equal(ids('optgroup:enabled'), 'on')
+})
+
+test_that("a disabled <select> disables the optgroups and options below it", {
+    skip_if_not_installed("xml2")
+    # HTML's "actually disabled" makes an <optgroup> or an <option>
+    # disabled when its nearest ancestor <select> is disabled, without
+    # any @disabled of its own; the <option> walk also finds an
+    # <optgroup> above it that is not its parent. Both walks stop at a
+    # <select>, <datalist>, <hr> or <option>, so the option inside the
+    # <datalist> is not reached by the disabled <select> around it
+    doc <- xml2::read_html(paste0(
+        '<select id="s1" disabled="disabled">',
+        '<option id="o1">A</option>',
+        '<optgroup id="og1"><option id="o2">B</option></optgroup>',
+        '</select>',
+        '<select id="s2">',
+        '<optgroup id="og2" disabled="disabled">',
+        '<option id="o3">C</option>',
+        '<div id="d1"><option id="o4">D</option></div>',
+        '</optgroup>',
+        '</select>',
+        '<select id="s3" disabled="disabled">',
+        '<datalist id="dl"><option id="o5">E</option></datalist>',
+        '</select>',
+        '<optgroup id="og3" disabled="disabled">',
+        '<option id="o6">F</option></optgroup>'))
+    ids <- function(css) {
+        xpath <- css_to_xpath(css, translator = "html")
+        result <- unlist(lapply(xml2::xml_find_all(doc, xpath), xml2::xml_attr, "id"))
+        if (is.null(result)) NULL else result
+    }
+
+    # every option and optgroup under a disabled select is disabled,
+    # and o4 is disabled by the optgroup two levels above it
+    expect_equal(ids('option:disabled'), c('o1', 'o2', 'o3', 'o4', 'o6'))
+    expect_equal(ids('option:enabled'), 'o5')
+    expect_equal(ids('optgroup:disabled'), c('og1', 'og2', 'og3'))
+    expect_equal(ids('optgroup:enabled'), NULL)
+    # the selects themselves follow their own @disabled only
+    expect_equal(ids('select:disabled'), c('s1', 's3'))
+    expect_equal(ids('select:enabled'), 's2')
+    # a descendant combinator through the disabled select agrees with
+    # the option/optgroup pseudo-classes
+    expect_equal(ids('select:disabled option'), c('o1', 'o2', 'o5'))
+    expect_equal(ids(':enabled'), c('s2', 'o5'))
 })
 
 test_that(":enabled/:disabled cover the form elements and nothing else", {
@@ -379,6 +424,7 @@ test_that("HTML pseudo-classes see elements in the default XHTML namespace", {
         '<input id="inside" />',
         '</fieldset>',
         '<select><optgroup disabled=""><option id="o1">a</option></optgroup></select>',
+        '<select disabled=""><option id="o2">b</option></select>',
         '<input id="free" />',
         '</body></html>'))
     ids <- function(css) {
@@ -390,7 +436,7 @@ test_that("HTML pseudo-classes see elements in the default XHTML namespace", {
 
     expect_equal(ids('*|input:disabled'), 'inside')
     expect_equal(ids('*|input:enabled'), c('protected', 'free'))
-    expect_equal(ids('*|option:disabled'), 'o1')
+    expect_equal(ids('*|option:disabled'), c('o1', 'o2'))
     expect_equal(ids('*|option:enabled'), NULL)
 })
 

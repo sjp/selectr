@@ -133,7 +133,7 @@
 
   \tabular{ll}{
     \bold{Selector} \tab \bold{Elements and condition (html/xhtml)} \cr
-    \code{:enabled} / \code{:disabled} \tab \code{button}, \code{input}, \code{select}, \code{textarea}, \code{optgroup}, \code{option}, \code{fieldset}; a disabled ancestor \code{fieldset} disables descendants except inside its first \code{legend} \cr
+    \code{:enabled} / \code{:disabled} \tab \code{button}, \code{input}, \code{select}, \code{textarea}, \code{optgroup}, \code{option}, \code{fieldset}; a disabled ancestor \code{fieldset} disables descendants except inside its first \code{legend}, and a disabled \code{select} or \code{optgroup} disables the \code{optgroup}s and \code{option}s below it \cr
     \code{:checked} \tab checked \code{checkbox}/\code{radio} \code{input}s and selected \code{option}s; does \emph{not} infer the implicit default selection of an unadorned single-select or radio group \cr
     \code{:required} / \code{:optional} \tab \code{input} (not type \code{hidden}), \code{select}, \code{textarea}, by presence of \code{required} \cr
     \code{:read-write} \tab an editable textual/numeric/date-time \code{input} or \code{textarea} that is not \code{readonly}/disabled, or any element with its own non-\code{"false"} \code{contenteditable} (inherited/ambiguous \code{contenteditable} is not resolved) \cr

@@ -419,6 +419,36 @@ disabled_by_fieldset <- paste0(
     "[not(preceding-sibling::*[local-name() = 'legend'])]",
     "[parent::*[local-name() = 'fieldset'][@disabled]])")
 
+# An <optgroup> or an <option> is also "actually disabled" when its
+# nearest ancestor <select> is disabled. HTML's walk for that select
+# stops at the first ancestor that is a <select>, <datalist>, <hr> or
+# <option>, so naming those elements and taking [1] - the ancestor axis
+# is a reverse axis, so position 1 is the nearest - gives the node the
+# walk lands on, and the remaining predicates ask whether it is a
+# disabled <select>. An <option> inside a <datalist> nested in a
+# disabled <select> is left enabled, as the walk returns the <datalist>
+# rather than reaching the <select>.
+# One corner is approximated, as the <legend> counting above is: the
+# walk also gives up once it has passed a second <optgroup> ancestor,
+# which this expression cannot count, so an <option> nested two
+# <optgroup>s deep (non-conforming markup) inside a disabled <select>
+# is reported disabled here
+nearest_select_disabled <- paste0(
+    "ancestor::*[local-name() = 'select' or local-name() = 'datalist'",
+    " or local-name() = 'hr' or local-name() = 'option'][1]",
+    "[local-name() = 'select'][@disabled]")
+
+# An <option>'s own disabledness: its @disabled, or the nearest ancestor
+# among <optgroup>, <select>, <datalist>, <hr> and <option> being a
+# disabled <optgroup>. An <option> can be a nested descendant of an
+# <optgroup> in the customizable-<select> markup, so this is a walk up
+# to the nearest of those elements rather than a test on the parent
+option_own_disabled <- paste0(
+    "@disabled or ancestor::*[local-name() = 'optgroup'",
+    " or local-name() = 'select' or local-name() = 'datalist'",
+    " or local-name() = 'hr' or local-name() = 'option'][1]",
+    "[local-name() = 'optgroup'][@disabled]")
+
 # The compound's element name, for pruning the HTML pseudo-class
 # disjunctions below against it - but only when 'xpath$element' is a
 # plain, unprefixed name usable as an XPath name test. is_safe_name()
@@ -1734,9 +1764,10 @@ HTMLTranslator <- R6Class("HTMLTranslator",
         xpath_disabled_pseudo = function(xpath) {
             # An element that can be disabled by an ancestor <fieldset>
             # (input, button, select, textarea) is disabled by @disabled
-            # or by disabled_by_fieldset; the rest (fieldset, optgroup)
-            # only by their own @disabled. input also excludes @type
-            # 'hidden', which cannot be disabled
+            # or by disabled_by_fieldset; a <fieldset> only by its own
+            # @disabled, and an <optgroup> or <option> by the rules
+            # below. input also excludes @type 'hidden', which cannot
+            # be disabled
             fieldset_disjunct <- paste0("@disabled or (", disabled_by_fieldset,
                                         ")")
             add_disjunction(xpath, list(
@@ -1750,15 +1781,17 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                 list(element = "textarea", condition = fieldset_disjunct,
                      is_or = TRUE),
                 list(element = "fieldset", condition = "@disabled"),
-                list(element = "optgroup", condition = "@disabled"),
-                # an option under a disabled optgroup is "actually
-                # disabled" even without its own @disabled; ancestor::
-                # matches ':enabled' and is equivalent to the spec's
-                # parent:: because optgroups cannot nest
+                # an <optgroup> or an <option> is "actually disabled"
+                # when its nearest ancestor <select> is disabled, and an
+                # <option> also when it is under a disabled <optgroup>,
+                # each without any @disabled of its own
+                list(element = "optgroup",
+                     condition = paste0("@disabled or ",
+                                        nearest_select_disabled),
+                     is_or = TRUE),
                 list(element = "option",
-                     condition = paste0(
-                         "@disabled or ",
-                         "ancestor::*[local-name() = 'optgroup'][@disabled]"),
+                     condition = paste0(option_own_disabled, " or ",
+                                        nearest_select_disabled),
                      is_or = TRUE)))
         },
         xpath_enabled_pseudo = function(xpath) {
@@ -1766,7 +1799,9 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                                             disabled_by_fieldset, "))")
             add_disjunction(xpath, list(
                 list(element = "fieldset", condition = "not(@disabled)"),
-                list(element = "optgroup", condition = "not(@disabled)"),
+                list(element = "optgroup",
+                     condition = paste0("not(@disabled or ",
+                                        nearest_select_disabled, ")")),
                 list(element = "input",
                      condition = paste0("not(", fold_type, " = 'hidden') ",
                                         "and ", not_fieldset_disabled)),
@@ -1775,9 +1810,8 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                 list(element = "textarea",
                      condition = not_fieldset_disabled),
                 list(element = "option",
-                     condition = paste0(
-                         "not(@disabled or ",
-                         "ancestor::*[local-name() = 'optgroup'][@disabled])"))
+                     condition = paste0("not(", option_own_disabled, " or ",
+                                        nearest_select_disabled, ")"))
             ))
         }
     )
