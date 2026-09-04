@@ -138,7 +138,7 @@
     \code{:required} / \code{:optional} \tab \code{input} of a type that takes \code{required} (every type but \code{hidden}, \code{range}, \code{color}, \code{submit}, \code{image}, \code{reset} and \code{button}), \code{select}, \code{textarea}, by presence of \code{required} \cr
     \code{:read-write} \tab an \code{input} of a type that takes \code{readonly} (every type but \code{hidden}, \code{color}, \code{checkbox}, \code{radio}, \code{file}, \code{submit}, \code{image}, \code{reset}, \code{button} and \code{range}) or a \code{textarea}, that is not \code{readonly}/disabled; or an element whose nearest \code{contenteditable} ancestor-or-self is not \code{"false"} (only \code{""}, \code{"true"}, \code{"plaintext-only"} and \code{"false"} set the state - \code{"inherit"} and unrecognised values inherit) \cr
     \code{:read-only} \tab the negation of \code{:read-write} (matches everything else, e.g. a checkbox or a plain \code{div}) \cr
-    \code{:placeholder-shown} \tab \code{input}/\code{textarea} with a \code{placeholder} and an empty current value \cr
+    \code{:placeholder-shown} \tab \code{textarea}, or an \code{input} of a type that takes \code{placeholder} (every type but \code{hidden}, \code{checkbox}, \code{radio}, \code{file}, \code{submit}, \code{image}, \code{reset}, \code{button}, \code{color}, \code{range}, \code{date}, \code{month}, \code{week}, \code{time} and \code{datetime-local}), with a non-empty \code{placeholder} and an empty current value \cr
     \code{:default} \tab a selected \code{option}, a checked \code{checkbox}/\code{radio}, or the first submit button in its nearest ancestor \code{form} (does not follow a \code{form=} attribute) \cr
   }
 

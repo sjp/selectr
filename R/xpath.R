@@ -525,6 +525,15 @@ add_disjunction <- function(xpath, disjuncts) {
 required_inert_input_types <- c("hidden", "range", "color", "submit",
                                 "image", "reset", "button")
 
+# The 'placeholder' content attribute applies to the <input> states
+# that present a text entry field - these are the ones it does *not*
+# apply to. <textarea> always takes a placeholder, so the list is only
+# consulted for <input>
+placeholder_inert_input_types <- c("hidden", "checkbox", "radio", "file",
+                                   "submit", "image", "reset", "button",
+                                   "color", "range", "date", "month",
+                                   "week", "time", "datetime-local")
+
 # The disjuncts shared by xpath_required_pseudo() and
 # xpath_optional_pseudo(): both partition the same element set (input,
 # select, textarea) that can take @required, and differ only in whether
@@ -1670,16 +1679,25 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                 "not(", read_write_condition(xpath)$condition, ")"))
             xpath
         },
-        # ':placeholder-shown' matches an <input> or <textarea> with a
-        # placeholder and an empty current value; a <textarea>'s value
-        # is its text content rather than an attribute, hence string()
-        # (the context node's string-value) instead of string(@value)
+        # ':placeholder-shown' matches an <input> or <textarea> that is
+        # actually displaying its placeholder: the placeholder attribute
+        # must be present *and* non-empty (an empty placeholder shows
+        # nothing), the current value must be empty, and for an <input>
+        # the type must be one the placeholder attribute applies to (see
+        # placeholder_inert_input_types). A <textarea>'s value is its
+        # text content rather than an attribute, hence string() (the
+        # context node's string-value) instead of string(@value)
         xpath_placeholder_shown_pseudo = function(xpath) {
+            has_placeholder <- "string-length(@placeholder) > 0"
             add_disjunction(xpath, list(
                 list(element = "input",
-                     condition = "@placeholder and not(string(@value))"),
+                     condition = paste0(
+                         has_placeholder, " and ",
+                         type_not_one_of(placeholder_inert_input_types),
+                         " and not(string(@value))")),
                 list(element = "textarea",
-                     condition = "@placeholder and not(string())")))
+                     condition = paste0(has_placeholder,
+                                        " and not(string())"))))
         },
         # ':default' matches a selected <option>, a checked checkbox or
         # radio <input>, and the default submit button of a form (the

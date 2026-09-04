@@ -134,6 +134,17 @@
   \subsection{BUG FIXES}{
     \itemize{
 
+      \item \code{:placeholder-shown} now requires the
+      \code{placeholder} attribute to be non-empty, and matches an
+      \code{<input>} only when its \code{type} is one the attribute
+      applies to (so not \code{hidden}, \code{checkbox},
+      \code{radio}, \code{file}, \code{submit}, \code{image},
+      \code{reset}, \code{button}, \code{color}, \code{range},
+      \code{date}, \code{month}, \code{week}, \code{time} or
+      \code{datetime-local}). An empty \code{placeholder} displays
+      nothing, and a date picker or a checkbox never shows one, yet
+      both previously matched.
+
       \item An \code{<input>} whose \code{type} is \code{range},
       \code{color}, \code{submit}, \code{image}, \code{reset} or
       \code{button} is now neither \code{:required} nor

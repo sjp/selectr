@@ -282,15 +282,31 @@ test_that(":placeholder-shown matches an empty placeholder-bearing control", {
         '<input id="i2" placeholder="hi" value="filled"/>',
         '<input id="i3" placeholder="hi"/>',
         '<input id="i4" value=""/>',
+        # An empty placeholder displays nothing, so it is not shown
+        '<input id="i5" placeholder=""/>',
+        # The placeholder attribute does not apply to these input types
+        '<input id="i6" type="date" placeholder="hi"/>',
+        '<input id="i7" type="hidden" placeholder="hi"/>',
+        '<input id="i8" type="checkbox" placeholder="hi"/>',
+        # ... but it does to the text-entry ones, uppercase included
+        '<input id="i9" type="EMAIL" placeholder="hi"/>',
+        # 'type' has a Text invalid value default, so an unknown type
+        # is a text control and does show its placeholder
+        '<input id="i10" type="nosuchtype" placeholder="hi"/>',
         '<textarea id="t1" placeholder="hi"></textarea>',
         '<textarea id="t2" placeholder="hi">filled</textarea>',
+        '<textarea id="t3" placeholder=""></textarea>',
         '</form>'
     ))
     get_ids <- function(css) {
         xml2::xml_attr(querySelectorAll(doc, css, translator = "html"), "id")
     }
 
-    expect_equal(get_ids(":placeholder-shown"), c("i1", "i3", "t1"))
+    expect_equal(get_ids(":placeholder-shown"),
+                 c("i1", "i3", "i9", "i10", "t1"))
+    expect_equal(get_ids("input:placeholder-shown"),
+                 c("i1", "i3", "i9", "i10"))
+    expect_equal(get_ids("textarea:placeholder-shown"), "t1")
 })
 
 test_that(":default matches selected/checked controls and the first submit button", {
