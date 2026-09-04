@@ -1269,7 +1269,7 @@ GenericTranslator <- R6Class("GenericTranslator",
             local_name <- name
             safe <- is_safe_name(name)
             namespace <- selector$namespace
-            if (identical(namespace, "*")) {
+            if (selector$any_namespace) {
                 # '[*|attr]': 'attr' in any namespace, including none.
                 # An unprefixed XPath attribute test only matches
                 # attributes with no namespace, so test against
@@ -1277,6 +1277,8 @@ GenericTranslator <- R6Class("GenericTranslator",
                 attrib <- paste0(
                     "@*[local-name() = ", xpath_literal(name), "]")
             } else if (!is.null(namespace)) {
+                # As in xpath_element(), an escaped '*' ('[\2a|attr]')
+                # is a prefix named '*' and fails this check
                 if (!is_ncname(namespace))
                     stop_unsafe_prefix(namespace)
                 # As in xpath_element(): the prefix stays in the node
@@ -1340,7 +1342,12 @@ GenericTranslator <- R6Class("GenericTranslator",
         },
         xpath_element = function(selector) {
             element <- selector$element
-            if (is.null(element)) {
+            # The parser stores the universal selector as a NULL
+            # element; an element named '*' by an escaped identifier
+            # ('\2a') keeps the decoded value, so the two are told
+            # apart here and not by the node test they share below.
+            universal <- is.null(element)
+            if (universal) {
                 element <- "*"
                 safe <- TRUE
             } else {
@@ -1349,7 +1356,7 @@ GenericTranslator <- R6Class("GenericTranslator",
                     element <- ascii_lower(element)
             }
             namespace <- selector$namespace
-            if (identical(namespace, "*") && element != "*") {
+            if (selector$any_namespace && !universal) {
                 # '*|e': 'e' in any namespace, including none.  An
                 # unprefixed XPath name test only matches the null
                 # namespace, so test against local-name() instead.
@@ -1391,9 +1398,15 @@ GenericTranslator <- R6Class("GenericTranslator",
                 xpath$add_quoted_name_test(element)
                 return(xpath)
             }
-            if (namespace != "*") {
+            if (!selector$any_namespace) {
                 # Namespace prefixes are case-sensitive.
                 # https://www.w3.org/TR/css-namespaces-3/#prefixes
+                #
+                # An escaped '*' reaches here as an ordinary prefix
+                # named '*' ('\2a|e'), which is not an NCName and so
+                # no @namespace rule could have bound it: it is
+                # refused rather than silently widened to the
+                # any-namespace wildcard the delimiter '*' spells.
                 if (!is_ncname(namespace))
                     stop_unsafe_prefix(namespace)
                 if (!safe) {

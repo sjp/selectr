@@ -292,10 +292,14 @@ Attrib <- R6Class("Attrib",
         operator = NULL,
         value = NULL,
         flag = NULL,
+        # See Element$any_namespace: '[*|attr]' against '[\2a|attr]'
+        any_namespace = FALSE,
         initialize = function(selector, namespace, attrib, operator, value,
-                              flag = NULL) {
+                              flag = NULL,
+                              any_namespace = identical(namespace, "*")) {
             self$selector <- selector
             self$namespace <- namespace
+            self$any_namespace <- any_namespace
             self$attrib <- attrib
             self$operator <- operator
             self$value <- value
@@ -334,9 +338,18 @@ Element <- R6Class("Element",
     public = list(
         namespace = NULL,
         element = NULL,
-        initialize = function(namespace = NULL, element = NULL) {
+        # Whether 'namespace' is the any-namespace wildcard, i.e. the
+        # delimiter '*' of an <ns-prefix>. An <ident-token> that merely
+        # decodes to the same character ('\2a|e') is a prefix *named*
+        # '*', which no @namespace rule can bind, so the two cannot be
+        # told apart by the stored value. Defaults to the reading a
+        # hand-built node would have had before the flag existed.
+        any_namespace = FALSE,
+        initialize = function(namespace = NULL, element = NULL,
+                              any_namespace = identical(namespace, "*")) {
             self$namespace <- namespace
             self$element <- element
+            self$any_namespace <- any_namespace
         },
         repr = function() {
             el <-
@@ -588,20 +601,22 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
     peek <- stream$peek()
     if (peek$type == "IDENT" || token_equality(peek, "DELIM", "*") ||
         token_equality(peek, "DELIM", "|")) {
-        # The universal selector is the delimiter '*' alone. An
+        # A leading '*' is the universal selector, or - before a '|' -
+        # the any-namespace prefix, only when it is the delimiter. An
         # identifier that merely decodes to the same character ('\*',
-        # '\2a') is an <ident-token> naming an element '*', so it must
-        # not be read as one - hence the flag rather than a test of the
-        # value below. next_ident_or_star() draws the same line for the
-        # local name of a namespaced selector.
-        universal <- FALSE
+        # '\2a') is an <ident-token> naming an element '*', or a
+        # namespace prefix named '*' that no @namespace rule can bind,
+        # so it must not be read as either - hence the flag rather than
+        # a test of the value below. next_ident_or_star() draws the
+        # same line for the local name of a namespaced selector.
+        star_delim <- FALSE
         if (peek$type == "IDENT") {
             namespace <- stream$nxt()$value
         } else if (token_equality(peek, "DELIM", "*")) {
             stream$nxt()
             # '*|e': any namespace, including none
             namespace <- "*"
-            universal <- TRUE
+            star_delim <- TRUE
         } else {
             # Leading '|', i.e. '|e' or '|*': explicitly no namespace
             namespace <- ""
@@ -618,14 +633,17 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                 parse_stop("The column combinator '||' is not supported",
                            pos = stream$peek()$pos)
             element <- stream$next_ident_or_star()
+            any_namespace <- star_delim
         } else {
-            element <- if (universal) NULL else namespace
+            element <- if (star_delim) NULL else namespace
             namespace <- NULL
+            any_namespace <- FALSE
         }
     } else {
         element <- namespace <- NULL
+        any_namespace <- FALSE
     }
-    result <- Element$new(namespace, element)
+    result <- Element$new(namespace, element, any_namespace)
     pseudo_element <- NULL
     while (TRUE) {
         peek <- stream$peek()
@@ -969,6 +987,7 @@ parse_simple_selector_arguments <- function(stream, function_name = NULL, # noli
 
 parse_attrib <- function(selector, stream) {
     stream$skip_whitespace()
+    any_namespace <- FALSE
     if (token_equality(stream$peek(), "DELIM", "|")) {
         # '[|attr]': explicitly no namespace, equivalent to '[attr]'
         # because unprefixed attribute names have no namespace
@@ -982,8 +1001,12 @@ parse_attrib <- function(selector, stream) {
                        pos = stream$peek()$pos)
         if (token_equality(stream$peek(), "DELIM", "|")) {
             stream$nxt()
-            # next_ident_or_star() returns NULL for '*', i.e. '[*|attr]'
-            namespace <- if (is.null(attrib)) "*" else attrib
+            # next_ident_or_star() returns NULL for the delimiter '*',
+            # i.e. '[*|attr]', and the decoded value for an identifier
+            # that happens to spell one, i.e. '[\2a|attr]' - a prefix
+            # named '*', which is not the any-namespace wildcard
+            any_namespace <- is.null(attrib)
+            namespace <- if (any_namespace) "*" else attrib
             attrib <- stream$next_ident()
             op <- NULL
         } else if (token_equality(stream$peek(), "DELIM", "|=")) {
@@ -1001,7 +1024,8 @@ parse_attrib <- function(selector, stream) {
         # '[rel' means '[rel]'. Anything else before the ']' is still
         # an error
         if (token_equality(nt, "DELIM", "]") || nt$type == "EOF") {
-            return(Attrib$new(selector, namespace, attrib, "exists", NULL))
+            return(Attrib$new(selector, namespace, attrib, "exists", NULL,
+                              any_namespace = any_namespace))
         } else if (token_equality(nt, "DELIM", "=")) {
             op <- "="
         } else if (token_is_delim(nt, c("^=", "$=", "*=", "~=", "|="))) {
@@ -1039,7 +1063,8 @@ parse_attrib <- function(selector, stream) {
     if (!token_equality(nt, "DELIM", "]") && nt$type != "EOF") {
         parse_stop("Expected ']', got ", token_repr(nt), pos = nt$pos)
     }
-    Attrib$new(selector, namespace, attrib, op, value$value, flag)
+    Attrib$new(selector, namespace, attrib, op, value$value, flag,
+               any_namespace = any_namespace)
 }
 
 str_int <- function(s) {

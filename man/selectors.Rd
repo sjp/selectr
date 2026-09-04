@@ -185,7 +185,11 @@
   to be a name XPath can parse (an XML \code{NCName}, which is not
   restricted to ASCII); one that is not, such as the escaped
   \code{\\31 ns|div}, is rejected with an error rather than compared
-  against the document's own prefix. Local names carry no such
+  against the document's own prefix. An escaped \code{*}
+  (\code{\\2a|div}) is such a prefix too: only the delimiter \code{*}
+  of \code{*|p} above is the any-namespace wildcard, and a prefix
+  spelled by an identifier is one no \code{@namespace} rule could have
+  bound. Local names carry no such
   restriction: one that cannot be written as a name test is compared
   with \code{local-name()} instead, e.g. \code{d|\\31} becomes
   \code{d:*[local-name() = '1']}.

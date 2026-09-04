@@ -508,6 +508,28 @@
       language, as \code{":lang(*)"} does, rather than producing an
       empty XPath predicate.
 
+      \item An escaped \code{*} before a \code{|} is now rejected as
+      the namespace prefix it is, rather than read as the
+      any-namespace wildcard. In an \code{<ns-prefix>} only the
+      delimiter \code{*} means "any namespace"; an identifier that
+      merely decodes to the same character names a prefix \code{*},
+      which no \code{@namespace} rule can bind because it is not an
+      XML \code{NCName}. So \code{"\\2a|a"}, \code{"\\*|a"} and
+      \code{"[\\2a|href]"} now raise "The namespace prefix '*' is not
+      an XPath name, so it cannot be translated", joining
+      \code{"\\31 ns|div"} and the other prefixes XPath cannot name,
+      where they previously translated exactly as \code{"*|a"} and
+      \code{"[*|href]"} did and so matched every namespace.
+      \code{"*|a"} and \code{"[*|href]"} themselves are unchanged.
+
+      \item \code{"*|\\2a"} now selects an element named \code{*} in
+      any namespace, as \code{"ns|\\2a"} and \code{"\\2a"} already
+      selected one in a given namespace and in none. The local name
+      was compared against the character \code{*} rather than tested
+      for having been the universal selector's delimiter, so the
+      selector was translated to a bare \code{*} and matched every
+      element.
+
     }
   }
 }

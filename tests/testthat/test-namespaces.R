@@ -138,6 +138,46 @@ test_that("a prefix that is not an XPath name is rejected", {
     expect_equal(err$selector, "\\31 ns|div")
 })
 
+test_that("an escaped '*' is a prefix named '*', not the any-namespace one", {
+    gt <- GenericTranslator$new()
+    css <- function(x) gt$css_to_xpath(x, prefix = "")
+
+    # Selectors 4 6.2: an <ns-prefix> is '[ <ident-token> | "*" ]? "|"'.
+    # Only the delimiter '*' is the any-namespace wildcard; an
+    # identifier that decodes to the same character names a prefix
+    # '*', and no @namespace rule can bind it because it is not an
+    # NCName. So it takes the same route as any other prefix XPath
+    # cannot name, rather than silently widening to every namespace
+    for (sel in c("\\2a|a", "\\*|a", "\\2a |a", "\\2a|*")) {
+        expect_error(css(sel),
+                     "The namespace prefix '\\*' is not an XPath name",
+                     info = sel)
+    }
+    # ... and an attribute prefix is read the same way
+    for (sel in c("[\\2a|href]", "[\\*|href]", "[\\2a|href=\"x\"]")) {
+        expect_error(css(sel),
+                     "The namespace prefix '\\*' is not an XPath name",
+                     info = sel)
+    }
+
+    # A translation error, so it carries the usual fields
+    err <- tryCatch(css("\\2a|a"), selectr_translation_error = identity)
+    expect_equal(err$feature, "*|")
+    expect_equal(err$selector, "\\2a|a")
+
+    # The delimiter is untouched: these still mean any namespace
+    expect_equal(css("*|a"), "*[local-name() = 'a']")
+    expect_equal(css("*|*"), "*")
+    expect_equal(css("[*|href]"), "*[@*[local-name() = 'href']]")
+    # An escaped '*' elsewhere is an ordinary name, as before
+    expect_equal(css("\\2a"), "*[name() = '*' and namespace-uri() = '']")
+    expect_equal(css("ns|\\2a"), "ns:*[local-name() = '*']")
+    # '*|\2a' is an element named '*' in any namespace. The local name
+    # is told apart from the universal selector the same way the prefix
+    # is: by which token it came from, not by the character it spells
+    expect_equal(css("*|\\2a"), "*[local-name() = '*']")
+})
+
 test_that("malformed namespace selectors are rejected", {
     gt <- GenericTranslator$new()
     css <- function(x) gt$css_to_xpath(x)
