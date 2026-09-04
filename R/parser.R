@@ -1068,7 +1068,43 @@ anb_re <- paste0("^[ \t\r\n\f]*",
                  "[+-]?[0-9]*n([ \t\r\n\f]*[+-][ \t\r\n\f]*[0-9]+)?)",
                  "[ \t\r\n\f]*$")
 
-# The text an nth-*() argument list spells, as written by the user.
+# The identifiers the An+B grammar admits (css-syntax-3 section 6.2):
+# the two keywords, the bare-'n' forms, and the <ndash-ident> and
+# <ndashdigit-ident> forms ('n-', '-n-', 'n-3', '-n-3'). Everything
+# numeric in a series comes from a number token instead, which anb_re
+# above matches.
+anb_ident_re <- "^(odd|even|-?n(-|-[0-9]+)?)$"
+
+# The An+B grammar is written over tokens, not over decoded text: an
+# escape can only begin an identifier (css-syntax-3 section 4.3.1
+# "Consume a token"), so a digit written as one is a name character,
+# never an <integer>. ':nth-child(\32 )' is thus the identifier "2",
+# which matches no An+B production, and browsers reject it -- even
+# though the decoded text anb_re sees reads as a plain '2'. This gives
+# the first token spelling an identifier An+B does not admit, or NULL
+# when each of them is one it does.
+anb_invalid_ident <- function(tokens) {
+    for (token in tokens) {
+        if (token$type != "IDENT")
+            next
+        value <- ascii_lower(token$value)
+        if (grepl(anb_ident_re, value))
+            next
+        # CSS tokenizes the sign before B as a delimiter, which this
+        # tokenizer's identifier pattern claims instead, so a lone '-'
+        # is the sign of ':nth-child(2n - 1)' -- but only where the user
+        # wrote one. Escaped it is a name, and no sign at all.
+        if (value == "-" && !isTRUE(token$escaped))
+            next
+        return(token)
+    }
+    NULL
+}
+
+# The text an nth-*() argument list spells: the tokens' values, so any
+# escape in the argument has been decoded away. anb_re matches this
+# text, and anb_invalid_ident() the tokens it came from, since the two
+# readings can differ.
 series_source <- function(tokens) {
     paste0(sapply(tokens, function(x) x$value), collapse = "")
 }
@@ -1115,8 +1151,20 @@ validate_series <- function(tokens, function_name) {
     # value too large for an R integer rather than failing, so NULL
     # here means the argument is not an An+B expression at all
     ab <- parse_series(tokens)
-    if (is.null(ab))
+    if (is.null(ab)) {
+        # An argument whose decoded text does spell an An+B expression
+        # can only have been rejected by parse_series()'s token check,
+        # and naming the offending identifier is more use than quoting
+        # that text, which reads as valid ('\32 ' shows as '2')
+        bad <- NULL
+        if (grepl(anb_re, series_text(tokens)))
+            bad <- anb_invalid_ident(tokens)
+        if (!is.null(bad))
+            invalid("an escape spells a name, so '", bad$value,
+                    "' is an identifier, which An+B does not allow",
+                    pos = bad$pos)
         invalid("'", series, "'", pos = pos)
+    }
     invisible(ab)
 }
 
@@ -1128,6 +1176,11 @@ validate_series <- function(tokens, function_name) {
 parse_series <- function(tokens) {
     s <- series_text(tokens)
     if (!grepl(anb_re, s))
+        return(NULL)
+    # The decoded text can spell an An+B expression that the tokens do
+    # not, an escaped digit being read as the digit; see
+    # anb_invalid_ident()
+    if (!is.null(anb_invalid_ident(tokens)))
         return(NULL)
     s <- gsub("[ \t\r\n\f]+", "", s)
     if (s == "odd")
@@ -1175,6 +1228,13 @@ Token <- function(type = "", value = NULL, pos = 1) {
 
 EOFToken <- function(pos = 1) {
     list(type = "EOF", value = NULL, pos = pos)
+}
+
+# An IDENT token whose name was written with at least one escape. Only
+# anb_invalid_ident() reads the flag, and only these tokens carry it, so
+# no other token is widened by a field it has no use for.
+EscapedIdentToken <- function(value, pos) {
+    list(type = "IDENT", value = value, pos = pos, escaped = TRUE)
 }
 
 # One item of a :lang() argument list: a RANGE token holding the
@@ -1410,8 +1470,13 @@ tokenize <- function(s) {
         if (!anyNA(match) && match[1] == 1) {
             match_end <- max(match[1], match[2])
             value <- substring(s, pos, pos + match_end - 1)
+            # match_ident admits a backslash only as the start of an
+            # escape, so one in the source says the name was written
+            # with at least one
+            escaped <- grepl("\\", value, fixed = TRUE)
             value <- decode_escapes(value)
-            results[[i]] <- Token("IDENT", value, pos)
+            results[[i]] <- if (escaped) EscapedIdentToken(value, pos)
+                            else Token("IDENT", value, pos)
             pos <- pos + match_end
             i <- i + 1
             next

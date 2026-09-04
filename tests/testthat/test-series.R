@@ -26,6 +26,14 @@ test_that("parser generates correct series", {
     expect_equal(series("5"), c(0, 5))
     expect_equal(series("foo"), NULL)
     expect_equal(series("n+"), NULL)
+    # an escaped digit is a name character, so these are identifiers
+    # rather than integers, and no An+B production accepts them
+    expect_equal(series("\\32"), NULL)
+    expect_equal(series("2n+\\31"), NULL)
+    # while an escape spelling a letter leaves an identifier An+B admits
+    expect_equal(series("\\32 \\6e"), NULL)
+    expect_equal(series("2\\6e"), c(2, 0))
+    expect_equal(series("\\6e-5"), c(1, -5))
 })
 
 test_that("series are parsed case-insensitively", {
@@ -47,6 +55,46 @@ test_that("series are parsed case-insensitively", {
     expect_error(css_to_xpath("e:nth-child(2x)"))
     expect_error(css_to_xpath("e:nth-child(odds)"))
     expect_error(css_to_xpath("e:nth-child(m+1)"))
+})
+
+test_that("An+B is read from tokens, so an escaped digit is not one", {
+    err <- function(css) {
+        tryCatch(css_to_xpath(css), error = function(e) conditionMessage(e))
+    }
+    # css-syntax-3: an escape can only begin an identifier, never a
+    # number, so '\32 ' is the name "2" and matches no An+B production.
+    # Browsers reject these; selectr used to accept them, having decoded
+    # the escapes before applying the grammar.
+    expect_match(err(":nth-child(\\32)"),
+                 paste0("^Invalid An\\+B expression in :nth-child\\(\\): ",
+                        "an escape spells a name, so '2' is an identifier"))
+    expect_error(css_to_xpath(":nth-child(\\32 n)"))
+    expect_error(css_to_xpath(":nth-child(+\\32)"))
+    expect_error(css_to_xpath(":nth-child(2n+\\31)"))
+    expect_error(css_to_xpath(":nth-last-of-type(\\31)"))
+    # the caret points at the identifier, not at the whole argument
+    expect_match(err("li:nth-child(2n+\\31)"), "\n  \\| {17}\\^$")
+
+    # an escape spelling a letter is fine, being an identifier in both
+    # readings: these are the ordinary keyword and 'n' forms
+    expect_equal(css_to_xpath(":nth-child(\\65ven)"),
+                 css_to_xpath(":nth-child(even)"))
+    expect_equal(css_to_xpath(":nth-child(2\\n)"),
+                 css_to_xpath(":nth-child(2n)"))
+    expect_equal(css_to_xpath(":nth-child(-\\6e)"),
+                 css_to_xpath(":nth-child(-n)"))
+    # <ndashdigit-ident>: the digits belong to the identifier here, so
+    # writing any part of it as an escape is still valid
+    expect_equal(css_to_xpath(":nth-child(\\6e-1)"),
+                 css_to_xpath(":nth-child(n-1)"))
+    expect_equal(css_to_xpath(":nth-child(2n\\2d 1)"),
+                 css_to_xpath(":nth-child(2n-1)"))
+
+    # the sign before B is a delimiter, not a name: an escaped '-' is
+    # rejected even though the text it decodes to spells a valid series
+    expect_error(css_to_xpath(":nth-child(2n \\2d  1)"))
+    expect_equal(css_to_xpath(":nth-child(2n - 1)"),
+                 css_to_xpath(":nth-child(2n-1)"))
 })
 
 test_that("whitespace is only permitted around the sign before B", {

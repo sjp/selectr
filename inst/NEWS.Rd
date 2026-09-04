@@ -273,6 +273,20 @@
       and names the pseudo-class it occurred in, rather than surfacing
       later as a generic translation failure.
 
+      \item \code{An+B} expressions are now read from the selector's
+      tokens rather than from their decoded text, so a digit written as
+      an escape is no longer taken for an integer: css-syntax gives an
+      escape only to identifiers, making \code{":nth-child(\\32 )"} the
+      name \code{"2"}, which matches no \code{An+B} production.
+      Selectors such as \code{":nth-child(\\32 )"},
+      \code{":nth-child(\\32 n)"} and \code{":nth-child(2n+\\31 )"}
+      are therefore rejected, as browsers reject them, instead of
+      translating as though the escapes had been written out. An escape
+      spelling a letter is unaffected, being an identifier either way:
+      \code{":nth-child(\\65 ven)"}, \code{":nth-child(2\\n)"} and
+      \code{":nth-child(\\6e-1)"} still translate as \code{"even"},
+      \code{"2n"} and \code{"n-1"} do.
+
       \item An ID selector's hash must now be identifier-shaped:
       \code{"#1"} and other hashes starting with a digit, or with
       \code{-} followed by a digit, are rejected with a hint showing
