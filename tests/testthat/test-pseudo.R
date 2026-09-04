@@ -190,6 +190,7 @@ test_that(":read-write and :read-only classify editable HTML elements", {
         '<textarea id="t2" readonly="readonly"/>',
         '<fieldset id="fs1" disabled="disabled">',
         '<input id="i6" type="text"/></fieldset>',
+        '<input id="i7" type="foo"/>',
         '<div id="d1" contenteditable="true">x</div>',
         '<div id="d2" contenteditable="">x</div>',
         '<div id="d3" contenteditable="false">x</div>',
@@ -203,21 +204,62 @@ test_that(":read-write and :read-only classify editable HTML elements", {
     # 'i4' (checkbox) does not support @readonly, so it is neither
     # :read-write nor :read-only in the strict sense - but per the HTML
     # definition it is still classified :read-only (not editable text);
-    # 'i5' has no @type, which defaults to 'text' and so is read-write.
-    # ':read-only' is the negation of ':read-write' over every element,
-    # so non-form containers ('form1', 'fs1') are read-only too
+    # 'i5' has no @type and 'i7' an unrecognised one, both of which are
+    # the text state (the missing and the invalid value default), so
+    # they are read-write. ':read-only' is the negation of ':read-write'
+    # over every element, so non-form containers ('form1', 'fs1') are
+    # read-only too
     expect_equal(get_ids(":read-write"),
-                 c("i1", "i5", "t1", "d1", "d2"))
+                 c("i1", "i5", "t1", "i7", "d1", "d2"))
     expect_equal(get_ids(":read-only"),
                  c("form1", "i2", "i3", "i4", "t2", "fs1", "i6", "d3", "d4"))
 
     # Pruned against a known element, both still agree with the
     # unpruned form
-    expect_equal(get_ids("input:read-write"), c("i1", "i5"))
+    expect_equal(get_ids("input:read-write"), c("i1", "i5", "i7"))
     expect_equal(get_ids("textarea:read-write"), "t1")
     expect_equal(get_ids("div:read-write"), c("d1", "d2"))
     expect_equal(get_ids("input:read-only"), c("i2", "i3", "i4", "i6"))
     expect_equal(get_ids("textarea:read-only"), "t2")
+})
+
+test_that(":read-write follows inherited contenteditable", {
+    skip_if_not_installed("xml2")
+
+    doc <- xml2::read_xml(paste0(
+        '<body>',
+        '<div id="ce1" contenteditable=""><p id="ce1p">x</p></div>',
+        '<div id="ce2" contenteditable="true">',
+        '<p id="ce2p"><span id="ce2s">y</span></p></div>',
+        '<div id="ce3" contenteditable="false"><p id="ce3p">z</p></div>',
+        '<div id="ce4" contenteditable="inherit"/>',
+        '<div id="ce5" contenteditable="TRUE"/>',
+        '<div id="ce6" contenteditable="plaintext-only"/>',
+        '<div id="ce7" contenteditable="bogus"/>',
+        '<div id="ce8" contenteditable="true">',
+        '<p id="ce8p" contenteditable="false"><b id="ce8b">s</b></p></div>',
+        '</body>'
+    ))
+    get_ids <- function(css) {
+        xml2::xml_attr(querySelectorAll(doc, css, translator = "html"), "id")
+    }
+
+    # Editability is inherited, so everything inside an editing host is
+    # read-write until a descendant turns it off again ('ce8p', and
+    # 'ce8b' below it)
+    expect_equal(get_ids("p:read-write"), c("ce1p", "ce2p"))
+    expect_equal(get_ids("span:read-write"), "ce2s")
+    expect_equal(get_ids("b:read-write"), character(0))
+    expect_equal(get_ids("p:read-only"), c("ce3p", "ce8p"))
+
+    # Only "", "true", "plaintext-only" and "false" set the state, and
+    # the keywords are matched case-insensitively; "inherit" ('ce4') and
+    # an unrecognised value ('ce7') leave the element inheriting, and
+    # with no editable ancestor that makes them read-only
+    expect_equal(get_ids("[contenteditable]:read-write"),
+                 c("ce1", "ce2", "ce5", "ce6", "ce8"))
+    expect_equal(get_ids("[contenteditable]:read-only"),
+                 c("ce3", "ce4", "ce7", "ce8p"))
 })
 
 test_that(":placeholder-shown matches an empty placeholder-bearing control", {

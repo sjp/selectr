@@ -554,38 +554,53 @@ xpath_literal <- function(literal) {
     paste0("concat(", paste(parts, collapse = ","), ")")
 }
 
-# HTML form controls to which the 'readonly' content attribute applies
-# (the HTML Standard's list of textual/numeric/date input types); an
-# <input> with no 'type' attribute defaults to 'text', which is in the
-# list, so a missing attribute counts as present
-readonly_capable_input_types <- c("text", "search", "url", "tel", "email",
-                                  "password", "date", "month", "week",
-                                  "time", "datetime-local", "number")
+# The 'readonly' content attribute applies to every <input> state
+# except these - HTML's list of the types it does *not* apply to. The
+# list is written this way round because 'type' is an enumerated
+# attribute whose missing *and* invalid value defaults are both Text:
+# an <input> with no type, or with an unrecognised one such as
+# type="foo", is a text control and so takes 'readonly'. A missing or
+# unknown @type folds to a string matching none of the names below
+readonly_inert_input_types <- c("hidden", "color", "checkbox", "radio",
+                                "file", "submit", "image", "reset",
+                                "button", "range")
 readonly_capable_condition <- paste0(
-    "not(@type) or ",
-    paste(paste0(fold_type, " = ",
-                vapply(readonly_capable_input_types, xpath_literal,
-                       character(1))), collapse = " or "))
+    "not(", paste(paste0(fold_type, " = ",
+                         vapply(readonly_inert_input_types, xpath_literal,
+                                character(1))), collapse = " or "), ")")
 
-# 'contenteditable' without a value, or set to "inherit", actually
-# inherits editability from the nearest ancestor that sets it, which a
-# document with no live DOM cannot resolve; this static approximation of
-# ':read-write' therefore considers only an element's own attribute
+# 'contenteditable' is inherited: everything inside an editing host is
+# editable until a descendant sets a state of its own. Only these four
+# values set a state - the empty string, "true" and "plaintext-only"
+# make an editing host, "false" ends one; anything else, including
+# "inherit", a misspelling and the absent attribute, leaves the element
+# to inherit. So editability is decided by the nearest
+# ancestor-or-self carrying a state-setting value, and the element is
+# editable when that value is not "false". ancestor-or-self is a
+# reverse axis, so '[1]' picks the nearest such element
+contenteditable_states <- c("", "true", "plaintext-only", "false")
 fold_contenteditable <- paste0(
     "translate(@contenteditable, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
     "'abcdefghijklmnopqrstuvwxyz')")
+contenteditable_state_condition <- paste0(
+    "@contenteditable and (",
+    paste(paste0(fold_contenteditable, " = ",
+                 vapply(contenteditable_states, xpath_literal,
+                        character(1))), collapse = " or "), ")")
 contenteditable_condition <- paste0(
-    "@contenteditable and not(", fold_contenteditable, " = 'false')")
+    "ancestor-or-self::*[", contenteditable_state_condition, "][1]",
+    "[not(", fold_contenteditable, " = 'false')]")
 
 # The condition for xpath_read_write_pseudo() (':read-only' is simply
 # its negation): an <input> whose type takes 'readonly' or a <textarea>,
 # so long as neither its own @readonly nor @disabled (including
 # disabling by an ancestor <fieldset>, as for xpath_disabled_pseudo)
-# applies; or any element carrying its own @contenteditable. Returns the
-# condition text together with whether it is a bare top-level "or" (see
-# add_condition()) needing parentheses once joined with another
-# condition - true whenever a form-control branch is included, since it
-# is then always OR-ed with the contenteditable branch
+# applies; or any element whose nearest contenteditable ancestor-or-self
+# is editable. Returns the condition text together with whether it is a
+# bare top-level "or" (see add_condition()) needing parentheses once
+# joined with another condition - true whenever a form-control branch is
+# included, since it is then always OR-ed with the contenteditable
+# branch
 read_write_condition <- function(xpath) {
     known <- known_local_element(xpath)
     mutable_form_control <- paste0(

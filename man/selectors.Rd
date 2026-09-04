@@ -136,7 +136,7 @@
     \code{:enabled} / \code{:disabled} \tab \code{button}, \code{input}, \code{select}, \code{textarea}, \code{optgroup}, \code{option}, \code{fieldset}; a disabled ancestor \code{fieldset} disables descendants (nested \code{fieldset}s included) except inside its first \code{legend}, and a disabled \code{select} or \code{optgroup} disables the \code{optgroup}s and \code{option}s below it \cr
     \code{:checked} \tab checked \code{checkbox}/\code{radio} \code{input}s and selected \code{option}s; does \emph{not} infer the implicit default selection of an unadorned single-select or radio group \cr
     \code{:required} / \code{:optional} \tab \code{input} (not type \code{hidden}), \code{select}, \code{textarea}, by presence of \code{required} \cr
-    \code{:read-write} \tab an editable textual/numeric/date-time \code{input} or \code{textarea} that is not \code{readonly}/disabled, or any element with its own non-\code{"false"} \code{contenteditable} (inherited/ambiguous \code{contenteditable} is not resolved) \cr
+    \code{:read-write} \tab an \code{input} of a type that takes \code{readonly} (every type but \code{hidden}, \code{color}, \code{checkbox}, \code{radio}, \code{file}, \code{submit}, \code{image}, \code{reset}, \code{button} and \code{range}) or a \code{textarea}, that is not \code{readonly}/disabled; or an element whose nearest \code{contenteditable} ancestor-or-self is not \code{"false"} (only \code{""}, \code{"true"}, \code{"plaintext-only"} and \code{"false"} set the state - \code{"inherit"} and unrecognised values inherit) \cr
     \code{:read-only} \tab the negation of \code{:read-write} (matches everything else, e.g. a checkbox or a plain \code{div}) \cr
     \code{:placeholder-shown} \tab \code{input}/\code{textarea} with a \code{placeholder} and an empty current value \cr
     \code{:default} \tab a selected \code{option}, a checked \code{checkbox}/\code{radio}, or the first submit button in its nearest ancestor \code{form} (does not follow a \code{form=} attribute) \cr
@@ -144,8 +144,8 @@
 
   Because HTML's \code{type} is an enumerated attribute, these match
   its keywords ASCII case-insensitively (\code{<input type="RADIO">}
-  is \code{:checked}). An \code{input} with no \code{type} defaults to
-  text.
+  is \code{:checked}). An \code{input} with no \code{type}, or with an
+  unrecognised one, is in the text state, as it is for an HTML parser.
 }
 \section{Column combinator and pseudo-classes (unsupported)}{
   The Selectors 4 column combinator (\code{a || b}) and the column
