@@ -113,19 +113,53 @@ test_that("an invalid An+B argument is rejected at parse time", {
                  paste0("^Invalid An\\+B expression in :nth-child\\(\\): ",
                         "a quoted string is not allowed"))
 
-    # an A or B beyond .Machine$integer.max is a range problem, not a
-    # syntax one
-    expect_match(err(":nth-child(99999999999)"),
-                 paste0("^Invalid An\\+B expression in :nth-child\\(\\): ",
-                        "'99999999999' is out of the supported integer range"))
-    expect_match(err(":nth-child(99999999999n+1)"),
-                 "'99999999999n\\+1' is out of the supported integer range")
-    expect_match(err(":nth-child(n+99999999999)"),
-                 "is out of the supported integer range")
-
     # An empty argument list is still an argument-count error
     expect_match(err(":nth-child()"),
                  "^Expected at least one argument, got <DELIM '\\)' at 12>")
+})
+
+test_that("an A or B beyond the integer range is saturated", {
+    series <- function(css) {
+        tokens <- Filter(function(token) token$type != "EOF", tokenize(css))
+        parse_series(tokens)
+    }
+    imax <- .Machine$integer.max
+
+    # The An+B grammar has no upper bound, so a value R cannot hold as
+    # an integer is clamped to .Machine$integer.max rather than
+    # rejected: no document has that many siblings, so the clamped
+    # series selects exactly what the written one would
+    expect_equal(series("2147483648"), c(0, imax))
+    expect_equal(series("99999999999"), c(0, imax))
+    expect_equal(series("-99999999999"), c(0, -imax))
+    expect_equal(series("99999999999n+1"), c(imax, 1))
+    expect_equal(series("n+99999999999"), c(1, imax))
+    expect_equal(series("-99999999999n-99999999999"), c(-imax, -imax))
+
+    # and the selector translates, rather than erroring
+    expect_equal(css_to_xpath(":nth-child(99999999999)"),
+                 css_to_xpath(paste0(":nth-child(", imax, ")")))
+    expect_equal(css_to_xpath(":nth-child(1000000000000)"),
+                 css_to_xpath(paste0(":nth-child(", imax, ")")))
+    expect_equal(css_to_xpath("a:nth-child(4294967296n)"),
+                 css_to_xpath(paste0("a:nth-child(", imax, "n)")))
+
+    # a huge B still counts down to B-1 without overflowing to NA, in
+    # either direction
+    expect_equal(css_to_xpath(":nth-child(99999999999)"),
+                 paste0("descendant-or-self::*[count(preceding-sibling::*) = ",
+                        imax - 1, "]"))
+    expect_equal(css_to_xpath(":nth-child(-99999999999)"),
+                 "descendant-or-self::*[0]")
+    expect_equal(css_to_xpath(":nth-child(n-99999999999)"),
+                 "descendant-or-self::*")
+    expect_equal(css_to_xpath(":nth-child(-n+99999999999)"),
+                 paste0("descendant-or-self::*[count(preceding-sibling::*) <= ",
+                        imax - 1, "]"))
+
+    # the saturated value is written out in full, not in E notation
+    expect_false(grepl("e+", css_to_xpath(":nth-child(99999999999n+1)"),
+                       fixed = TRUE))
 })
 
 test_that("An+B errors carry a source position", {

@@ -1156,8 +1156,10 @@ GenericTranslator <- R6Class("GenericTranslator",
             #    count(...) - b +1 >= 0
             # -> count(...) >= b-1
 
-            # work with b-1 instead
-            b_min_1 <- b - 1
+            # work with b-1 instead. b is an R integer, and a
+            # saturated -.Machine$integer.max would overflow to NA on
+            # the subtraction, so step down through a double.
+            b_min_1 <- as.numeric(b) - 1
 
             # early-exit condition 1:
             # ~~~~~~~~~~~~~~~~~~~~~~~

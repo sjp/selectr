@@ -144,6 +144,14 @@
       right nodes regardless, but the expression was not portable to
       other XPath engines.
 
+      \item An \code{A} or \code{B} too large for an R integer (e.g.
+      \code{":nth-child(99999999999)"}) is now saturated to
+      \code{.Machine$integer.max} instead of raising "Invalid
+      nth-child expression: could not parse as valid integers". The
+      \code{An+B} grammar puts no bound on either value, and no
+      document has that many siblings, so the clamped series selects
+      exactly what the written one would.
+
       \item The \code{html}-qualified pseudo-classes (\code{:checked},
       \code{:disabled}, \code{:enabled}, \code{:link}/\code{:any-link},
       \code{:optional} and \code{:required}) now identify elements by

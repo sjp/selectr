@@ -1009,7 +1009,15 @@ str_int <- function(s) {
     # and truncate, e.g. "2.5" -> 2L or "2e1" -> 20L.
     if (!grepl("^[+-]?[0-9]+$", s))
         return(NA_integer_)
-    suppressWarnings(as.integer(s))
+    n <- suppressWarnings(as.integer(s))
+    if (!is.na(n))
+        return(n)
+    # A well-formed integer that simply does not fit in an R one. The
+    # An+B grammar sets no bound, but no document has
+    # .Machine$integer.max siblings, so saturating selects exactly what
+    # the written value would; rejecting it would instead turn a
+    # never-matching selector into an error.
+    if (startsWith(s, "-")) -.Machine$integer.max else .Machine$integer.max
 }
 
 # The An+B grammar (css-syntax-3 section 6): whitespace is permitted
@@ -1063,21 +1071,20 @@ validate_series <- function(tokens, function_name) {
     }
     series <- trimws(series_source(tokens))
     pos <- if (length(tokens)) tokens[[1]]$pos else NULL
-    if (!grepl(anb_re, series_text(tokens)))
-        invalid("'", series, "'", pos = pos)
-    # The grammar has matched, so the only way parse_series() can still
-    # fail is an A or B too large for an R integer
+    # parse_series() applies the An+B grammar itself, and saturates a
+    # value too large for an R integer rather than failing, so NULL
+    # here means the argument is not an An+B expression at all
     ab <- parse_series(tokens)
-    if (is.null(ab) || anyNA(ab))
-        invalid("'", series, "' is out of the supported integer range",
-                pos = pos)
+    if (is.null(ab))
+        invalid("'", series, "'", pos = pos)
     invisible(ab)
 }
 
 # An internal helper of validate_series(): tokens reaching here have
-# already passed its STRING-token and grammar checks, so this just
-# extracts the (a, b) pair (or NA components if either is too large for
-# an R integer). Also exercised directly by tests, with valid input only.
+# already passed its STRING-token checks, so this applies the An+B
+# grammar and extracts the (a, b) pair, giving NULL when the grammar
+# does not match. An A or B too large for an R integer is saturated to
+# .Machine$integer.max. Also exercised directly by tests.
 parse_series <- function(tokens) {
     s <- series_text(tokens)
     if (!grepl(anb_re, s))
