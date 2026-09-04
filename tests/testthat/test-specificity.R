@@ -7,6 +7,9 @@ test_that("parser creates correct specificity", {
     }
 
     expect_equal(spec("*"), rep(0, 3))
+    # '\*' is an identifier naming an element '*', not the universal
+    # selector, so it counts as a type selector
+    expect_equal(spec("\\*"), c(0, 0, 1))
     expect_equal(spec(" foo"), c(0, 0, 1))
     expect_equal(spec(":empty"), c(0, 1, 0))
     expect_equal(spec(":before"), c(0, 0, 1))

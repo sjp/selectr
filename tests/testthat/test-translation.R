@@ -283,6 +283,46 @@ test_that("translation from parsed objects to XPath works", {
                  "*[attribute::*[name() = 'h]ref']]")
 })
 
+test_that("an escaped delimiter names an element instead of being one", {
+    gt <- GenericTranslator$new()
+    xpath <- function(css, translator = gt) {
+        translator$css_to_xpath(css, prefix = "")
+    }
+
+    # '\*' and '\2a' are <ident-token>s spelling the name '*', not the
+    # universal selector: they select an element actually named '*'
+    # (which no document has), and they count as a type selector
+    for (css in c("\\*", "\\2a")) {
+        expect_equal(xpath(css), "*[name() = '*' and namespace-uri() = '']")
+        expect_equal(parse(css)[[1]]$specificity(), c(0, 0, 1))
+    }
+    expect_equal(xpath("*"), "*")
+
+    # An escaped colon is part of the name, not the prefix separator of
+    # a namespaced one: written into a node test, 'a\:b' would instead
+    # ask the evaluator to resolve a namespace prefix 'a'
+    expect_equal(xpath("a\\:b"), "*[name() = 'a:b' and namespace-uri() = '']")
+    expect_equal(xpath("a\\:hover"),
+                 "*[name() = 'a:hover' and namespace-uri() = '']")
+    # An explicit prefix still resolves through the namespace map; only
+    # the local name is quoted, colon and all
+    expect_equal(xpath("svg|a\\:b"), "svg:*[local-name() = 'a:b']")
+
+    # The quoted name is also what a sibling combinator and an of-type
+    # pseudo-class match against
+    expect_equal(xpath("a\\:b + c"),
+                 paste0("*[name() = 'a:b' and namespace-uri() = '']",
+                        "/following-sibling::*[1][self::c]"))
+    expect_equal(xpath("a\\:b:first-of-type"),
+                 paste0("*[name() = 'a:b' and namespace-uri() = '' and ",
+                        "count(preceding-sibling::*[name() = 'a:b' and ",
+                        "namespace-uri() = '']) = 0]"))
+
+    # The HTML translator lowercases such a name like any other
+    expect_equal(xpath("A\\:B", HTMLTranslator$new()),
+                 "*[name() = 'a:b' and namespace-uri() = '']")
+})
+
 test_that("an always-false condition absorbs the rest of the compound", {
     gt <- GenericTranslator$new()
     xpath <- function(css) {

@@ -44,7 +44,7 @@ Selector <- R6Class("Selector",
         initialize = function(tree, pseudo_element = NULL) {
             self$parsed_tree <- tree
             if (!is.null(pseudo_element))
-                self$pseudo_element <- tolower(pseudo_element)
+                self$pseudo_element <- ascii_lower(pseudo_element)
         },
         repr = function() {
             pseudo_el <-
@@ -96,7 +96,7 @@ Function <- R6Class("Function",
         initialize = function(selector, name, arguments, selector_list = NULL,
                               series = NULL) {
             self$selector <- selector
-            self$name <- tolower(name)
+            self$name <- ascii_lower(name)
             self$arguments <- arguments
             self$selector_list <- selector_list
             self$series <- series
@@ -143,7 +143,7 @@ Pseudo <- R6Class("Pseudo",
         ident = NULL,
         initialize = function(selector, ident) {
             self$selector <- selector
-            self$ident <- tolower(ident)
+            self$ident <- ascii_lower(ident)
         },
         repr = function() {
             self$repr_wrap(paste0(self$selector$repr(), ":", self$ident))
@@ -583,12 +583,20 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
     peek <- stream$peek()
     if (peek$type == "IDENT" || token_equality(peek, "DELIM", "*") ||
         token_equality(peek, "DELIM", "|")) {
+        # The universal selector is the delimiter '*' alone. An
+        # identifier that merely decodes to the same character ('\*',
+        # '\2a') is an <ident-token> naming an element '*', so it must
+        # not be read as one - hence the flag rather than a test of the
+        # value below. next_ident_or_star() draws the same line for the
+        # local name of a namespaced selector.
+        universal <- FALSE
         if (peek$type == "IDENT") {
             namespace <- stream$nxt()$value
         } else if (token_equality(peek, "DELIM", "*")) {
             stream$nxt()
             # '*|e': any namespace, including none
             namespace <- "*"
+            universal <- TRUE
         } else {
             # Leading '|', i.e. '|e' or '|*': explicitly no namespace
             namespace <- ""
@@ -606,7 +614,7 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                            pos = stream$peek()$pos)
             element <- stream$next_ident_or_star()
         } else {
-            element <- if (identical(namespace, "*")) NULL else namespace
+            element <- if (universal) NULL else namespace
             namespace <- NULL
         }
     } else {
@@ -644,7 +652,7 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                 stream$nxt()
             }
             ident <- stream$next_ident()
-            lident <- tolower(ident)
+            lident <- ascii_lower(ident)
             if (lident %in% c(
                 "first-line", "first-letter", "before", "after")) {
                 # Special case: CSS 2.1 pseudo-elements can have a single ':'
@@ -729,7 +737,7 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                         # precise message, instead of the selector
                         # list that follows being parsed as (and
                         # failing as) more An+B tokens.
-                        if (nt$type == "IDENT" && tolower(nt$value) == "of" &&
+                        if (nt$type == "IDENT" && ascii_lower(nt$value) == "of" &&
                             lident %in% anb_function_names) {
                             if (any(lident == c("nth-child", "nth-last-child"))) {
                                 # Remove 'of' from arguments - it's a keyword, not an argument
@@ -992,8 +1000,8 @@ parse_attrib <- function(selector, stream) {
     # CSS Selectors Level 4 allows an optional case-sensitivity flag
     # before the closing bracket, e.g. '[attr="value" i]'
     flag <- NULL
-    if (nt$type == "IDENT" && tolower(nt$value) %in% c("i", "s")) {
-        flag <- tolower(nt$value)
+    if (nt$type == "IDENT" && ascii_lower(nt$value) %in% c("i", "s")) {
+        flag <- ascii_lower(nt$value)
         stream$skip_whitespace()
         nt <- stream$nxt()
     }
@@ -1035,11 +1043,12 @@ series_source <- function(tokens) {
 }
 
 # The same text, case-folded for matching: the An+B microsyntax is ASCII
-# case-insensitive (css-syntax-3), e.g. "2N", "ODD", "EVEN". chartr()
-# rather than tolower() so the mapping is locale-independent; "nodev"
-# covers every letter that can appear in a valid series.
+# case-insensitive (css-syntax-3), e.g. "2N", "ODD", "EVEN". The fold is
+# ascii_lower() for the reasons given with it: a mapping independent of
+# the locale, and one that can be handed any argument the parser reads,
+# ':nth-child(\FFFE)' included.
 series_text <- function(tokens) {
-    chartr("NODEV", "nodev", series_source(tokens))
+    ascii_lower(series_source(tokens))
 }
 
 # The nth-*() pseudo-classes whose argument is an An+B series. :nth-col()
@@ -1056,7 +1065,7 @@ validate_series <- function(tokens, function_name) {
     invalid <- function(..., pos) {
         # Lower-cased to match the translator's ":name() is unknown":
         # pseudo-class names are ASCII case-insensitive
-        parse_stop("Invalid An+B expression in :", tolower(function_name),
+        parse_stop("Invalid An+B expression in :", ascii_lower(function_name),
                    "(): ", ..., pos = pos)
     }
     for (token in tokens) {
@@ -1065,7 +1074,7 @@ validate_series <- function(tokens, function_name) {
         # 'of <selector-list>' is consumed by the parser for
         # :nth-child()/:nth-last-child(); anywhere else it lands here as
         # part of the series
-        if (token$type == "IDENT" && identical(tolower(token$value), "of"))
+        if (token$type == "IDENT" && identical(ascii_lower(token$value), "of"))
             invalid("'of' is only allowed in :nth-child() and ",
                     ":nth-last-child()", pos = token$pos)
     }

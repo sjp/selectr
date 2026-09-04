@@ -138,6 +138,47 @@ test_that("the HTML translator folds names as an HTML parser does", {
                         "namespace-uri() = '']"))
 })
 
+test_that("ASCII folds cope with a name containing a noncharacter", {
+    # R refuses to convert a noncharacter (U+FFFE, U+FFFF) to wide
+    # characters, so tolower() and chartr() fail outright on any string
+    # holding one - which is why every ASCII fold in the package goes
+    # through ascii_lower() instead. Each selector below reaches one of
+    # those folds, and each used to leave the package with an unclassed
+    # "invalid input ... in 'utf8towcs'" rather than a translation or a
+    # selectr condition
+    translator <- HTMLTranslator$new()
+    escapes <- c("\\FFFE", "\\FFFF")
+    chars <- intToUtf8(c(0xFFFEL, 0xFFFFL), multiple = TRUE)
+
+    for (i in seq_along(escapes)) {
+        esc <- escapes[i]
+        ch <- chars[i]
+        # An element name, lowercased for an HTML document
+        expect_equal(translator$css_to_xpath(esc, prefix = ""),
+                     paste0("*[name() = '", ch, "' and namespace-uri() = '']"))
+        # An attribute name, lowercased the same way
+        expect_equal(translator$css_to_xpath(paste0("[", esc, "=x]"),
+                                             prefix = ""),
+                     paste0("*[attribute::*[name() = '", ch, "'] = 'x']"))
+        # A :lang() range, folded before it is dash-bracketed
+        expect_equal(translator$css_to_xpath(paste0(":lang(", esc, ")"),
+                                             prefix = ""),
+                     paste0("*[ancestor-or-self::*[@lang][1]",
+                            "[starts-with(concat(",
+                            xpath_ascii_lower("@lang"), ", '-'), '",
+                            ch, "-')]]"))
+        # A pseudo-class name, an attribute flag and an An+B argument
+        # are all matched ASCII case-insensitively too; none of the
+        # three is valid, and each must say so as a selectr condition
+        expect_error(translator$css_to_xpath(paste0(":", esc)),
+                     class = "selectr_translation_error")
+        expect_error(translator$css_to_xpath(paste0("[a=b ", esc, "]")),
+                     class = "selectr_parse_error")
+        expect_error(translator$css_to_xpath(paste0(":nth-child(", esc, ")")),
+                     class = "selectr_parse_error")
+    }
+})
+
 test_that("Generic translator handles :lang() wildcards and comma lists", {
     translator <- GenericTranslator$new()
 

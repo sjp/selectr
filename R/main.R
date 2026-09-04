@@ -84,7 +84,7 @@ css_to_xpath <- function(selector, prefix = "descendant-or-self::", translator =
     # replaced, since "'arg' should be one of ..." names the wrong
     # (internal) argument and doesn't say what the caller passed.
     validTranslators <- c("generic", "html", "xhtml")
-    translator <- tolower(translator)
+    translator <- ascii_lower(translator)
     badTranslators <- character(0)
     translator <- vapply(translator, function(tran) {
         tryCatch(

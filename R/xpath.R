@@ -96,6 +96,23 @@ XPathExpr <- R6Class("XPathExpr",
         add_predicate = function(predicate) {
             self$predicates <- c(self$predicates, predicate)
         },
+        # Match an element name that cannot be written as an XPath
+        # name test (e.g. one starting with a digit, or one containing
+        # an escaped colon) by comparing it against name() instead -
+        # and name() returns the *qualified* name, which for an element
+        # in a default namespace is the bare local name. Pin
+        # namespace-uri() alongside it so a quoted name matches exactly
+        # what a name test would have: the name in no namespace. Only
+        # unprefixed names are ever quoted this way (xpath_element()
+        # keeps a prefix in the node test), so the pin is always the
+        # right one.
+        add_quoted_name_test = function(name) {
+            condition <- paste0("name() = ", xpath_literal(name))
+            self$add_condition(condition)
+            self$add_condition("namespace-uri() = ''")
+            self$name_test <- paste0("*[", condition,
+                                     " and namespace-uri() = '']")
+        },
         add_name_test = function(as_predicate = FALSE) {
             if (self$element == "*")
                 return()
@@ -118,21 +135,7 @@ XPathExpr <- R6Class("XPathExpr",
                     self$add_condition(test)
                 self$name_test <- self$element
             } else {
-                # A name XPath cannot express as a name test (e.g. one
-                # starting with a digit) has to be compared against
-                # name() instead - and name() returns the *qualified*
-                # name, which for an element in a default namespace is
-                # the bare local name. Pin namespace-uri() alongside it
-                # so a quoted name matches exactly what a name test
-                # would have: the name in no namespace. Only unprefixed
-                # names reach here (xpath_element() keeps a prefix in
-                # the node test), so the pin is always the right one.
-                condition <- paste0("name() = ",
-                                    xpath_literal(self$element))
-                self$add_condition(condition)
-                self$add_condition("namespace-uri() = ''")
-                self$name_test <- paste0("*[", condition,
-                                         " and namespace-uri() = '']")
+                self$add_quoted_name_test(self$element)
             }
             self$element <- "*"
         },
@@ -153,13 +156,23 @@ XPathExpr <- R6Class("XPathExpr",
 ascii_upper_letters <- "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 ascii_lower_letters <- "abcdefghijklmnopqrstuvwxyz"
 
-# The ASCII-lowercased string. An HTML parser lower-cases element and
-# attribute names by folding A-Z only, so tolower() - which folds every
-# letter it knows, and does so according to the locale - must not be
-# used for them: a selector for '\C4' (LATIN CAPITAL LETTER A WITH
-# DIAERESIS) names an element no HTML parser would have lowercased
+# The ASCII-lowercased string, and the only case fold in the package:
+# every match CSS and HTML define as case-insensitive is ASCII
+# case-insensitive, from an HTML element name to a pseudo-class name to
+# the 'N' of an An+B series. tolower() - which folds every letter it
+# knows, and does so according to the locale - must not be used for
+# them: a selector for '\C4' (LATIN CAPITAL LETTER A WITH DIAERESIS)
+# names an element no HTML parser would have lowercased.
+#
+# gsub() rather than chartr(): both fold exactly A-Z, but chartr() (like
+# tolower()) converts its argument to wide characters first, and R
+# refuses to do that for a string containing a noncharacter - so an
+# element named '\FFFE' failed the translation outright, with an
+# unclassed "invalid input ... in 'utf8towcs'", instead of translating
+# like any other name XPath cannot spell. gsub() takes the string as it
+# stands.
 ascii_lower <- function(x) {
-    chartr(ascii_upper_letters, ascii_lower_letters, x)
+    gsub("([A-Z])", "\\L\\1", x, perl = TRUE)
 }
 
 # The XPath expression 'expr' ASCII-lowercased. XPath 1.0 has no
@@ -405,7 +418,7 @@ lang_attr_value_lc <- function(xhtml) {
 # follow earlier ones in order.
 lang_extended_html_condition <- function(value, xhtml) {
     cursor <- paste0("concat('-', ", lang_attr_value_lc(xhtml), ", '-')")
-    subtags <- strsplit(tolower(value), "-", fixed = TRUE)[[1]]
+    subtags <- strsplit(ascii_lower(value), "-", fixed = TRUE)[[1]]
     conditions <- character(0)
     anywhere <- FALSE  # may the next literal subtag be preceded by others?
     anchored <- FALSE  # has a literal subtag been matched yet?
@@ -524,9 +537,9 @@ option_own_disabled <- paste0(
 # disjunctions below against it - but only when 'xpath$element' is a
 # plain, unprefixed name usable as an XPath name test. is_safe_name()
 # already excludes the universal selector '*' and a namespaced name such
-# as 'svg:input' (a colon fails the regex); an unsafe name has already
-# been folded into a name() condition by add_name_test(), which resets
-# 'element' to '*' - so both cases fall through to the same NULL result,
+# as 'svg:input' (a colon fails the regex); an unsafe name has instead
+# been folded into a name() condition by add_quoted_name_test(), leaving
+# 'element' as '*' - so both cases fall through to the same NULL result,
 # meaning "unknown, keep every disjunct". This also means a pseudo-class
 # argument translated against a fresh, element-less selector (e.g. the
 # ':checked' in 'input:not(:checked)', which xpath_argument_condition()
@@ -1190,10 +1203,19 @@ GenericTranslator <- R6Class("GenericTranslator",
             if (is.null(namespace)) {
                 # An unprefixed name: a name test if it can be one, and
                 # otherwise a name() comparison pinned to the null
-                # namespace, which is what add_name_test() emits
-                xpath <- XPathExpr$new(element = element)
-                if (!safe)
-                    xpath$add_name_test()
+                # namespace.
+                #
+                # The unsafe name is quoted here rather than passed
+                # through XPathExpr's 'element' for add_name_test() to
+                # deal with: read back from there it would be parsed as
+                # a node test again, and one written with an escaped
+                # colon ('a\:b') or an escaped star ('\*') reads as a
+                # prefixed name or the universal selector, neither of
+                # which is the element the selector names.
+                if (safe)
+                    return(XPathExpr$new(element = element))
+                xpath <- XPathExpr$new()
+                xpath$add_quoted_name_test(element)
                 return(xpath)
             }
             if (namespace != "*") {
@@ -1867,7 +1889,7 @@ HTMLTranslator <- R6Class("HTMLTranslator",
                     # prefix range ("en-*"), both of which match the
                     # language and any of its subtags: dash-terminate
                     # both sides and test for a prefix
-                    prefix <- tolower(sub("\\*$", "", value))
+                    prefix <- ascii_lower(sub("\\*$", "", value))
                     # Don't add '-' if the range already ends with it
                     if (!grepl("-$", prefix))
                         prefix <- paste0(prefix, "-")
