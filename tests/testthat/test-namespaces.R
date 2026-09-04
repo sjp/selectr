@@ -21,10 +21,30 @@ test_that("namespace selectors translate faithfully", {
     # the node test, where the evaluator's namespace map still resolves
     # it, and compares the local part alone
     expect_equal(xpath("ns|é"), "ns:*[local-name() = 'é']")
-    # The node test left on the path step is then the namespaced
-    # wildcard, which the of-type pseudo-classes reject as they do
-    # 'ns|*' itself
-    expect_error(xpath("ns|é:first-of-type"),
+    # The node test left on the path step is the namespaced wildcard,
+    # but the compound still names a type, so the of-type pseudo-classes
+    # count siblings by prefix and local name rather than refusing it as
+    # they do for 'ns|*' itself
+    expect_equal(xpath("ns|é:first-of-type"),
+                 paste0("ns:*[local-name() = 'é' and ",
+                        "count(preceding-sibling::",
+                        "ns:*[local-name() = 'é']) = 0]"))
+    expect_equal(xpath("ns|é:nth-of-type(2)"),
+                 paste0("ns:*[local-name() = 'é' and ",
+                        "count(preceding-sibling::",
+                        "ns:*[local-name() = 'é']) = 1]"))
+    expect_equal(xpath("svg|di\\[v:last-of-type"),
+                 paste0("svg:*[local-name() = 'di[v' and ",
+                        "count(following-sibling::",
+                        "svg:*[local-name() = 'di[v']) = 0]"))
+    expect_equal(xpath("ns|é:only-of-type"),
+                 paste0("ns:*[local-name() = 'é' and ",
+                        "count(preceding-sibling::",
+                        "ns:*[local-name() = 'é']) = 0 and ",
+                        "count(following-sibling::",
+                        "ns:*[local-name() = 'é']) = 0]"))
+    # 'ns|*' names no type and is still refused
+    expect_error(xpath("ns|*:first-of-type"),
                  "\\*:first-of-type is not implemented")
     # '*|*' is equivalent to '*'
     expect_equal(xpath("*|*"), "*")
@@ -208,6 +228,27 @@ test_that("namespace selectors match correct elements", {
     expect_equal(matches("svg|e"), "svg:e")
     expect_equal(matches("[*|a]"), c("r", "svg:e"))
     expect_equal(matches("[|a]"), "r")
+})
+
+test_that("an of-type pseudo-class counts a prefixed unsafe name", {
+    skip_if_not_installed("xml2")
+
+    # 'é' cannot be an XPath name test, so the step is 'ns:*' with the
+    # local name in a condition; the of-type pseudo-classes must still
+    # count siblings of that type, not every element in the namespace
+    doc <- xml2::read_xml(paste0(
+        '<r xmlns:n="http://ns">',
+        '<n:f id="f1"/><n:é id="e1"/><n:f id="f2"/><n:é id="e2"/></r>'))
+    ns <- c(ns = "http://ns")
+    ids <- function(sel) {
+        nodes <- xml2::xml_find_all(doc, css_to_xpath(sel, prefix = "//"), ns)
+        xml2::xml_attr(nodes, "id")
+    }
+
+    expect_equal(ids("ns|é:first-of-type"), "e1")
+    expect_equal(ids("ns|é:last-of-type"), "e2")
+    expect_equal(ids("ns|é:nth-of-type(2)"), "e2")
+    expect_equal(ids("ns|é:only-of-type"), character(0))
 })
 
 test_that("namespaced pseudo-class arguments match by URI, not prefix", {

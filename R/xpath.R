@@ -234,7 +234,17 @@ is_safe_nodetest <- function(name) {
 # outside XSLT) - so that case is not implemented, an error shared
 # with the Python cssselect library
 of_type_nodetest <- function(xpath) {
-    nodetest <- if (xpath$element != "*") xpath$element else xpath$name_test
+    # 'name_test' takes precedence over 'element': it is only ever
+    # recorded when the compound's name is not the node test on the
+    # path step, because the name cannot be written as one - the bare
+    # '*' of '*|e', or the namespaced 'ns:*' of 'ns|é'. Reading
+    # 'element' first would mistake such a named element for the
+    # universal selector and refuse a selector that has a type to
+    # count by
+    nodetest <- if (!is.null(xpath$name_test))
+        xpath$name_test
+    else
+        xpath$element
     # A namespaced wildcard ('svg|*', kept as the node test 'svg:*')
     # is just as much the universal selector for this purpose: counting
     # those siblings would group them by namespace rather than by
@@ -1418,15 +1428,17 @@ GenericTranslator <- R6Class("GenericTranslator",
                     # match only documents that happen to use that very
                     # prefix.
                     #
-                    # No 'name_test' is recorded: the node test left in
-                    # 'element' is the namespaced wildcard 'ns:*', which
-                    # the of-type pseudo-classes reject (counting those
-                    # siblings would group them by namespace rather than
-                    # by expanded name), and it is what they see either
-                    # way - of_type_nodetest() prefers 'element'.
+                    # The node test left in 'element' is then the
+                    # namespaced wildcard 'ns:*', which on its own the
+                    # of-type pseudo-classes reject; 'name_test' keeps
+                    # the whole node test the compound really means, so
+                    # they count siblings by prefix and local name
+                    # rather than seeing the universal selector.
                     xpath <- XPathExpr$new(element = paste0(namespace, ":*"))
-                    xpath$add_condition(paste0("local-name() = ",
-                                               xpath_literal(element)))
+                    condition <- paste0("local-name() = ",
+                                        xpath_literal(element))
+                    xpath$add_condition(condition)
+                    xpath$name_test <- paste0(namespace, ":*[", condition, "]")
                     return(xpath)
                 }
                 element <- paste0(namespace, ":", element)
