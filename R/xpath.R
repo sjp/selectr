@@ -665,13 +665,13 @@ contenteditable_states <- c("", "true", "plaintext-only", "false")
 fold_contenteditable <- paste0(
     "translate(@contenteditable, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
     "'abcdefghijklmnopqrstuvwxyz')")
-contenteditable_state_condition <- paste0(
+contenteditable_state_cond <- paste0(
     "@contenteditable and (",
     paste(paste0(fold_contenteditable, " = ",
                  vapply(contenteditable_states, xpath_literal,
                         character(1))), collapse = " or "), ")")
 contenteditable_condition <- paste0(
-    "ancestor-or-self::*[", contenteditable_state_condition, "][1]",
+    "ancestor-or-self::*[", contenteditable_state_cond, "][1]",
     "[not(", fold_contenteditable, " = 'false')]")
 
 # The condition for xpath_read_write_pseudo() (':read-only' is simply
