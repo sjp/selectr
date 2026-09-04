@@ -1059,7 +1059,7 @@ GenericTranslator <- R6Class("GenericTranslator",
         },
         xpath = function(parsed_selector) {
             type_name <- first_class_name(parsed_selector)
-            method <- self[[paste0("xpath_", tolower(type_name))]]
+            method <- self[[paste0("xpath_", ascii_lower(type_name))]]
             if (is.null(method))
                 internal_stop("Unknown method name '", type_name, "'")
             method(parsed_selector)

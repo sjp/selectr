@@ -112,6 +112,21 @@ test_that("css_to_xpath handles bad arguments", {
     expect_error(css_to_xpath("a", translator = c("generic", "a")), "'translator' must be one of.*")
 })
 
+test_that("the 'translator' argument is folded as ASCII, not by the locale", {
+    # tolower() would fold these to "generic" and "xtml" in a UTF-8
+    # locale, letting a look-alike letter pick a translator - and
+    # answering differently under a C locale, which knows neither. The
+    # fold is ASCII-only, so both are rejected, and the rejected value
+    # is echoed with its non-ASCII letters as they were written.
+    dotted_i <- "GENER\u0130C"        # LATIN CAPITAL LETTER I WITH DOT ABOVE
+    cyrillic_ha <- "\u0425TML"        # CYRILLIC CAPITAL LETTER HA
+
+    expect_error(css_to_xpath("a", translator = dotted_i),
+                 "not \"gener\u0130c\"", fixed = TRUE)
+    expect_error(css_to_xpath("a", translator = cyrillic_ha),
+                 "not \"\u0425tml\"", fixed = TRUE)
+})
+
 test_that("css_to_xpath rejects invalid bytes as a selectr_error", {
     skip_if_not(l10n_info()[["UTF-8"]])
 
