@@ -106,12 +106,15 @@
       included --- but a query with many matches is several times
       faster.
 
-      \item The XPath translation of an \code{An+B} argument with a
-      non-zero remainder now puts a space on both sides of the
-      \code{+}, as in
+      \item Arithmetic in the generated XPath now puts a space on both
+      sides of the operator. An \code{An+B} argument with a non-zero
+      remainder is written
       \code{(count(preceding-sibling::*) + 2) mod 3 = 0} where
-      previously it wrote \code{(count(preceding-sibling::*) +2)}. The
-      expression is unchanged as XPath; only the string produced by
+      previously it wrote \code{(count(preceding-sibling::*) +2)}, and
+      the \code{[attr$=value]} suffix match is written
+      \code{substring(@href, string-length(@href) - 2)} where
+      previously it wrote \code{string-length(@href)-2}. Both
+      expressions are unchanged as XPath; only the string produced by
       \code{css_to_xpath()} differs, which matters if it is compared,
       cached or stored.
 

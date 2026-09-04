@@ -69,7 +69,7 @@ test_that("man/selectors.Rd attribute-selector examples match live translation",
     expect_equal(gt$css_to_xpath("[attr^=val]"),
                  "descendant-or-self::*[starts-with(@attr, 'val')]")
     expect_equal(gt$css_to_xpath("[attr$=val]"),
-                 "descendant-or-self::*[substring(@attr, string-length(@attr)-2) = 'val']")
+                 "descendant-or-self::*[substring(@attr, string-length(@attr) - 2) = 'val']")
     expect_equal(gt$css_to_xpath("[attr*=val]"),
                  "descendant-or-self::*[contains(@attr, 'val')]")
     expect_equal(gt$css_to_xpath("[attr=val i]"),

@@ -51,7 +51,7 @@ test_that("translation from parsed objects to XPath works", {
     expect_equal(xpath('e[foo^="bar"]'),
                  "e[starts-with(@foo, 'bar')]")
     expect_equal(xpath('e[foo$="bar"]'),
-                 "e[substring(@foo, string-length(@foo)-2) = 'bar']")
+                 "e[substring(@foo, string-length(@foo) - 2) = 'bar']")
     expect_equal(xpath('e[foo*="bar"]'),
                  "e[contains(@foo, 'bar')]")
     expect_equal(xpath('e[hreflang|="en"]'),
@@ -67,7 +67,7 @@ test_that("translation from parsed objects to XPath works", {
     expect_equal(xpath('e[foo$="Bar" i]'),
                  paste0("e[substring(",
                         lower_foo, ", string-length(",
-                        lower_foo, ")-2) = 'bar']"))
+                        lower_foo, ") - 2) = 'bar']"))
     expect_equal(xpath('e[foo*="Bar" i]'),
                  paste0("e[contains(",
                         lower_foo, ", 'bar')]"))

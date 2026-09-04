@@ -1501,7 +1501,7 @@ GenericTranslator <- R6Class("GenericTranslator",
                     name,
                     ", string-length(",
                     name,
-                    ")-",
+                    ") - ",
                     xpath_number(nchar(value) - 1),
                     ") = ",
                     xpath_literal(value)))
