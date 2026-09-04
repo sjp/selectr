@@ -71,6 +71,71 @@ test_that("HTML translator lowercases attribute names but not values", {
                  "descendant-or-self::div[@data-state = 'Active']")
 })
 
+test_that("the HTML case-insensitive attributes fold their values", {
+    translator <- HTMLTranslator$new()
+    lc <- function(expr)
+        paste0("translate(", expr, ", 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
+               "'abcdefghijklmnopqrstuvwxyz')")
+
+    # HTML matches the values of the attributes in its
+    # "Case-sensitivity of selectors" list ASCII case-insensitively,
+    # so both sides of the comparison are folded
+    expect_equal(translator$css_to_xpath("input[type=RADIO]"),
+                 paste0("descendant-or-self::input[", lc("@type"),
+                        " = 'radio']"))
+    expect_equal(translator$css_to_xpath("a[REL=Tag]"),
+                 paste0("descendant-or-self::a[", lc("@rel"), " = 'tag']"))
+    # Every operator folds, and an operator that names the attribute
+    # twice folds it twice
+    expect_equal(translator$css_to_xpath('[lang|="en"]'),
+                 paste0("descendant-or-self::*[", lc("@lang"),
+                        " = 'en' or starts-with(", lc("@lang"), ", 'en-')]"))
+    expect_equal(translator$css_to_xpath('[media*="Print"]'),
+                 paste0("descendant-or-self::*[contains(", lc("@media"),
+                        ", 'print')]"))
+
+    # An explicit 's' opts back out; an empty value is left exact, as
+    # it is for the 'i' flag
+    expect_equal(translator$css_to_xpath("input[type=RADIO s]"),
+                 "descendant-or-self::input[@type = 'RADIO']")
+    expect_equal(translator$css_to_xpath('input[type=""]'),
+                 "descendant-or-self::input[@type = '']")
+
+    # The list is closed, and does not cover a namespaced attribute
+    # even when its local name is on it
+    expect_equal(translator$css_to_xpath('a[href^="HTTP"]'),
+                 "descendant-or-self::a[starts-with(@href, 'HTTP')]")
+    expect_equal(translator$css_to_xpath('[class="Foo"]'),
+                 "descendant-or-self::*[@class = 'Foo']")
+    expect_equal(translator$css_to_xpath('[data-type="Foo"]'),
+                 "descendant-or-self::*[@data-type = 'Foo']")
+    expect_equal(translator$css_to_xpath('[svg|type="Foo"]'),
+                 "descendant-or-self::*[@svg:type = 'Foo']")
+    expect_equal(translator$css_to_xpath('[*|type="Foo"]'),
+                 paste0("descendant-or-self::*[@*[local-name() = 'type']",
+                        " = 'Foo']"))
+
+    # The rule is HTML's: neither the xhtml nor the generic translator
+    # serves an HTML document
+    expect_equal(HTMLTranslator$new(xhtml = TRUE)$css_to_xpath("input[type=RADIO]"),
+                 "descendant-or-self::input[@type = 'RADIO']")
+    expect_equal(GenericTranslator$new()$css_to_xpath("input[type=RADIO]"),
+                 "descendant-or-self::input[@type = 'RADIO']")
+})
+
+test_that("the HTML translator folds names as an HTML parser does", {
+    translator <- HTMLTranslator$new()
+
+    # An HTML parser lowercases ASCII only, so a non-ASCII element or
+    # attribute name reaches XPath as it was written
+    expect_equal(translator$css_to_xpath("\\C4[\\C4=x]"),
+                 paste0("descendant-or-self::*[name() = '\u00c4' and ",
+                        "attribute::*[name() = '\u00c4'] = 'x']"))
+    # U+041B CYRILLIC CAPITAL LETTER EL
+    expect_equal(translator$css_to_xpath("\\41b"),
+                 "descendant-or-self::*[name() = '\u041b']")
+})
+
 test_that("Generic translator handles :lang() wildcards and comma lists", {
     translator <- GenericTranslator$new()
 

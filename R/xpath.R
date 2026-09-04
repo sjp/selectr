@@ -146,6 +146,27 @@ XPathExpr <- R6Class("XPathExpr",
         } # nocov end
     ))
 
+ascii_upper_letters <- "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+ascii_lower_letters <- "abcdefghijklmnopqrstuvwxyz"
+
+# The ASCII-lowercased string. An HTML parser lower-cases element and
+# attribute names by folding A-Z only, so tolower() - which folds every
+# letter it knows, and does so according to the locale - must not be
+# used for them: a selector for '\C4' (LATIN CAPITAL LETTER A WITH
+# DIAERESIS) names an element no HTML parser would have lowercased
+ascii_lower <- function(x) {
+    chartr(ascii_upper_letters, ascii_lower_letters, x)
+}
+
+# The XPath expression 'expr' ASCII-lowercased. XPath 1.0 has no
+# case-folding function, so translate() with the two alphabets spelled
+# out does the job - and folds ASCII only, which is what every
+# case-insensitive match defined by HTML and Selectors asks for
+xpath_ascii_lower <- function(expr) {
+    paste0("translate(", expr, ", '", ascii_upper_letters, "', '",
+           ascii_lower_letters, "')")
+}
+
 is_safe_name <- function(name) {
     grepl("^[a-zA-Z_][a-zA-Z0-9_.-]*$", name)
 }
@@ -342,9 +363,7 @@ lang_attr_ancestor <- function(xhtml) {
 # The same string lowercased, for the ASCII case-insensitive matching
 # that language ranges use
 lang_attr_value_lc <- function(xhtml) {
-    paste0("translate(", lang_attr_value(xhtml),
-           ", 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
-           "'abcdefghijklmnopqrstuvwxyz')")
+    xpath_ascii_lower(lang_attr_value(xhtml))
 }
 
 # The HTML :lang() translation of an RFC 4647 extended-filtering range
@@ -390,12 +409,28 @@ first_class_name <- function(obj) {
     if (!is.null(obj$repr_name)) obj$repr_name else class(obj)[1]
 }
 
+# The attributes whose *values* an HTML document matches ASCII
+# case-insensitively, from HTML's "Case-sensitivity of selectors". The
+# list is closed - a modern attribute such as 'contenteditable' is not
+# on it, and neither are 'class', 'id', 'href', 'name' or any 'data-*'
+# - and it applies only to HTML elements in an HTML document, so the
+# xhtml translator (which serves XML) leaves every comparison exact
+html_case_insensitive_attrs <- c(
+    "accept", "accept-charset", "align", "alink", "axis", "bgcolor",
+    "charset", "checked", "clear", "codetype", "color", "compact",
+    "declare", "defer", "dir", "direction", "disabled", "enctype",
+    "face", "frame", "hreflang", "http-equiv", "lang", "language",
+    "link", "media", "method", "multiple", "nohref", "noresize",
+    "noshade", "nowrap", "readonly", "rel", "rev", "rules", "scope",
+    "scrolling", "selected", "shape", "target", "text", "type",
+    "valign", "valuetype", "vlink")
+
 # 'type' is an HTML enumerated attribute whose keywords match ASCII
 # case-insensitively, but an HTML parser preserves attribute *values*,
 # so a spelling such as type="RADIO" reaches XPath unchanged. Fold the
 # value to lower case before comparing so the form pseudo-classes accept
 # the uppercase keywords the way browsers do
-fold_type <- "translate(@type, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
+fold_type <- xpath_ascii_lower("@type")
 
 # The condition "the input's type is none of 'types'", written as a
 # negated disjunction of equality tests on the folded @type. Both lists
@@ -680,6 +715,9 @@ GenericTranslator <- R6Class("GenericTranslator",
         id_attribute = "id",
         lower_case_element_names = FALSE,
         lower_case_attribute_names = FALSE,
+        # Whether the values of HTML's ASCII case-insensitive attributes
+        # (html_case_insensitive_attrs) compare case-insensitively
+        case_insensitive_attribute_values = FALSE,
         css_to_xpath = function(css, prefix = "descendant-or-self::") {
             tryCatch({
                 selectors <- parse(css)
@@ -1008,10 +1046,14 @@ GenericTranslator <- R6Class("GenericTranslator",
             operator <- self$attribute_operator_mapping[selector$operator]
             method_name <- paste0("xpath_attrib_", operator)
             if (self$lower_case_attribute_names) {
-                name <- tolower(selector$attrib)
+                name <- ascii_lower(selector$attrib)
             } else {
                 name <- selector$attrib
             }
+            # 'name' picks up the namespace prefix below; the
+            # case-insensitivity rule is keyed on the local name alone,
+            # and only for an attribute in no namespace
+            local_name <- name
             safe <- is_safe_name(name)
             if (identical(selector$namespace, "*")) {
                 # '[*|attr]': 'attr' in any namespace, including none.
@@ -1034,23 +1076,25 @@ GenericTranslator <- R6Class("GenericTranslator",
             }
             value <- selector$value
 
+            # '[attr="value" i]' asks for an ASCII case-insensitive
+            # match, and so, in an HTML document, does a selector on one
+            # of the attributes HTML defines that way (e.g. 'type' or
+            # 'rel') with no flag of its own - an explicit 's' opts back
+            # out of both. Comparing the ASCII-lowercased attribute
+            # against the ASCII-lowercased value gets there. An empty
+            # value needs no lowercasing, and skipping it keeps the
+            # existence tests (e.g. 'not(@attr)') exact.
+            fold_value <- !is.null(value) && nzchar(value) &&
+                (identical(selector$flag, "i") ||
+                 (!identical(selector$flag, "s") &&
+                  self$case_insensitive_attribute_values &&
+                  is.null(selector$namespace) &&
+                  local_name %in% html_case_insensitive_attrs))
+
             xp <- self$xpath(selector$selector)
-            if (identical(selector$flag, "i") &&
-                !is.null(value) && nzchar(value)) {
-                # '[attr="value" i]': match the value ASCII
-                # case-insensitively, so compare the ASCII-lowercased
-                # attribute against the ASCII-lowercased value. (An
-                # explicit 's' flag, the default anyway, opts out of
-                # this and leaves the comparison case-sensitive.)
-                # An empty value needs no lowercasing, and skipping it
-                # keeps the existence tests (e.g. 'not(@attr)') exact.
-                value <- chartr("ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-                                "abcdefghijklmnopqrstuvwxyz", value)
-                attrib <- paste0(
-                    "translate(",
-                    attrib,
-                    ", 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',",
-                    " 'abcdefghijklmnopqrstuvwxyz')")
+            if (fold_value) {
+                value <- ascii_lower(value)
+                attrib <- xpath_ascii_lower(attrib)
             }
             method <- self[[method_name]]
             if (is.null(method))
@@ -1078,7 +1122,7 @@ GenericTranslator <- R6Class("GenericTranslator",
             } else {
                 safe <- is_safe_name(element)
                 if (self$lower_case_element_names)
-                    element <- tolower(element)
+                    element <- ascii_lower(element)
             }
             namespace <- selector$namespace
             if (identical(namespace, "*") && element != "*") {
@@ -1634,6 +1678,7 @@ HTMLTranslator <- R6Class("HTMLTranslator",
             if (!xhtml) {
                 self$lower_case_element_names <- TRUE
                 self$lower_case_attribute_names <- TRUE
+                self$case_insensitive_attribute_values <- TRUE
             }
         },
         # The form-state pseudo-classes cover the element set the HTML

@@ -173,6 +173,32 @@ test_that("the xhtml translator reads xml:lang as well as lang", {
     expect_equal(pid("*|p:lang(*-gb)"), "region")
 })
 
+test_that("attribute values match case-insensitively in an HTML document", {
+    skip_if_not_installed("xml2")
+    doc <- xml2::read_html(paste0(
+        '<html><body><ul>',
+        '<li id="a" lang="En-us"><input id="r" type="RADIO"></li>',
+        '<li id="b" class="Wrap" data-type="Foo"><a id="t" rel="TAG"></a></li>',
+        '</ul></body></html>'))
+
+    pid <- function(selector)
+        xml2::xml_attr(querySelectorAll(doc, selector), "id")
+
+    # 'type', 'rel' and 'lang' are on HTML's case-insensitive list
+    expect_equal(pid("input[type=radio]"), "r")
+    expect_equal(pid("a[rel=tag]"), "t")
+    expect_equal(pid('[lang|="en"]'), "a")
+    expect_equal(pid('[lang|="en-US"]'), "a")
+
+    # ... and the 's' flag asks for the exact comparison back
+    expect_equal(pid("input[type=radio s]"), character(0))
+    expect_equal(pid("input[type=RADIO s]"), "r")
+
+    # 'class' and 'data-*' are not on it
+    expect_equal(pid('[class="wrap"]'), character(0))
+    expect_equal(pid('[data-type="foo"]'), character(0))
+})
+
 test_that("the html translator stays lang-only", {
     skip_if_not_installed("xml2")
     doc <- xml2::read_html(paste0('<html><body><p id="x" xml:lang="en">a</p>',

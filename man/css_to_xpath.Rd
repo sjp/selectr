@@ -153,10 +153,14 @@ css_to_xpath(selector,
   \code{\link{selectors}} for exactly which elements and attributes
   each of these matches.
 
-  When the translator is set to \code{html}, all elements and
-  attributes will be converted to lower case. This restriction is
-  removed when the translator is \code{xhtml} (or the default
-  \code{generic} translator).
+  When the translator is set to \code{html}, all element and attribute
+  names will be converted to lower case (\code{A}-\code{Z} only, as an
+  HTML parser folds them), and the attributes HTML defines as ASCII
+  case-insensitive - \code{type}, \code{rel}, \code{lang} and the
+  rest of the list in \code{\link{selectors}} - also compare their
+  \emph{values} without regard to case. Both are removed when the
+  translator is \code{xhtml} (or the default \code{generic}
+  translator), neither of which serves HTML documents.
 }
 \value{
   A character vector of XPath expressions.

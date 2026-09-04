@@ -64,6 +64,21 @@
   \code{...[translate(@attr, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
   'abcdefghijklmnopqrstuvwxyz') = 'val']}. Any other flag is a parse
   error.
+
+  Under the \code{html} translator, the attributes HTML lists as ASCII
+  case-insensitive (\code{type}, \code{rel}, \code{lang},
+  \code{hreflang}, \code{dir}, \code{media}, \code{method},
+  \code{target}, \code{checked}, \code{disabled}, \code{readonly},
+  \code{selected}, \code{multiple}, \code{shape}, \code{scope},
+  \code{align}, \code{charset}, \code{http-equiv}, \code{enctype},
+  \code{accept} and the rest of HTML's "Case-sensitivity of selectors"
+  list) match their values that way with no flag written, as they do in
+  a browser: \code{input[type=radio]} selects \code{<input
+  type="RADIO">}. An explicit \code{s} restores the exact comparison.
+  \code{class}, \code{id}, \code{href}, \code{name}, \code{data-*}
+  and every namespaced attribute keep it, and so does every attribute
+  under the \code{generic} and \code{xhtml} translators, which serve
+  XML rather than HTML documents.
 }
 \section{Structural pseudo-classes}{
   \tabular{lll}{
@@ -167,10 +182,12 @@
   \code{\link[XML]{getNodeSet}} at query time, not through whatever
   prefix the document itself uses; see \code{\link{querySelectorAll}}.
   \code{HTMLTranslator} additionally lower-cases every element and
-  attribute name (including namespaced ones, so
-  \code{svg|linearGradient} becomes \code{svg:lineargradient}), which
-  matches libxml2's HTML parser but would be wrong against a tree that
-  restores camelCase SVG/MathML names (browsers, html5ever).
+  attribute name - folding \code{A}-\code{Z} only, as an HTML parser
+  does, so a non-ASCII name is left as written - including namespaced
+  ones, so \code{svg|linearGradient} becomes
+  \code{svg:lineargradient}, which matches libxml2's HTML parser but
+  would be wrong against a tree that restores camelCase SVG/MathML
+  names (browsers, html5ever).
 }
 \section{Divergences from CSS Selectors Level 4}{
   \enumerate{

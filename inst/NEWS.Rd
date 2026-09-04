@@ -134,6 +134,28 @@
   \subsection{BUG FIXES}{
     \itemize{
 
+      \item The \code{html} translator now matches the values of the
+      attributes HTML defines as ASCII case-insensitive
+      (\code{type}, \code{rel}, \code{lang}, \code{dir},
+      \code{media}, \code{method}, \code{target}, \code{checked},
+      \code{disabled}, \code{selected}, ... --- the list in HTML's
+      "Case-sensitivity of selectors") without regard to case, as a
+      browser does: \code{"input[type=radio]"} now selects
+      \code{<input type="RADIO">}, and \code{"[lang|=en]"} an element
+      with \code{lang="En-us"}. A trailing \code{s} flag asks for the
+      exact comparison back. \code{class}, \code{id}, \code{href},
+      \code{name}, any \code{data-*} and every namespaced attribute
+      are unaffected, as are the \code{generic} and \code{xhtml}
+      translators, which do not serve HTML documents.
+
+      \item The \code{html} translator now lowercases element and
+      attribute names by folding \code{A}-\code{Z} only, as an HTML
+      parser does. Names were folded with \code{tolower()}, which also
+      maps non-ASCII letters --- and does so according to the locale ---
+      so a selector such as \code{"\\C4"} (LATIN CAPITAL LETTER A WITH
+      DIAERESIS) was translated into a name test no document could
+      match.
+
       \item \code{:placeholder-shown} now requires the
       \code{placeholder} attribute to be non-empty, and matches an
       \code{<input>} only when its \code{type} is one the attribute
