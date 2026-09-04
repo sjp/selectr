@@ -362,11 +362,16 @@ test_that("HTML translator handles :lang() extended-filtering wildcards", {
     translator <- HTMLTranslator$new()
     lc <- "translate(@lang, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
 
-    # A leading wildcard "*-CH" matches any tag carrying a "ch" subtag.
-    # Both the unquoted (tokenized as '*' + "-CH") and quoted spellings
+    # A leading wildcard "*-CH" matches any tag carrying a "ch" subtag
+    # after the first: RFC 4647 step 2 pairs the '*' with the tag's
+    # primary subtag, so that subtag is consumed rather than searched
+    # (substring-after drops it before the containment test). Both the
+    # unquoted (tokenized as '*' + "-CH") and quoted spellings
     # reassemble to the same range and translation.
     expected_star_ch <- sprintf(
-        "descendant-or-self::*[ancestor-or-self::*[@lang][1][contains(concat('-', %s, '-'), '-ch-')]]",
+        paste0("descendant-or-self::*[ancestor-or-self::*[@lang][1]",
+               "[contains(concat('-', substring-after(concat(%s, '-'), '-')), ",
+               "'-ch-')]]"),
         lc)
     expect_equal(translator$css_to_xpath(":lang(*-CH)"), expected_star_ch)
     expect_equal(translator$css_to_xpath('div:lang("*-CH")'),
@@ -405,21 +410,24 @@ test_that("HTML :lang() extended wildcards match the right elements", {
         "<a lang='fr-CH'/>",       # ch subtag    -> :lang(*-CH)
         "<b lang='de-CH-1996'/>",  # ch subtag    -> :lang(*-CH)
         "<c lang='en-GB'/>",       # no ch        -> neither
-        "<d lang='ch'/>",          # ch is the whole tag -> :lang(*-CH)
+        "<d lang='ch'/>",          # ch is the whole tag -> neither
         "<e lang='de-DE'/>",       # de...de, no ch -> :lang(de-*-DE) only
         "<f lang='de-CH-DE'/>",    # ch subtag and de...de -> both
         "<g lang='de-CH'/>",       # ch subtag, but no later de -> :lang(*-CH) only
+        "<h lang='ch-DE'/>",       # ch is the primary subtag -> neither
         "</html>"))
     ids <- function(css) {
         nodes <- xml2::xml_find_all(doc, css_to_xpath(css, translator = "html"))
         paste(xml2::xml_name(nodes), collapse = ",")
     }
-    # every element carrying a "ch" subtag, in any position
-    expect_equal(ids(":lang(*-CH)"), "a,b,d,f,g")
+    # every element carrying a "ch" subtag after the primary one: the
+    # leading wildcard is paired with the primary subtag (RFC 4647 step
+    # 2), so lang="ch" and lang="ch-DE" are not matched by "*-CH"
+    expect_equal(ids(":lang(*-CH)"), "a,b,f,g")
     # "de" first and a later "de" subtag, in order (de-CH alone excluded)
     expect_equal(ids(":lang(de-*-DE)"), "e,f")
     # case-insensitive: the wildcard subtag is matched in lower case
-    expect_equal(ids(":lang(*-ch)"), "a,b,d,f,g")
+    expect_equal(ids(":lang(*-ch)"), "a,b,f,g")
 })
 
 test_that("HTML :lang() applies extended filtering to exact multi-subtag ranges", {

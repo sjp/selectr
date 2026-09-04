@@ -105,10 +105,13 @@ css_to_xpath(selector,
   \code{html} and \code{xhtml} translators implement RFC 4647 extended
   filtering for any range naming more than one subtag, approximated
   from the nearest language-attributed ancestor: a wildcard, explicit
-  or not, may skip any subtag, so \code{:lang(*-CH)} matches an element
-  whose language tag carries a \code{CH} subtag in any position, and
-  \code{:lang(de-DE)} - with no wildcard at all - matches
-  \code{lang="de-Latn-DE"} the same way. A single-subtag range
+  or not, may skip any subtag, so \code{:lang(de-DE)} - with no
+  wildcard at all - matches \code{lang="de-Latn-DE"}. The first
+  subtags of range and tag are always paired, though, so a leading
+  wildcard \emph{consumes} the tag's primary subtag rather than
+  skipping over it: \code{:lang(*-CH)} matches \code{lang="de-CH"} and
+  \code{lang="fr-Latn-CH"}, but neither \code{lang="ch"} nor
+  \code{lang="ch-DE"}. A single-subtag range
   (\code{:lang(en)}, \code{:lang(en-*)}) is a plain prefix test, as
   before. The generic translator has only XPath's \code{lang()}
   function, which does Selectors 3 \code{|=}-style prefix matching and

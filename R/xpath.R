@@ -465,22 +465,30 @@ lang_attr_value_lc <- function(xhtml) {
 # "de-*-DE"). It tests the nearest language-attributed ancestor,
 # dash-terminating the lowercased language string as "<lang>-" so that
 # each subtag is delimited, then walks the range's subtags left to
-# right: a literal first subtag must start the tag, a literal subtag
-# after a '*' may appear anywhere further along (contains, over the
-# tail re-bracketed with a leading dash so that it too matches whole
-# subtags only), and substring-after threads the remaining tail so
-# later subtags must follow earlier ones in order. The range arrives
+# right: the range's first subtag is paired with the tag's first, so a
+# literal there must start the tag and a '*' consumes it; a literal
+# subtag after a '*' may appear anywhere further along (contains, over
+# the tail re-bracketed with a leading dash so that it too matches
+# whole subtags only); and substring-after threads the remaining tail
+# so later subtags must follow earlier ones in order. The range arrives
 # validated (see lang_ranges()), so every subtag is non-empty and at
 # least one is a literal - an all-wildcard range is "any", not
 # "extended", and never reaches here with nothing to test.
 lang_extended_html_condition <- function(value, xhtml) {
     lang <- lang_attr_value_lc(xhtml)
     cursor <- paste0("concat(", lang, ", '-')")
-    fresh <- TRUE  # is 'cursor' still the whole language string?
     subtags <- strsplit(ascii_lower(value), "-", fixed = TRUE)[[1]]
     conditions <- character(0)
     anywhere <- FALSE  # may the next literal subtag be preceded by others?
     anchored <- FALSE  # has a literal subtag been matched yet?
+    if (subtags[1] == "*") {
+        # RFC 4647 step 2 pairs the first subtag of the range with the
+        # first subtag of the tag, so a leading '*' *consumes* the tag's
+        # primary subtag rather than skipping over it: the rest of the
+        # range is searched for in what follows, and "*-CH" matches
+        # "de-CH" but neither "ch" nor "ch-DE"
+        cursor <- paste0("substring-after(", cursor, ", '-')")
+    }
     for (subtag in subtags) {
         if (subtag == "*") {
             anywhere <- TRUE
@@ -492,17 +500,13 @@ lang_extended_html_condition <- function(value, xhtml) {
                             paste0("starts-with(", cursor, ", ", needle, ")"))
         } else {
             # The tail carries no leading dash, so one is put back for
-            # the delimited search - and the whole, untouched language
-            # string is bracketed in a single concat() rather than
-            # wrapped in a second one
-            cursor <- if (fresh) paste0("concat('-', ", lang, ", '-')")
-                      else paste0("concat('-', ", cursor, ")")
+            # the delimited search
+            cursor <- paste0("concat('-', ", cursor, ")")
             needle <- xpath_literal(paste0("-", subtag, "-"))
             conditions <- c(conditions,
                             paste0("contains(", cursor, ", ", needle, ")"))
         }
         cursor <- paste0("substring-after(", cursor, ", ", needle, ")")
-        fresh <- FALSE
         anywhere <- FALSE
         anchored <- TRUE
     }
