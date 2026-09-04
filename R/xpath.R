@@ -1226,7 +1226,7 @@ GenericTranslator <- R6Class("GenericTranslator",
                 b_neg <- (-b_min_1) %% abs(a)
 
                 if (b_neg != 0) {
-                    b_neg <- paste0("+", xpath_number(b_neg))
+                    b_neg <- paste0("+ ", xpath_number(b_neg))
                     left <- paste0("(", left, " ", b_neg, ")")
                 }
 

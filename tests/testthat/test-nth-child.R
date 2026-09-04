@@ -740,16 +740,16 @@ test_that("large An+B values are written out in full", {
     expect_equal(xpath("li:nth-child(n+100001)"),
                  "li[count(preceding-sibling::*) >= 100000]")
     expect_equal(xpath("li:nth-child(200000n)"),
-                 "li[(count(preceding-sibling::*) +1) mod 200000 = 0]")
+                 "li[(count(preceding-sibling::*) + 1) mod 200000 = 0]")
     expect_equal(xpath("li:nth-child(1000000n+1000001)"),
                  paste0("li[count(preceding-sibling::*) >= 1000000 and ",
                         "count(preceding-sibling::*) mod 1000000 = 0]"))
     expect_equal(xpath("li:nth-last-child(-100000n+100000)"),
                  paste0("li[count(following-sibling::*) <= 99999 and ",
-                        "(count(following-sibling::*) +1) mod -100000 = 0]"))
+                        "(count(following-sibling::*) + 1) mod -100000 = 0]"))
     expect_equal(xpath("li:nth-of-type(100000n+3)"),
                  paste0("li[count(preceding-sibling::li) >= 2 and ",
-                        "(count(preceding-sibling::li) +99998) mod 100000 = 0]"))
+                        "(count(preceding-sibling::li) + 99998) mod 100000 = 0]"))
 
     # and the formatting does not follow the session's number-printing
     # options
@@ -758,7 +758,7 @@ test_that("large An+B values are written out in full", {
     expect_equal(xpath("li:nth-child(100001)"),
                  "li[count(preceding-sibling::*) = 100000]")
     expect_equal(xpath("li:nth-child(200000n)"),
-                 "li[(count(preceding-sibling::*) +1) mod 200000 = 0]")
+                 "li[(count(preceding-sibling::*) + 1) mod 200000 = 0]")
 })
 
 test_that("large An+B values select the right nodes", {
