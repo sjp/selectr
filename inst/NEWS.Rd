@@ -414,12 +414,15 @@
       error, instead of being used as a namespace URI.
 
       \item A \emph{name} in the \code{ns} argument of the
-      \code{querySelectorNS()} family that is not a valid XML name
-      (e.g. \code{c("s p" = "urn:s")}, or one containing a colon or
-      starting with a digit) is now rejected with an error. Previously
-      such a prefix was interpolated into the generated XPath, which
-      then failed to compile: the query raised a libxml2 warning and
-      returned no matches.
+      \code{querySelectorNS()} family that is not a valid XML
+      \code{NCName} (e.g. \code{c("s p" = "urn:s")}, or one containing
+      a colon or starting with a digit) is now rejected with an error.
+      Previously such a prefix was interpolated into the generated
+      XPath, which then failed to compile: the query raised a libxml2
+      warning and returned no matches. The condition is the one applied
+      to a prefix written in a selector, so the two agree: a name
+      outside ASCII (e.g. \code{c("äöü" = "urn:s")}) is a usable
+      binding wherever \code{"äöü|a"} translates.
 
       \item A zero-length \code{ns} argument (\code{character(0)} or
       \code{list()}) to the \pkg{xml2} \code{querySelector()} family

@@ -404,7 +404,13 @@ test_that("namespace prefixes that are not valid XML names are rejected", {
     doc <- xml2::read_xml('<a xmlns:s="urn:s"><s:b/></a>')
     xdoc <- XML::xmlParse('<a xmlns:s="urn:s"><s:b/></a>')
 
-    bad_names <- c("s p", "s:p", "1s")
+    # The condition is is_ncname(), the same test the translator applies
+    # to a prefix written in the selector, so the reach of the two stops
+    # in the same place. "ª" and "nsɂ" are Unicode letters outside
+    # XML 1.0's Appendix B tables: libxml2 refuses them, and catching
+    # them here makes that an argument error rather than an "Invalid
+    # expression" over an XPath the caller never wrote
+    bad_names <- c("s p", "s:p", "1s", "ª", "nsɂ")
     for (bad in bad_names) {
         ns <- setNames("urn:s", bad)
         expect_error(querySelectorAllNS(doc, "s|b", ns),
@@ -416,4 +422,32 @@ test_that("namespace prefixes that are not valid XML names are rejected", {
         expect_error(querySelectorNS(xdoc, "s|b", ns),
                      class = "selectr_argument_error")
     }
+})
+
+test_that("a namespace prefix may be any XML name, not just an ASCII one", {
+    skip_if_not_installed("xml2")
+    skip_if_not_installed("XML")
+
+    xmldoc <- '<a xmlns:s="urn:s"><s:b id="one"/><b id="two"/></a>'
+    doc <- xml2::read_xml(xmldoc)
+    xdoc <- XML::xmlParse(xmldoc)
+    ns <- setNames("urn:s", "é")
+
+    # A prefix the parser accepts ('äöü|a' above) is accepted as a
+    # binding too, so the two entry points meet: the prefix is spliced
+    # into the node test and into the descendant-or-self filter, and
+    # libxml2 parses both
+    expect_equal(xml2::xml_attr(querySelectorAll(doc, "é|b", ns = ns), "id"),
+                 "one")
+    expect_equal(xml2::xml_attr(querySelectorAllNS(doc, "é|b", ns), "id"),
+                 "one")
+    expect_equal(xml2::xml_attr(querySelectorNS(doc, "é|b", ns), "id"), "one")
+    ids <- function(nodes) vapply(nodes, XML::xmlGetAttr, character(1), "id")
+    expect_equal(ids(querySelectorAll(xdoc, "é|b", ns = ns)), "one")
+    expect_equal(ids(querySelectorAllNS(xdoc, "é|b", ns)), "one")
+    expect_equal(XML::xmlGetAttr(querySelectorNS(xdoc, "é|b", ns), "id"), "one")
+
+    # The binding is by URI, so the document's own prefix is irrelevant
+    expect_equal(xml2::xml_attr(querySelectorAll(doc, "é|*", ns = ns), "id"),
+                 "one")
 })

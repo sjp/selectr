@@ -36,7 +36,9 @@ querySelectorAllNS(doc, selector, ns,
     The namespaces that the query will be filtered to. This is a named
     list or vector whose name is the prefix a selector uses (the
     \code{svg} in \code{"svg|g"}), and whose value is the namespace URI
-    that prefix stands for. Each name must be a valid XML name. This
+    that prefix stands for. Each name must be a valid XML
+    \code{NCName}: a letter or \code{_} followed by letters, digits,
+    \code{.}, \code{-} or \code{_}, in any script, and no colon. This
     can be ignored for the un-namespaced functions, where a zero-length
     \code{ns} (\code{character(0)} or \code{list()}) additionally means
     no namespaces at all.

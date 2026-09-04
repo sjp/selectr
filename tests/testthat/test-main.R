@@ -165,6 +165,15 @@ test_that("namespace handling works correctly", {
     expect_error(formatNS(c(a = "")),
                  "The values in the namespace object must be non-missing, non-empty strings.")
 
+    # prefixes are judged by is_ncname(), the test the translator makes
+    # of a prefix written in the selector, so a name is accepted here
+    # exactly when it can be written into a node test
+    expect_equal(formatNS(c(äöü = "urn:x")), c(äöü = "urn:x"))
+    expect_error(formatNS(c(`1ns` = "urn:x")),
+                 "Namespace prefixes must be valid XML names")
+    expect_error(formatNS(c(`ns:x` = "urn:x")),
+                 "Namespace prefixes must be valid XML names")
+
     # formatNSPrefix must return a pipe separated string of namespace
     # prefixes, relative to the node the query starts from
     expect_equal(formatNSPrefix(c(svg = "svg"), ""),
