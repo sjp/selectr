@@ -222,8 +222,10 @@ test_that("translation from parsed objects to XPath works", {
     expect_equal(xpath(':matches()'), "*[0]")
     expect_equal(xpath('a:where()'), "a[0]")
     expect_equal(xpath(':is( )'), "*[0]")
-    expect_equal(xpath('e.warning:is()'),
-                 "e[contains(concat(' ', normalize-space(@class), ' '), ' warning ') and 0]")
+    # ... and being always-false, it absorbs the rest of the compound:
+    # a predicate with a constant-false conjunct is just "0"
+    expect_equal(xpath('e.warning:is()'), "e[0]")
+    expect_equal(xpath('e:is():nth-child(2)'), "e[0]")
     # ... and so, as an argument, it excludes nothing from a :not()
     expect_equal(xpath(':not(:is())'), "*[not(0)]")
     expect_equal(xpath(':is(:where())'), "*[0]")
@@ -277,6 +279,35 @@ test_that("translation from parsed objects to XPath works", {
                  "*[name() = 'di[v']")
     expect_equal(xpath('[h\\]ref]'),
                  "*[attribute::*[name() = 'h]ref']]")
+})
+
+test_that("an always-false condition absorbs the rest of the compound", {
+    gt <- GenericTranslator$new()
+    xpath <- function(css) {
+        gt$css_to_xpath(css, prefix = "")
+    }
+
+    # Whichever simple selector contributes the "0", and whichever side
+    # of the compound it is written on, the predicate is just "[0]": a
+    # conjunct that is constant-false decides the whole predicate, and
+    # the conditions AND-ed with it only obscure that
+    expect_equal(xpath("e.warning:is()"), "e[0]")
+    expect_equal(xpath("e:is().warning"), "e[0]")
+    expect_equal(xpath("e.warning:not(*)"), "e[0]")
+    expect_equal(xpath("e.warning:dir(ltr)"), "e[0]")
+    expect_equal(xpath("e.warning[href^='']"), "e[0]")
+    expect_equal(xpath("e.warning:nth-child(0)"), "e[0]")
+    expect_equal(xpath("e:nth-child(-2n-1 of .item)"), "e[0]")
+    # ... including when the compound is a functional pseudo-class
+    # argument, where the reversed-axis test of a complex argument goes
+    # the same way
+    expect_equal(xpath("e:is(.a:is())"), "e[0]")
+    expect_equal(xpath("e:is(f > g:is())"), "e[0]")
+    # The fold is a simplification of the expression, not of what it
+    # selects: an impossible compound still contributes its step to the
+    # path, and a negated one is still always true
+    expect_equal(xpath("e:is() f"), "e[0]//f")
+    expect_equal(xpath("e:not(:is())"), "e[not(0)]")
 })
 
 test_that("comments adjacent to whitespace translate like their comment-free equivalents", {

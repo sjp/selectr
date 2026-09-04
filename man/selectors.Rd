@@ -115,7 +115,10 @@
     \code{:local-link} \tab never matches \tab never matches (needs the document's URL) \cr
   }
   "Never matches" translates to \code{descendant-or-self::*[0]}: valid
-  CSS, always zero results, rather than an error.
+  CSS, always zero results, rather than an error. In a larger compound
+  the always-false \code{0} absorbs the compound's other conditions,
+  which cannot change the outcome, so \code{"a.external:visited"}
+  translates to \code{descendant-or-self::a[0]} as well.
 }
 \section{HTML form-state pseudo-classes}{
   These are only meaningfully supported by the \code{html} and

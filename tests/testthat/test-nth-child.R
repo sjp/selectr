@@ -651,10 +651,14 @@ test_that(":nth-child() early-exit condition 2 with selector list", {
     expect_equal(length(querySelectorAll(doc, "li:nth-child(-2n-1 of .item)")),
                  0)
 
-    # Verify XPath contains both "0" condition and selector check
+    # The count is impossible whether or not the element matches S, so
+    # the always-false "0" absorbs the 'of S' test rather than being
+    # AND-ed with it
+    expect_equal(css_to_xpath("li:nth-child(-n of .item)"),
+                 css_to_xpath("li:nth-child(-n)"))
     xpath <- css_to_xpath("li:nth-child(-n of .item)")
-    expect_true(grepl("0", xpath))
-    expect_true(grepl("item", xpath))
+    expect_true(grepl("[0]", xpath, fixed = TRUE))
+    expect_false(grepl("item", xpath))
 })
 
 test_that(":nth-last-child() early-exit condition 2: a<0, b-1<0", {

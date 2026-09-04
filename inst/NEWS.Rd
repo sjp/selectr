@@ -118,6 +118,17 @@
       \code{css_to_xpath()} differs, which matters if it is compared,
       cached or stored.
 
+      \item A compound selector containing a simple selector that can
+      never match is now translated to the predicate \code{[0]} alone,
+      instead of that \code{0} being AND-ed with the rest of the
+      compound's conditions: \code{"e.warning:is()"} gives
+      \code{"e[0]"} where previously it gave
+      \code{"e[contains(concat(' ', normalize-space(@class), ' '), ' warning ') and 0]"},
+      and \code{"li:nth-child(-n of .item)"} gives \code{"li[0]"},
+      dropping the now-redundant \code{.item} test. The node set
+      selected is unchanged --- both forms match nothing --- so only
+      code inspecting the output of \code{css_to_xpath()} is affected.
+
     }
   }
   \subsection{BUG FIXES}{

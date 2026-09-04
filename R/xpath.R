@@ -63,6 +63,23 @@ XPathExpr <- R6Class("XPathExpr",
             # for readability (xpath_has()). Defer them to the moment the
             # group is joined with another condition, on whichever side it
             # sits; the joined result is an and-chain, no longer a group.
+            #
+            # "0" - the condition a never-matching simple selector adds
+            # (an empty ':is()', an impossible :nth-child(), a
+            # substring match on the empty string, ...) - absorbs
+            # everything AND-ed with it, in either order: once one
+            # conjunct is constant-false the whole predicate is, so the
+            # rest is noise to anyone reading the expression. Folding
+            # here rather than at each call site catches the compound
+            # whichever way round it was written, giving 'e.warning:is()'
+            # the plain "e[0]" instead of a class test AND-ed with 0.
+            if (identical(condition, "0")) {
+                self$condition <- "0"
+                self$condition_is_or <- FALSE
+                return(invisible(NULL))
+            }
+            if (identical(self$condition, "0"))
+                return(invisible(NULL))
             if (nzchar(self$condition)) {
                 if (is_or_group)
                     condition <- paste0("(", condition, ")")
@@ -694,7 +711,12 @@ GenericTranslator <- R6Class("GenericTranslator",
                 rev_test <- self$reversed_combinator_test(
                     subselector$selector, subselector$combinator)
                 condition <-
-                    if (nzchar(sub_xpath$condition)) {
+                    if (identical(sub_xpath$condition, "0")) {
+                        # A rightmost compound that can never match makes
+                        # the whole argument impossible; drop the
+                        # existence test, as add_condition() would
+                        "0"
+                    } else if (nzchar(sub_xpath$condition)) {
                         cond <- sub_xpath$condition
                         # The condition becomes one operand of an
                         # "and", so a stored or-group needs its
@@ -1134,8 +1156,13 @@ GenericTranslator <- R6Class("GenericTranslator",
             if (a <= 0 && b_min_1 < 0) {
                 xpath$add_condition("0")
 
-                # CSS Level 4: When selector list is provided, ensure current element matches
-                # Even though the condition is always false, we should still check the selector
+                # CSS Level 4: an 'of S' argument is still translated,
+                # so an argument this translator cannot express (e.g. a
+                # non-leading ':scope') is reported here as it would be
+                # for any other count. Its condition is then dropped by
+                # add_condition(), which folds anything AND-ed with the
+                # always-false "0": the element matches nothing whether
+                # or not it matches S
                 condition <- self$selector_list_condition(fn$selector_list)
                 if (!is.null(condition)) {
                     xpath$add_condition(condition$condition, condition$is_or)
