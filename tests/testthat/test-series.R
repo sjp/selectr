@@ -34,6 +34,14 @@ test_that("parser generates correct series", {
     expect_equal(series("\\32 \\6e"), NULL)
     expect_equal(series("2\\6e"), c(2, 0))
     expect_equal(series("\\6e-5"), c(1, -5))
+    # a name written onto a number is its unit, and no production takes
+    # a dimension in any shape but '2n', '2n-' or '2n-1'
+    expect_equal(series("1of"), NULL)
+    expect_equal(series("2n+1of"), NULL)
+    expect_equal(series("2x"), NULL)
+    # an escaped sign is a name character too, so this is the unit
+    # "n+1" rather than the '2n' and B of 1 its text reads as
+    expect_equal(series("2n\\2b 1"), NULL)
 })
 
 test_that("series are parsed case-insensitively", {
@@ -95,6 +103,46 @@ test_that("An+B is read from tokens, so an escaped digit is not one", {
     expect_error(css_to_xpath(":nth-child(2n \\2d  1)"))
     expect_equal(css_to_xpath(":nth-child(2n - 1)"),
                  css_to_xpath(":nth-child(2n-1)"))
+})
+
+test_that("a number and the name after it are one token, so 'of' needs a space", { # nolint: line_length_linter.
+    err <- function(css) {
+        tryCatch(css_to_xpath(css), error = function(e) conditionMessage(e))
+    }
+    # css-syntax-3 "consume a numeric token": a number with something
+    # that would start an identifier after it is a single dimension, so
+    # ':nth-child(2n+1of b)' is the dimensions '2n' and '+1of'. An+B has
+    # productions for '<n-dimension> <signed-integer>' and for
+    # '<integer>', but for a dimension in neither place, so browsers
+    # reject these; selectr used to read the '+1of' as the integer 1 and
+    # the 'of' keyword, and translate the selector.
+    expect_match(err("a:nth-child(2n+1of b)"),
+                 paste0("^Invalid An\\+B expression in :nth-child\\(\\): ",
+                        "a name written onto a number is part of it, so ",
+                        "'\\+1of' is a single dimension, which An\\+B does ",
+                        "not allow\\. Write '\\+1 of' for the 'of' keyword"))
+    expect_error(css_to_xpath("a:nth-child(1of b)"))
+    expect_error(css_to_xpath("a:nth-child(n+1of b)"))
+    expect_error(css_to_xpath("a:nth-child(-n+1of b)"))
+    expect_error(css_to_xpath("a:nth-last-child(2n+1of b)"))
+    # the caret goes on the dimension, not on the whole argument
+    expect_equal(tryCatch(css_to_xpath("a:nth-child(2n+1of b)"),
+                          error = identity)$pos, 15)
+    # the 'of' keyword is not available to the of-type variants at all,
+    # so their message offers no spelling of it
+    of_type <- err("a:nth-of-type(1of b)")
+    expect_match(of_type, "'1of' is a single dimension, which An\\+B does not allow") # nolint: line_length_linter.
+    expect_false(grepl("'of' keyword", of_type, fixed = TRUE))
+    # a dimension is only wrong in the shapes no production covers: the
+    # A value is one whenever it is written with a coefficient
+    expect_equal(css_to_xpath("a:nth-child(2n+1 of b)"),
+                 paste0("descendant-or-self::a[count(preceding-sibling::*",
+                        "[self::b]) mod 2 = 0 and self::b]"))
+    expect_equal(css_to_xpath("a:nth-child(1 of b)"),
+                 paste0("descendant-or-self::a[count(preceding-sibling::*",
+                        "[self::b]) = 0 and self::b]"))
+    expect_equal(css_to_xpath(":nth-child(2n-1)"),
+                 css_to_xpath(":nth-child(2n - 1)"))
 })
 
 test_that("whitespace is only permitted around the sign before B", {

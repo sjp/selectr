@@ -685,7 +685,7 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
         } else if (token_equality(peek, "DELIM", ".")) {
             stream$nxt()
             after_dot <- stream$peek()
-            if (after_dot$type == "NUMBER")
+            if (any(after_dot$type == c("NUMBER", "DIMENSION")))
                 reject_invalid_class(paste0(".", after_dot$value),
                                      after_dot$pos)
             result <- ClassSelector$new(result, stream$next_ident())
@@ -783,7 +783,8 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
 
                 while (TRUE) {
                     nt <- stream$nxt()
-                    if (nt$type %in% c("IDENT", "STRING", "NUMBER") ||
+                    if (nt$type %in% c("IDENT", "STRING", "NUMBER",
+                                       "DIMENSION") ||
                         (token_equality(nt, "DELIM", "+") ||
                          token_equality(nt, "DELIM", "-"))) {
                         if (allow_commas && has_arg && ws_since_arg) {
@@ -810,7 +811,7 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                         # failing as) more An+B tokens.
                         if (nt$type == "IDENT" && ascii_lower(nt$value) == "of" &&
                             lident %in% anb_function_names) {
-                            if (any(lident == c("nth-child", "nth-last-child"))) {
+                            if (lident %in% anb_of_function_names) {
                                 # Remove 'of' from arguments - it's a keyword, not an argument
                                 arguments <- arguments[-length(arguments)]
 
@@ -890,7 +891,8 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                                        pos = peek$pos)
             }
         } else {
-            if (peek$type == "NUMBER" && startsWith(peek$value, "."))
+            if (any(peek$type == c("NUMBER", "DIMENSION")) &&
+                startsWith(peek$value, "."))
                 reject_invalid_class(peek$value, peek$pos)
             parse_stop("Expected selector, got ", token_repr(stream$peek()),
                        pos = stream$peek()$pos)
@@ -1073,9 +1075,10 @@ parse_attrib <- function(selector, stream) {
     value <- stream$nxt()
     if (!value$type %in% c("IDENT", "STRING")) {
         # An unquoted number is never a valid attribute value, in any
-        # browser either, but it is a common mistake: name the fix
-        # rather than the grammar
-        if (value$type == "NUMBER") {
+        # browser either, and neither is one with a name on the end of
+        # it ('[width=5px]', a single dimension), but both are common
+        # mistakes: name the fix rather than the grammar
+        if (any(value$type == c("NUMBER", "DIMENSION"))) {
             name <- if (is.null(namespace)) attrib
                     else paste0(namespace, "|", attrib)
             parse_stop("Attribute values must be quoted unless they are ",
@@ -1158,6 +1161,29 @@ anb_first_invalid_token <- function(tokens) {
 # above matches.
 anb_ident_re <- "^(odd|even|-?n(-|-[0-9]+)?)$"
 
+# The dimensions it admits (css-syntax-3 section 6.2): <n-dimension>,
+# <ndash-dimension> and <ndashdigit-dimension>, whose units are 'n',
+# 'n-' and 'n-<digits>'. A coefficient makes the A value a dimension
+# ('2n'), so a dimension is not out of place in itself and only its
+# unit decides; nothing in the grammar admits the '1of' that a number
+# run into the 'of' keyword spells.
+anb_dimension_re <- "^n(-|-[0-9]+)?$"
+
+# Whether `token` is a dimension whose unit no An+B production admits.
+anb_bad_dimension <- function(token) {
+    token$type == "DIMENSION" &&
+        !grepl(anb_dimension_re, ascii_lower(token$unit))
+}
+
+# The first such dimension in `tokens`, or NULL when there is none.
+anb_invalid_dimension <- function(tokens) {
+    for (token in tokens) {
+        if (anb_bad_dimension(token))
+            return(token)
+    }
+    NULL
+}
+
 # The An+B grammar is written over tokens, not over decoded text: an
 # escape can only begin an identifier (css-syntax-3 section 4.3.1
 # "Consume a token"), so a digit written as one is a name character,
@@ -1201,6 +1227,10 @@ series_text <- function(tokens) {
 anb_function_names <- c("nth-child", "nth-last-child",
                         "nth-of-type", "nth-last-of-type")
 
+# The two of those whose argument may end in an 'of <selector-list>'
+# clause (selectors-4); the of-type variants take a bare series.
+anb_of_function_names <- c("nth-child", "nth-last-child")
+
 # Reject an invalid An+B argument at parse time, where the tokens still
 # carry the source positions the caret gutter needs and the pseudo-class
 # the user wrote is still known. By translation time the series has been
@@ -1221,6 +1251,20 @@ validate_series <- function(tokens, function_name) {
         if (token$type == "IDENT" && identical(ascii_lower(token$value), "of"))
             invalid("'of' is only allowed in :nth-child() and ",
                     ":nth-last-child()", pos = token$pos)
+        # A name written onto a number belongs to it, so an argument
+        # that runs a series into the 'of' keyword (':nth-child(2n+1of
+        # b)') is a dimension the grammar has no production for, not a
+        # series followed by the keyword
+        if (anb_bad_dimension(token)) {
+            hint <- ""
+            if (identical(ascii_lower(token$unit), "of") &&
+                ascii_lower(function_name) %in% anb_of_function_names)
+                hint <- paste0(". Write '", token$number,
+                               " of' for the 'of' keyword")
+            invalid("a name written onto a number is part of it, so '",
+                    token$value, "' is a single dimension, which An+B ",
+                    "does not allow", hint, pos = token$pos)
+        }
     }
     series <- trimws(series_source(tokens))
     pos <- if (length(tokens)) tokens[[1]]$pos else NULL
@@ -1261,9 +1305,12 @@ parse_series <- function(tokens) {
     if (!grepl(anb_re, s))
         return(NULL)
     # The decoded text can spell an An+B expression that the tokens do
-    # not, an escaped digit being read as the digit; see
-    # anb_invalid_ident()
-    if (!is.null(anb_invalid_ident(tokens)))
+    # not: an escaped digit read as the digit (see anb_invalid_ident()),
+    # or an escaped sign gluing a name onto a number, which makes one
+    # dimension of what reads as two components (':nth-child(2n\2b 1)'
+    # is the unit "n+1", not "2n" plus a B of 1)
+    if (!is.null(anb_invalid_ident(tokens)) ||
+        !is.null(anb_invalid_dimension(tokens)))
         return(NULL)
     s <- gsub("[ \t\r\n\f]+", "", s)
     if (s == "odd")
@@ -1311,6 +1358,19 @@ Token <- function(type = "", value = NULL, pos = 1) {
 
 EOFToken <- function(pos = 1) {
     list(type = "EOF", value = NULL, pos = pos)
+}
+
+# A <dimension-token>: a number with an identifier written straight onto
+# it, e.g. the '2n' of ':nth-child(2n+1)' or the '+1of' of
+# ':nth-child(2n+1of b)'. `value` spells the two together, as the source
+# does, so text reassembled from a run of tokens reads as it was
+# written; `unit` is the identifier alone, escapes decoded, which is
+# what the An+B grammar's <n-dimension> and its dashed forms are
+# defined over.
+DimensionToken <- function(number, unit, pos) {
+    unit <- decode_escapes(unit)
+    list(type = "DIMENSION", value = paste0(number, unit), pos = pos,
+         number = number, unit = unit)
 }
 
 # One item of a :lang() argument list: a RANGE token holding the
@@ -1551,8 +1611,28 @@ tokenize <- function(s) {
         if (!anyNA(match) && match[1] == 1) {
             match_end <- max(match[1], match[2])
             value <- substring(s, pos, pos + match_end - 1)
-            results[[i]] <- Token("NUMBER", value, pos)
-            pos <- pos + match_end
+            # css-syntax-3 "consume a numeric token": a number followed
+            # immediately by something that would start an identifier is
+            # a single <dimension-token>, that identifier being its
+            # unit, and not a number with a name beside it. Every start
+            # match_ident_start accepts is one match_ident carries on
+            # from, so the unit is always there to consume.
+            unit_pos <- pos + match_end
+            starts_unit <- unit_pos <= len_s &&
+                !anyNA(match_window(match_ident_start, s, unit_pos, len_s))
+            if (starts_unit) {
+                unit <- match_window(match_ident, s, unit_pos, len_s)
+                unit_end <- max(unit[1], unit[2])
+                results[[i]] <-
+                    DimensionToken(value,
+                                   substring(s, unit_pos,
+                                             unit_pos + unit_end - 1),
+                                   pos)
+                pos <- unit_pos + unit_end
+            } else {
+                results[[i]] <- Token("NUMBER", value, pos)
+                pos <- pos + match_end
+            }
             i <- i + 1
             next
         }

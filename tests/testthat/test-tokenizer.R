@@ -300,9 +300,34 @@ test_that("a '-' that starts no name is a delimiter, and CDC and CDO are tokens"
     # the escaped ':nth-child(2n \2d 1)' does not (see test-series.R)
     expect_equal(reprs(":nth-child(2n - 1)"),
                  c("<DELIM ':' at 1>", "<IDENT 'nth-child' at 2>",
-                   "<DELIM '(' at 11>", "<NUMBER '2' at 12>",
-                   "<IDENT 'n' at 13>", "<S ' ' at 14>",
-                   "<DELIM '-' at 15>", "<S ' ' at 16>",
+                   "<DELIM '(' at 11>", "<DIMENSION '2n' at 12>",
+                   "<S ' ' at 14>", "<DELIM '-' at 15>", "<S ' ' at 16>",
                    "<NUMBER '1' at 17>", "<DELIM ')' at 18>",
                    "<EOF at 19>"))
+})
+
+test_that("a name written onto a number is a dimension", {
+    reprs <- function(css) {
+        unlist(lapply(tokenize(css), token_repr))
+    }
+
+    # css-syntax-3 "consume a numeric token": a number followed
+    # immediately by something that would start an identifier is one
+    # <dimension-token>, so the name is never a token of its own
+    expect_equal(reprs("2n"), c("<DIMENSION '2n' at 1>", "<EOF at 3>"))
+    expect_equal(reprs("-2n-1"), c("<DIMENSION '-2n-1' at 1>", "<EOF at 6>"))
+    expect_equal(reprs(".5em"), c("<DIMENSION '.5em' at 1>", "<EOF at 5>"))
+    # the unit is an identifier, so it is decoded like any other name
+    expect_equal(reprs("2\\6e"), c("<DIMENSION '2n' at 1>", "<EOF at 5>"))
+    # ':nth-child(2n+1of b)': the run-on 'of' is part of the number
+    # before it, leaving a dimension where An+B wants a signed integer
+    expect_equal(reprs("2n+1of b"),
+                 c("<DIMENSION '2n' at 1>", "<DIMENSION '+1of' at 3>",
+                   "<S ' ' at 7>", "<IDENT 'b' at 8>", "<EOF at 9>"))
+    # a '-' that starts no name is still the delimiter it was, and a
+    # number no name follows is still a number
+    expect_equal(reprs("2-"), c("<NUMBER '2' at 1>", "<DELIM '-' at 2>",
+                                "<EOF at 3>"))
+    expect_equal(reprs("2 n"), c("<NUMBER '2' at 1>", "<S ' ' at 2>",
+                                 "<IDENT 'n' at 3>", "<EOF at 4>"))
 })

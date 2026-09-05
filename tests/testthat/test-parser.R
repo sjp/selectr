@@ -72,7 +72,7 @@ test_that("parser parses canonical test expressions", {
     expect_equal(parse_many("div:nth-child(10)"),
                  "Function[Element[div]:nth-child(['10'])]")
     expect_equal(parse_many(":nth-child(2n+2)"),
-                 "Function[Element[*]:nth-child(['2', 'n', '+2'])]")
+                 "Function[Element[*]:nth-child(['2n', '+2'])]")
     expect_equal(parse_many("div:nth-of-type(10)"),
                  "Function[Element[div]:nth-of-type(['10'])]")
     expect_equal(parse_many("div div:nth-of-type(10) .aclass"),

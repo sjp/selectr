@@ -247,7 +247,6 @@ test_that("an invalid An+B argument is reported at the token that broke it", {
     # Everything before the token is a prefix some An+B expression
     # could still have grown from; the token itself is where the
     # argument left the grammar
-    expect_equal(pos("e:nth-child(2x)"), 14)
     expect_equal(pos("e:nth-child(2n+1.5)"), 15)
     expect_equal(pos("e:nth-child(2 n)"), 15)
     expect_equal(pos("e:nth-child(odd x)"), 17)
@@ -255,6 +254,9 @@ test_that("an invalid An+B argument is reported at the token that broke it", {
     # merely unfinished, are both reported from the start of the
     # argument - no later token is to blame for either
     expect_equal(pos("e:nth-child(foo)"), 13)
+    # '2x' is a single dimension token, name and all, so it is its
+    # first token that the argument is wrong from
+    expect_equal(pos("e:nth-child(2x)"), 13)
     expect_equal(pos("e:nth-child(2n+)"), 13)
 })
 

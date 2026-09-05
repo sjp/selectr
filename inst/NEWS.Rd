@@ -340,6 +340,20 @@
       \code{":nth-child(\\6e-1)"} still translate as \code{"even"},
       \code{"2n"} and \code{"n-1"} do.
 
+      \item A number with an identifier written straight onto it is now
+      the single \code{<dimension-token>} that css-syntax makes it,
+      rather than a number and a name side by side. An \code{An+B}
+      argument that runs into the \code{of} keyword is therefore
+      rejected, as browsers reject it: \code{":nth-child(2n+1of b)"}
+      and \code{":nth-child(1of b)"} are the dimensions \code{"+1of"}
+      and \code{"1of"}, which no \code{An+B} production accepts, where
+      previously they translated as though the space before \code{of}
+      had been written. The spelling with the space,
+      \code{":nth-child(2n+1 of b)"}, is unaffected, as are the
+      dimensions \code{An+B} does admit, so \code{":nth-child(2n+1)"},
+      \code{":nth-child(2n-1)"} and \code{":nth-child(2\\6e)"}
+      translate as before.
+
       \item An ID selector's hash must now be identifier-shaped:
       \code{"#1"} and other hashes starting with a digit, or with
       \code{-} followed by a digit, are rejected with a hint showing
