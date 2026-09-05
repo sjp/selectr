@@ -345,6 +345,38 @@ test_that("a selector list of impossible alternatives is itself just 0", {
     expect_equal(xpath(":is(:hover, p, :visited)"), "*[0 or self::p]")
 })
 
+test_that("a branch the selector list repeats exactly is kept once", {
+    gt <- GenericTranslator$new()
+    xpath <- function(css) {
+        gt$css_to_xpath(css, prefix = "")
+    }
+
+    # OR-ing a branch with itself changes nothing, so a list asks the
+    # same question once however many times it is written
+    expect_equal(xpath(":is(a, a)"), "*[self::a]")
+    expect_equal(xpath(":where(a, a)"), "*[self::a]")
+    expect_equal(xpath("a:not(b, b)"), "a[not(self::b)]")
+    expect_equal(xpath(":is(a, a, b)"), "*[self::a or self::b]")
+    expect_equal(xpath(":is(a, b, a)"), "*[self::a or self::b]")
+    # The branches are compared as translated, so two spellings of one
+    # condition count as a repeat
+    expect_equal(xpath(":is(:is(a, b), :is(a, b))"), "*[self::a or self::b]")
+
+    # A list left with a single branch is no longer a disjunction, so
+    # it sheds the parentheses it would have carried into a conjunction
+    expect_equal(xpath(":nth-child(2 of a, a)"),
+                 "*[count(preceding-sibling::*[self::a]) = 1 and self::a]")
+    expect_equal(xpath("e:is(a, a):is(b, b)"), "e[self::a and self::b]")
+
+    # Only an exact repeat is dropped
+    expect_equal(xpath(":is(a, b)"), "*[self::a or self::b]")
+    expect_equal(xpath("a:not(b, c)"), "a[not(self::b or self::c)]")
+    expect_equal(
+        xpath(":nth-child(2 of a, b)"),
+        paste0("*[count(preceding-sibling::*[self::a or self::b]) = 1",
+               " and (self::a or self::b)]"))
+})
+
 test_that("a conjunct the compound repeats exactly is kept once", {
     gt <- GenericTranslator$new()
     xpath <- function(css) {

@@ -193,6 +193,19 @@
       the copy that was kept (\code{":checked:checked"} now reads
       exactly as \code{":checked"} does).
 
+      \item A branch of a selector list that repeats an earlier branch
+      exactly now renders once, as a condition a compound repeats
+      already did, and again with no change to the node set selected.
+      This covers the argument of \code{:is()}, \code{:where()} and
+      \code{:not()} and the \code{of S} list of \code{:nth-child()}
+      and \code{:nth-last-child()}: \code{":is(a, a)"} gives
+      \code{"*[self::a]"} rather than \code{"*[self::a or self::a]"},
+      and \code{"a:not(b, b)"} gives \code{"a[not(self::b)]"}. A list
+      left with a single branch is no longer a disjunction, so it also
+      sheds the parentheses it would have carried into a conjunction:
+      \code{":nth-child(2 of a, a)"} ends \code{"and self::a"} rather
+      than \code{"and (self::a or self::a)"}.
+
     }
   }
   \subsection{BUG FIXES}{

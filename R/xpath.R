@@ -1170,14 +1170,17 @@ GenericTranslator <- R6Class("GenericTranslator",
             if (any(exprs == "true()"))
                 return(NULL)
             # A list whose every alternative is impossible is itself
-            # impossible, and "0 or 0" says nothing "0" does not. A
-            # *mixed* list keeps one "0": there the dead alternatives
-            # still show that some of what was asked for cannot match,
-            # but one of them says that as well as several do
-            impossible <- exprs == "0"
-            if (all(impossible))
+            # impossible, and "0 or 0" says nothing "0" does not
+            if (all(exprs == "0"))
                 return(list(condition = "0", is_or = FALSE))
-            exprs <- exprs[!impossible | !duplicated(impossible)]
+            # More generally, a branch that repeats one already rendered
+            # adds nothing to the disjunction: ':is(a, a)' asks the same
+            # question twice. Keep first occurrences only - which also
+            # leaves a *mixed* list one "0", still showing that some of
+            # what was asked for cannot match. A list that folds to a
+            # single branch is no longer an or-group, so it sheds the
+            # parentheses it would have carried into a conjunction
+            exprs <- exprs[!duplicated(exprs)]
             list(condition = paste0(exprs, collapse = " or "),
                  is_or = length(exprs) > 1 || conditions[[1]]$is_or)
         },
