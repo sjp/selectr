@@ -152,10 +152,15 @@ test_that("a prefix that is not an XPath name is rejected", {
     # everywhere
     expect_error(css("nsɂ|a"), "is not an XPath name")
 
-    # A translation error, so it carries the usual fields
+    # A translation error, so it carries the usual fields. There is no
+    # CSS that spells this construct, so 'feature' is the phrase the
+    # message reads as rather than a fragment of the selector, and
+    # there is no one position to point at either
     err <- tryCatch(css("\\31 ns|div"), selectr_translation_error = identity)
-    expect_equal(err$feature, "1ns|")
+    expect_equal(err$feature,
+                 "a namespace prefix that is not an XPath name (`1ns`)")
     expect_equal(err$selector, "\\31 ns|div")
+    expect_null(err$pos)
 })
 
 test_that("an escaped '*' is a prefix named '*', not the any-namespace one", {
@@ -182,7 +187,8 @@ test_that("an escaped '*' is a prefix named '*', not the any-namespace one", {
 
     # A translation error, so it carries the usual fields
     err <- tryCatch(css("\\2a|a"), selectr_translation_error = identity)
-    expect_equal(err$feature, "*|")
+    expect_equal(err$feature,
+                 "a namespace prefix that is not an XPath name (`*`)")
     expect_equal(err$selector, "\\2a|a")
 
     # The delimiter is untouched: these still mean any namespace

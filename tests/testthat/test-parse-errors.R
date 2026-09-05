@@ -184,6 +184,10 @@ test_that("unsupported column constructs are rejected by name", {
     expect_error(css_to_xpath("a||b"),
                  "The column combinator '||' is not supported",
                  fixed = TRUE)
+    # the caret points at the first '|', where the '||' the message
+    # names starts, whether or not a prefix precedes it
+    expect_equal(tryCatch(css_to_xpath("a||b"), error = identity)$pos, 2)
+    expect_equal(tryCatch(css_to_xpath("||b"), error = identity)$pos, 1)
 
     # The unknown-pseudo-class error keeps the user's hyphenated
     # spelling (not the method-ised ':nth_col()')
@@ -225,6 +229,33 @@ test_that("parse errors include a caret-pointer gutter", {
 
     # message text is still the first line (existing assertions stay valid)
     expect_match(err("div > "), "^Expected selector, got <EOF at 7>")
+})
+
+test_that("a misplaced pseudo-element is reported where it was written", {
+    # The caret goes on the pseudo-element the message names, not on
+    # whatever came after it and made it not-last
+    pos <- function(css) tryCatch(css_to_xpath(css), error = identity)$pos
+    expect_equal(pos("a:before:empty"), 2)
+    expect_equal(pos("a::before:empty"), 2)
+    expect_equal(pos("li:before a"), 3)
+    expect_equal(pos(":not(:before)"), 6)
+    expect_equal(pos(":is(a:before b)"), 6)
+})
+
+test_that("an invalid An+B argument is reported at the token that broke it", {
+    pos <- function(css) tryCatch(css_to_xpath(css), error = identity)$pos
+    # Everything before the token is a prefix some An+B expression
+    # could still have grown from; the token itself is where the
+    # argument left the grammar
+    expect_equal(pos("e:nth-child(2x)"), 14)
+    expect_equal(pos("e:nth-child(2n+1.5)"), 15)
+    expect_equal(pos("e:nth-child(2 n)"), 15)
+    expect_equal(pos("e:nth-child(odd x)"), 17)
+    # An argument that is wrong from its first token, and one that is
+    # merely unfinished, are both reported from the start of the
+    # argument - no later token is to blame for either
+    expect_equal(pos("e:nth-child(foo)"), 13)
+    expect_equal(pos("e:nth-child(2n+)"), 13)
 })
 
 test_that("the caret gutter accounts for tabs and wide characters", {
@@ -305,9 +336,10 @@ test_that("a class selector must be identifier-shaped", {
     expect_error(css_to_xpath(".5"),
                  "Invalid class selector '.5'; ",
                  fixed = TRUE, class = "selectr_parse_error")
-    # the caret points at the '.', not at the offending digit
+    # the caret points at the number the message quotes: the whole
+    # '.5' token, or the '-5' that follows a '.' delimiter
     expect_equal(tryCatch(css_to_xpath("div .5"), error = identity)$pos, 5)
-    expect_equal(tryCatch(css_to_xpath("div.-5"), error = identity)$pos, 4)
+    expect_equal(tryCatch(css_to_xpath("div.-5"), error = identity)$pos, 5)
 
     # a stray number that is not a class name keeps the generic message
     expect_error(css_to_xpath("div 5"),
@@ -335,8 +367,11 @@ test_that("functional pseudo-elements are rejected by name", {
     expect_error(css_to_xpath("a:before(x)"),
                  "The functional pseudo-element ::before() is not supported",
                  fixed = TRUE, class = "selectr_parse_error")
-    # the caret points at the '('
-    expect_equal(tryCatch(css_to_xpath("a::part(b)"), error = identity)$pos, 8)
+    # the caret points at the name the message gives, not at the '('
+    expect_equal(tryCatch(css_to_xpath("a::part(b)"), error = identity)$pos, 4)
+    expect_equal(tryCatch(css_to_xpath("::slotted(x)"), error = identity)$pos,
+                 3)
+    expect_equal(tryCatch(css_to_xpath("a:before(x)"), error = identity)$pos, 3)
 
     # an argument-less pseudo-element still reaches the translator's
     # "not supported" message, and a misplaced one is still misplaced

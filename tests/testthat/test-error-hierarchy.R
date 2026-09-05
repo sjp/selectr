@@ -26,6 +26,67 @@ test_that("selectr_translation_error is a structured condition", {
     expect_equal(e2$feature, ":scope")
 })
 
+test_that("a translation error points at the construct it refuses", {
+    pos <- function(css) tryCatch(css_to_xpath(css), error = identity)$pos
+
+    # An unknown pseudo-class, functional or not, is pointed at from
+    # its ':' - the first character of the ':frobnicate' the message
+    # names, not of the compound it sits in
+    expect_equal(pos("e:frobnicate"), 2)
+    expect_equal(pos("div span:frobnicate(1)"), 9)
+
+    # ... a ':scope' that is not leftmost, wherever it turns up
+    expect_equal(pos("div :scope"), 5)
+    expect_equal(pos("a > :scope"), 5)
+    expect_equal(pos(":is(:scope)"), 5)
+    expect_equal(pos(":has(> :scope)"), 8)
+
+    # ... a pseudo-element, from its ':' or '::'
+    expect_equal(pos("a::before"), 2)
+    expect_equal(pos("a:hover:before"), 8)
+
+    # ... and a :lang() argument, from the token that is wrong
+    expect_equal(pos(":lang(en, )"), 11)
+    expect_equal(pos(":lang(en-)"), 7)
+    expect_equal(pos(":lang(*-CH)"), 7)
+
+    # The two failures no single position describes stay unlocated: a
+    # namespace prefix XPath cannot name, and an of-type pseudo-class
+    # on the universal selector
+    expect_null(pos("\\31 ns|div"))
+    expect_null(pos("*:first-of-type"))
+})
+
+test_that("a translation error's column is its position within the line", {
+    e <- tryCatch(css_to_xpath("a:unknown"), error = identity)
+    expect_equal(e$pos, 2)
+    expect_equal(e$column, 2)
+
+    # A selector written across lines counts the column from the start
+    # of the line the position falls on, while pos stays an offset into
+    # the whole selector
+    e2 <- tryCatch(css_to_xpath("a,\nb:unknown"), error = identity)
+    expect_equal(e2$pos, 5)
+    expect_equal(e2$column, 2)
+
+    # No position, no column
+    e3 <- tryCatch(css_to_xpath("*:first-of-type"), error = identity)
+    expect_null(e3$pos)
+    expect_null(e3$column)
+})
+
+test_that("a hand-built tree translates without positions", {
+    # Every position comes from the parser, so a tree built by hand
+    # carries none; the error is the same but for its pos/column
+    tree <- selectr:::Pseudo$new(selectr:::Element$new(element = "a"),
+                                 "frobnicate")
+    e <- tryCatch(GenericTranslator$new()$xpath(tree), error = identity)
+    expect_s3_class(e, "selectr_translation_error")
+    expect_equal(conditionMessage(e),
+                 "The pseudo-class :frobnicate is unknown")
+    expect_null(e$pos)
+})
+
 test_that("a selector nesting functional pseudo-classes too deeply is caught", {
     # Deeply nested :not() overflows R's expression nesting limit while
     # translating (R >= 4.3 raises expressionStackOverflowError; older R

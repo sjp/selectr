@@ -41,10 +41,17 @@ Selector <- R6Class("Selector",
     public = list(
         parsed_tree = NULL,
         pseudo_element = NULL,
-        initialize = function(tree, pseudo_element = NULL) {
+        # Where the pseudo-element's ':' or '::' sits in the selector
+        # text, so that the translator can point at it when it refuses
+        # the pseudo-element; NULL when there is none, or when the node
+        # was built by hand rather than by the parser
+        pseudo_element_pos = NULL,
+        initialize = function(tree, pseudo_element = NULL,
+                              pseudo_element_pos = NULL) {
             self$parsed_tree <- tree
             if (!is.null(pseudo_element))
                 self$pseudo_element <- ascii_lower(pseudo_element)
+            self$pseudo_element_pos <- pseudo_element_pos
         },
         repr = function() {
             pseudo_el <-
@@ -97,14 +104,19 @@ Function <- R6Class("Function",
         # token each, reassembled at parse time (see
         # lang_range_token()); NULL for every other function
         ranges = NULL,
+        # Where the pseudo-class's ':' sits in the selector text, for
+        # the translator to point at when it cannot express the
+        # pseudo-class; NULL for a hand-built node
+        pos = NULL,
         initialize = function(selector, name, arguments, selector_list = NULL,
-                              series = NULL, ranges = NULL) {
+                              series = NULL, ranges = NULL, pos = NULL) {
             self$selector <- selector
             self$name <- ascii_lower(name)
             self$arguments <- arguments
             self$selector_list <- selector_list
             self$series <- series
             self$ranges <- ranges
+            self$pos <- pos
         },
         repr = function() {
             token_values <- lapply(self$arguments,
@@ -146,9 +158,12 @@ Pseudo <- R6Class("Pseudo",
     public = list(
         selector = NULL,
         ident = NULL,
-        initialize = function(selector, ident) {
+        # See Function$pos
+        pos = NULL,
+        initialize = function(selector, ident, pos = NULL) {
             self$selector <- selector
             self$ident <- ascii_lower(ident)
+            self$pos <- pos
         },
         repr = function() {
             self$repr_wrap(paste0(self$selector$repr(), ":", self$ident))
@@ -509,7 +524,8 @@ parse_selector_group <- function(stream) {
     while (TRUE) {
         parsed_selector <- parse_selector(stream)
         results[[i]] <- Selector$new(parsed_selector$result,
-                                     parsed_selector$pseudo_element)
+                                     parsed_selector$pseudo_element,
+                                     parsed_selector$pseudo_element_pos)
         i <- i + 1
         if (token_equality(stream$peek(), "DELIM", ",")) {
             stream$nxt()
@@ -523,6 +539,9 @@ parse_selector_group <- function(stream) {
 
 # Rejects a pseudo-element parsed before this point: a legacy or '::'
 # pseudo-element is only valid as the final component of a selector.
+# `pos` is where the pseudo-element itself starts - its ':' or '::' -
+# rather than where the parser noticed more selector after it, since
+# that is the part of the selector the message names.
 reject_pseudo_element_not_last <- function(pseudo_element, pos) {
     if (!is.null(pseudo_element)) {
         parse_stop("Got pseudo-element ::",
@@ -536,11 +555,12 @@ reject_pseudo_element_not_last <- function(pseudo_element, pos) {
 # functional rather than merely followed by more of the compound, so
 # reporting it here keeps reject_pseudo_element_not_last() from claiming
 # it is not last when the '(' is read as the next simple selector.
-reject_functional_pseudo_element <- function(name, stream) { # nolint: object_length_linter.
-    peek <- stream$peek()
-    if (token_equality(peek, "DELIM", "("))
+# `pos` is where the pseudo-element's name starts, the '::slotted' the
+# message names, rather than the '(' that identifies it as functional.
+reject_functional_pseudo_element <- function(name, pos, stream) { # nolint: object_length_linter.
+    if (token_equality(stream$peek(), "DELIM", "("))
         parse_stop("The functional pseudo-element ::", name,
-                   "() is not supported", pos = peek$pos)
+                   "() is not supported", pos = pos)
 }
 
 # Rejects a class name that is not identifier-shaped, e.g. '.5'. The
@@ -569,6 +589,7 @@ parse_selector <- function(stream) {
     results <- parse_simple_selector(stream)
     result <- results$result
     pseudo_element <- results$pseudo_element
+    pseudo_element_pos <- results$pseudo_element_pos
 
     while (TRUE) {
         stream$skip_whitespace()
@@ -577,7 +598,7 @@ parse_selector <- function(stream) {
             token_equality(peek, "DELIM", ",")) {
             break
         }
-        reject_pseudo_element_not_last(pseudo_element, peek$pos)
+        reject_pseudo_element_not_last(pseudo_element, pseudo_element_pos)
         if (token_is_delim(peek, c("+", ">", "~"))) {
             # A combinator
             combinator <- stream$nxt()$value
@@ -589,9 +610,11 @@ parse_selector <- function(stream) {
         }
         stuff <- parse_simple_selector(stream)
         pseudo_element <- stuff$pseudo_element
+        pseudo_element_pos <- stuff$pseudo_element_pos
         result <- CombinedSelector$new(result, combinator, stuff$result)
     }
-    list(result = result, pseudo_element = pseudo_element)
+    list(result = result, pseudo_element = pseudo_element,
+         pseudo_element_pos = pseudo_element_pos)
 }
 
 parse_simple_selector <- function(stream, inside_arguments = FALSE,
@@ -622,16 +645,17 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
             namespace <- ""
         }
         if (token_equality(stream$peek(), "DELIM", "|")) {
-            stream$nxt()
+            bar <- stream$nxt()
             # A second '|' makes this the Selectors 4 column
             # combinator ('a || b' and namespaceless '||b' arrive
             # here alike): column membership depends on table-layout
             # arithmetic (colspan/rowspan carry-over) that XPath 1.0
             # cannot express, so name the construct instead of
-            # falling through to a stray-token error
+            # falling through to a stray-token error. The caret goes on
+            # the first '|', where the '||' the message names starts
             if (token_equality(stream$peek(), "DELIM", "|"))
                 parse_stop("The column combinator '||' is not supported",
-                           pos = stream$peek()$pos)
+                           pos = bar$pos)
             element <- stream$next_ident_or_star()
             any_namespace <- star_delim
         } else {
@@ -645,6 +669,9 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
     }
     result <- Element$new(namespace, element, any_namespace)
     pseudo_element <- NULL
+    # Where the pseudo-element's ':' or '::' sits, kept for the errors
+    # that name the pseudo-element from further along the selector
+    pseudo_element_pos <- NULL
     while (TRUE) {
         peek <- stream$peek()
         if (any(peek$type == c("S", "EOF")) ||
@@ -652,14 +679,15 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
             (inside_arguments && token_equality(peek, "DELIM", ")"))) {
             break
         }
-        reject_pseudo_element_not_last(pseudo_element, peek$pos)
+        reject_pseudo_element_not_last(pseudo_element, pseudo_element_pos)
         if (peek$type == "HASH") {
             result <- Hash$new(result, stream$nxt()$value)
         } else if (token_equality(peek, "DELIM", ".")) {
             stream$nxt()
             after_dot <- stream$peek()
             if (after_dot$type == "NUMBER")
-                reject_invalid_class(paste0(".", after_dot$value), peek$pos)
+                reject_invalid_class(paste0(".", after_dot$value),
+                                     after_dot$pos)
             result <- ClassSelector$new(result, stream$next_ident())
         } else if (token_equality(peek, "DELIM", "[")) {
             stream$nxt()
@@ -668,12 +696,16 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                    token_equality(peek, "DELIM", "::")) {
             if (token_equality(peek, "DELIM", "::")) {
                 stream$nxt()
+                name_pos <- stream$peek()$pos
                 pseudo_element <- stream$next_ident()
-                reject_functional_pseudo_element(pseudo_element, stream)
+                pseudo_element_pos <- peek$pos
+                reject_functional_pseudo_element(pseudo_element, name_pos,
+                                                 stream)
                 next
             } else {
                 stream$nxt()
             }
+            name_pos <- stream$peek()$pos
             ident <- stream$next_ident()
             lident <- ascii_lower(ident)
             if (lident %in% c(
@@ -681,11 +713,12 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                 # Special case: CSS 2.1 pseudo-elements can have a single ':'
                 # Any new pseudo-element must have two.
                 pseudo_element <- ident
-                reject_functional_pseudo_element(ident, stream)
+                pseudo_element_pos <- peek$pos
+                reject_functional_pseudo_element(ident, name_pos, stream)
                 next
             }
             if (!token_equality(stream$peek(), "DELIM", "(")) {
-                result <- Pseudo$new(result, ident)
+                result <- Pseudo$new(result, ident, peek$pos)
                 next
             }
             stream$nxt()
@@ -853,7 +886,8 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
 
                 result <- Function$new(result, ident, arguments, selector_list,
                                        series = series,
-                                       ranges = if (allow_commas) ranges)
+                                       ranges = if (allow_commas) ranges,
+                                       pos = peek$pos)
             }
         } else {
             if (peek$type == "NUMBER" && startsWith(peek$value, "."))
@@ -866,7 +900,8 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
         parse_stop("Expected selector, got ", token_repr(stream$peek()),
                    pos = stream$peek()$pos)
     }
-    list(result = result, pseudo_element = pseudo_element)
+    list(result = result, pseudo_element = pseudo_element,
+         pseudo_element_pos = pseudo_element_pos)
 }
 
 parse_simple_selector_arguments <- function(stream, function_name = NULL, # nolint: object_length_linter.
@@ -889,14 +924,14 @@ parse_simple_selector_arguments <- function(stream, function_name = NULL, # noli
         }
     }
 
-    check_no_pseudo_element <- function(pseudo_element) {
-        if (!is.null(pseudo_element)) {
+    check_no_pseudo_element <- function(results) {
+        if (!is.null(results$pseudo_element)) {
             # function_name is always supplied by every call site
             # ("not", "is"/"matches", "where", "has", or the nth-*
             # ident's "of" selector list)
-            parse_stop("Got pseudo-element ::", pseudo_element,
+            parse_stop("Got pseudo-element ::", results$pseudo_element,
                        " inside :", function_name, "()",
-                       pos = stream$peek()$pos)
+                       pos = results$pseudo_element_pos)
         }
     }
 
@@ -915,7 +950,7 @@ parse_simple_selector_arguments <- function(stream, function_name = NULL, # noli
         results <- parse_simple_selector(stream, inside_arguments = TRUE,
                                          inside_has = inside_has)
         result <- results$result
-        check_no_pseudo_element(results$pseudo_element)
+        check_no_pseudo_element(results)
 
         # Arguments are complex selectors (selectors-4): consume any
         # combinator chain following the compound, as parse_selector()
@@ -942,7 +977,7 @@ parse_simple_selector_arguments <- function(stream, function_name = NULL, # noli
             }
             stuff <- parse_simple_selector(stream, inside_arguments = TRUE,
                                            inside_has = inside_has)
-            check_no_pseudo_element(stuff$pseudo_element)
+            check_no_pseudo_element(stuff)
             result <- CombinedSelector$new(result, chain_combinator,
                                            stuff$result)
         }
@@ -1093,6 +1128,29 @@ anb_re <- paste0("^[ \t\r\n\f]*",
                  "[+-]?[0-9]*n([ \t\r\n\f]*[+-][ \t\r\n\f]*[0-9]+)?)",
                  "[ \t\r\n\f]*$")
 
+# The text an An+B expression can still grow from: anb_re with every
+# component allowed to stop part-way, so that it matches exactly the
+# prefixes of the strings anb_re matches. Used to find which token of a
+# rejected argument first took it off the grammar, so the caret lands
+# there rather than on the argument as a whole.
+anb_prefix_re <- paste0("^[ \t\r\n\f]*",
+                        "(o(d(d)?)?|e(v(e(n)?)?)?|[+-]?[0-9]*|",
+                        "[+-]?[0-9]*n([ \t\r\n\f]*[+-]",
+                        "([ \t\r\n\f]*[0-9]*)?)?)",
+                        "[ \t\r\n\f]*$")
+
+# The first token the An+B grammar cannot continue with: everything
+# before it spells a prefix of some valid expression, and it does not.
+# NULL when the argument merely stops early (':nth-child(2n+)'), which
+# no single token is to blame for.
+anb_first_invalid_token <- function(tokens) {
+    for (i in seq_along(tokens)) {
+        if (!grepl(anb_prefix_re, series_text(tokens[seq_len(i)])))
+            return(tokens[[i]])
+    }
+    NULL
+}
+
 # The identifiers the An+B grammar admits (css-syntax-3 section 6.2):
 # the two keywords, the bare-'n' forms, and the <ndash-ident> and
 # <ndashdigit-ident> forms ('n-', '-n-', 'n-3', '-n-3'). Everything
@@ -1182,6 +1240,12 @@ validate_series <- function(tokens, function_name) {
             invalid("an escape spells a name, so '", bad$value,
                     "' is an identifier, which An+B does not allow",
                     pos = bad$pos)
+        # The caret goes on the token that broke the grammar, e.g. the
+        # 'x' of '2x', falling back to the start of the argument when
+        # the argument is a prefix that simply never finished
+        off_grammar <- anb_first_invalid_token(tokens)
+        if (!is.null(off_grammar))
+            pos <- off_grammar$pos
         invalid("'", series, "'", pos = pos)
     }
     invisible(ab)
@@ -1274,6 +1338,20 @@ token_repr <- function(token) {
 # meaningful source position is available.
 parse_stop <- function(..., pos = NULL) {
     selectr_abort(paste0(...), "selectr_parse_error", pos = pos)
+}
+
+# The 1-based column `pos` (a 1-based character position within `css`)
+# falls on: its offset from the start of the line it is on. Identical
+# to `pos` itself for a single-line selector, which is all but every
+# selector anyone writes; a selector broken across lines gets a column
+# within one of them, counting from the character after the CSS newline
+# ('\n', '\r', '\r\n' or '\f') that ended the previous line.
+source_column <- function(css, pos) {
+    if (is.null(pos) || is.null(css))
+        return(NULL)
+    matches <- gregexpr("[\r\n\f]", substr(css, 1L, pos - 1L))[[1]]
+    last_break <- matches[length(matches)]
+    if (last_break < 0L) pos else pos - last_break
 }
 
 # Append a source-pointer gutter block to `message`, pointing a caret at

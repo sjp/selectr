@@ -40,6 +40,10 @@ XPathExpr <- R6Class("XPathExpr",
         # up as the right side of a combinator (or inside a
         # pseudo-class argument)
         scoped = FALSE,
+        # Where that ':scope' sits in the selector text, so that the
+        # rejection can point at it. Set by xpath_pseudo() rather than
+        # by xpath_scope_pseudo(), which is handed the expression alone
+        scope_pos = NULL,
         initialize = function(path = "", element = "*", star_prefix = FALSE) {
             self$path <- path
             self$element <- element
@@ -285,9 +289,18 @@ of_type_nodetest_or_stop <- function(xpath, name) {
 # a 'selector' field so it can bubble up through the internal xpath()
 # recursion undecorated; GenericTranslator$css_to_xpath() catches it at
 # the boundary and adds the selector text, mirroring how parse()
-# annotates a selectr_parse_error with a caret gutter.
-translation_stop <- function(message, feature) {
-    selectr_abort(message, "selectr_translation_error", feature = feature)
+# annotates a selectr_parse_error - and the column, which can only be
+# worked out once the selector text is known.
+#
+# 'pos' is where the refused construct starts, on the same "point at
+# what the message names" footing as a parse error's. It is NULL for
+# the failures no single position describes: a namespace prefix that is
+# not an XPath name (the prefix is the whole node test's problem) and
+# an of-type pseudo-class on '*' (which is about the compound, not the
+# pseudo-class alone).
+translation_stop <- function(message, feature, pos = NULL) {
+    selectr_abort(message, "selectr_translation_error", feature = feature,
+                  pos = pos)
 }
 
 # A namespace prefix that is not an XML NCName (see is_ncname()) cannot
@@ -307,11 +320,17 @@ translation_stop <- function(message, feature) {
 # prefix that is not a name is refused rather than matched by spelling -
 # and the caller could not bind it either way, since an XPath
 # expression has no way to name it.
+#
+# Unlike every other translation failure, 'feature' is a phrase rather
+# than the CSS that spells the construct: a prefix on its own is not
+# one, and '<prefix>|' reads as a selector for an element in that
+# namespace, which is not what was refused.
 stop_unsafe_prefix <- function(prefix) {
     translation_stop(
         paste0("The namespace prefix '", prefix, "' is not an XPath name, ",
                "so it cannot be translated"),
-        paste0(prefix, "|"))
+        paste0("a namespace prefix that is not an XPath name (`", prefix,
+               "`)"))
 }
 
 # Shared translation for pseudo-classes that can never match in a
@@ -326,10 +345,10 @@ pseudo_never_matches <- function(xpath) {
 # node (see xpath_scope_pseudo). Anywhere else - to the right of a
 # combinator, or inside a functional pseudo-class argument - XPath 1.0
 # has no way to refer back to the node the query started from
-stop_non_leading_scope <- function() {
+stop_non_leading_scope <- function(pos = NULL) {
     translation_stop(
         "The pseudo-class :scope is only supported at the start of a selector",
-        ":scope")
+        ":scope", pos = pos)
 }
 
 # A wildcard in non-trailing position (e.g. :lang(*-CH) or :lang(de-*-DE),
@@ -338,12 +357,12 @@ stop_non_leading_scope <- function() {
 # ancestor, but the generic translator's only tool is XPath 1.0's
 # lang() function, which can express a prefix match but not an interior
 # wildcard, so it rejects such ranges rather than silently mismatching.
-stop_lang_interior_wildcard <- function(range) {
+stop_lang_interior_wildcard <- function(range, pos = NULL) {
     translation_stop(
         paste0("Only a bare '*' or a trailing '...-*' wildcard is ",
                "supported by the generic translator's :lang(); the range ",
                range, " has a wildcard in a non-trailing position"),
-        ":lang()")
+        ":lang()", pos = pos)
 }
 
 # A range that is not an RFC 4647 extended language range (see
@@ -353,11 +372,11 @@ stop_lang_interior_wildcard <- function(range) {
 # rest of the expression, so the range is rejected by name instead -
 # never silently normalised into a well-formed one, which would select
 # the wrong elements (":lang(en-)" is not ":lang(en)").
-stop_lang_ill_formed <- function(range) {
+stop_lang_ill_formed <- function(range, pos = NULL) {
     translation_stop(
         paste0("The :lang() language range \"", range, "\" is not a ",
                "well-formed extended language range (RFC 4647)"),
-        ":lang()")
+        ":lang()", pos = pos)
 }
 
 # Whether a (already reassembled) :lang() range matches the RFC 4647
@@ -427,7 +446,7 @@ validate_lang_args <- function(fn) {
         translation_stop(
             paste0("Expected string, ident, or * arguments for :lang(), got ",
                    token_repr(fn$arguments[[which(!valid_types)[1]]])),
-            ":lang()")
+            ":lang()", pos = fn$arguments[[which(!valid_types)[1]]]$pos)
     }
 }
 
@@ -445,10 +464,10 @@ lang_ranges <- function(fn) {
             translation_stop(
                 paste0("Expected a language range for :lang(), got ",
                        token_repr(range)),
-                ":lang()")
+                ":lang()", pos = range$pos)
         }
         if (nzchar(range$value) && !lang_range_well_formed(range$value))
-            stop_lang_ill_formed(range$value)
+            stop_lang_ill_formed(range$value, range$pos)
     }
     vapply(fn$ranges, function(range) range$value, character(1))
 }
@@ -1010,7 +1029,8 @@ GenericTranslator <- R6Class("GenericTranslator",
                     if (first_class_name(selector) == "Selector" &&
                         !is.null(selector$pseudo_element))
                         translation_stop("Pseudo-elements are not supported.",
-                                         paste0("::", selector$pseudo_element))
+                                         paste0("::", selector$pseudo_element),
+                                         pos = selector$pseudo_element_pos)
                 }
 
                 char_selectors <-
@@ -1023,9 +1043,11 @@ GenericTranslator <- R6Class("GenericTranslator",
             selectr_translation_error = function(e) {
                 # Re-signal at the css_to_xpath() boundary so the
                 # condition gains the selector text, mirroring how
-                # parse() annotates a selectr_parse_error.
+                # parse() annotates a selectr_parse_error, and with it
+                # the column the position falls on.
                 selectr_abort(conditionMessage(e), "selectr_translation_error",
-                             feature = e$feature, selector = css)
+                             feature = e$feature, selector = css,
+                             pos = e$pos, column = source_column(css, e$pos))
             },
             error = function(e) {
                 # A selector that nests functional pseudo-classes very
@@ -1077,7 +1099,7 @@ GenericTranslator <- R6Class("GenericTranslator",
                     internal_stop("Unknown combinator '", combinator, "'")
                 right <- self$xpath(node$subselector)
                 if (right$scoped)
-                    stop_non_leading_scope()
+                    stop_non_leading_scope(right$scope_pos)
                 left <- method(left = left, right = right)
             }
             left
@@ -1094,7 +1116,7 @@ GenericTranslator <- R6Class("GenericTranslator",
             if (first_class_name(subselector) == "CombinedSelector") {
                 sub_xpath <- self$xpath(subselector$subselector)
                 if (sub_xpath$scoped)
-                    stop_non_leading_scope()
+                    stop_non_leading_scope(sub_xpath$scope_pos)
                 sub_xpath$add_name_test()
                 rev_test <- self$reversed_combinator_test(
                     subselector$selector, subselector$combinator)
@@ -1118,7 +1140,7 @@ GenericTranslator <- R6Class("GenericTranslator",
             } else {
                 sub_xpath <- self$xpath(subselector)
                 if (sub_xpath$scoped)
-                    stop_non_leading_scope()
+                    stop_non_leading_scope(sub_xpath$scope_pos)
                 sub_xpath$add_name_test()
                 # An argument that imposes no condition (a bare '*')
                 # matches everything; return an explicit "true()" so
@@ -1224,7 +1246,7 @@ GenericTranslator <- R6Class("GenericTranslator",
                 left <- self$xpath_has_test(selector$selector, combinator)
                 sub_xpath <- self$xpath(selector$subselector)
                 if (sub_xpath$scoped)
-                    stop_non_leading_scope()
+                    stop_non_leading_scope(sub_xpath$scope_pos)
                 # The name stays the node test of the path step itself
                 # (e.g. '//svg:g'), except under '+', where the
                 # position predicate [1] must come before the name test
@@ -1249,7 +1271,7 @@ GenericTranslator <- R6Class("GenericTranslator",
             } else {
                 sub_xpath <- self$xpath(selector)
                 if (sub_xpath$scoped)
-                    stop_non_leading_scope()
+                    stop_non_leading_scope(sub_xpath$scope_pos)
                 # As above: the name is the node test of the axis
                 # step, except under '+' where [1] must precede it
                 if (combinator == "+")
@@ -1315,25 +1337,35 @@ GenericTranslator <- R6Class("GenericTranslator",
         # appear in the message ('suffix' distinguishes a functional
         # pseudo-class's trailing '()' from a plain one) when there is
         # no such method
-        resolve_pseudo_method = function(name, suffix) {
+        resolve_pseudo_method = function(name, suffix, pos = NULL) {
             method <- self$pseudo_method(name, suffix)
             if (is.null(method)) {
                 label <- paste0(":", name,
                                 if (suffix == "_function") "()" else "")
                 translation_stop(
-                    paste0("The pseudo-class ", label, " is unknown"), label)
+                    paste0("The pseudo-class ", label, " is unknown"), label,
+                    pos = pos)
             }
             method
         },
         xpath_function = function(fn) {
             xp <- self$xpath(fn$selector)
-            method <- self$resolve_pseudo_method(fn$name, "_function")
+            method <- self$resolve_pseudo_method(fn$name, "_function", fn$pos)
             method(xp, fn)
         },
         xpath_pseudo = function(pseudo) {
             xp <- self$xpath(pseudo$selector)
-            method <- self$resolve_pseudo_method(pseudo$ident, "_pseudo")
-            method(xp)
+            method <- self$resolve_pseudo_method(pseudo$ident, "_pseudo",
+                                                 pseudo$pos)
+            xp <- method(xp)
+            # ':scope' flags the expression rather than adding a
+            # condition; note where it was written, for the rejection
+            # of a ':scope' that is not leftmost. The leftmost one wins
+            # when a compound spells it twice, since that is the one a
+            # message would name
+            if (xp$scoped && is.null(xp$scope_pos))
+                xp$scope_pos <- pseudo$pos
+            xp
         },
         xpath_attrib = function(selector) {
             operator <- self$attribute_operator_mapping[selector$operator]
@@ -1742,8 +1774,11 @@ GenericTranslator <- R6Class("GenericTranslator",
         xpath_lang_function = function(xpath, fn) {
             lang_values <- lang_ranges(fn)
 
-            # Build conditions for each language range
-            conditions <- vapply(lang_values, function(value) {
+            # Build conditions for each language range. Indices rather
+            # than the values themselves, so that a rejected range can
+            # be pointed at through the token it was read from
+            conditions <- vapply(seq_along(lang_values), function(i) {
+                value <- lang_values[i]
                 # Wildcard * matches any element whose language is
                 # known, i.e. one that inherits a non-empty xml:lang
                 # from its nearest xml:lang-bearing ancestor-or-self
@@ -1773,7 +1808,7 @@ GenericTranslator <- R6Class("GenericTranslator",
                     # XPath 1.0's lang() cannot express RFC 4647 extended
                     # filtering, and unlike the HTML translators there is
                     # no lang-attribute to walk, so reject it
-                    stop_lang_interior_wildcard(value)
+                    stop_lang_interior_wildcard(value, fn$ranges[[i]]$pos)
                 } else {
                     # Regular language tag
                     paste0("lang(", xpath_literal(value), ")")

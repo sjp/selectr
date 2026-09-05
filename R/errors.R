@@ -4,7 +4,8 @@
 #
 #   selectr_parse_error       malformed CSS (fields: selector, pos)
 #   selectr_translation_error valid but unsupported CSS (fields:
-#                              selector, feature)
+#                              selector, feature, and pos/column when
+#                              the construct can be located)
 #   selectr_argument_error    a bad R-level argument (no extra fields)
 #
 # Every one of them also inherits "selectr_error", "error", "condition".

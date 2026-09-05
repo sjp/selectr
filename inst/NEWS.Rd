@@ -66,11 +66,25 @@
       message text, or narrow to a specific shape:
       \code{selectr_parse_error} for malformed CSS (fields
       \code{$selector} and \code{$pos}), \code{selectr_translation_error}
-      for CSS that is valid but untranslatable (fields \code{$selector}
-      and \code{$feature}), and \code{selectr_argument_error} for a bad
+      for CSS that is valid but untranslatable (fields \code{$selector},
+      \code{$feature}, and \code{$pos}/\code{$column} for a construct
+      that can be located), and \code{selectr_argument_error} for a bad
       R-level argument. Previously only parse errors carried a distinct
       class; translation and argument failures were plain
       \code{simpleError}s. Message text is unchanged.
+
+      \item A reported position - the \code{$pos} field and the caret
+      of the source-pointer block - now points at the token the message
+      names, rather than at wherever the parser happened to stop. The
+      caret under \code{"a||b"} sits on the first \code{|} of the
+      \code{||} the message names (previously the second), under
+      \code{"a:before:empty"} on the \code{:before} it calls
+      misplaced (previously on the \code{:empty} that follows it),
+      under \code{"a::part(b)"} on the \code{part} it names
+      (previously on the \code{(}), and under
+      \code{"e:nth-child(2x)"} on the \code{x} that takes the
+      argument out of the \code{An+B} grammar (previously on the start
+      of the argument).
 
       \item The minimum required version of R has been increased from
       \code{3.3} to \code{3.6}, required by \code{errorCondition()},

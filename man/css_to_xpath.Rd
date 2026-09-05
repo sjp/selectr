@@ -193,7 +193,7 @@ css_to_xpath(selector,
       \code{selector} is malformed CSS, e.g. \code{"div >"} with
       nothing following the combinator. Carries \code{selector} (the
       offending input) and \code{pos}, the 1-based character position
-      within \code{selector} at which the parser gave up
+      within \code{selector} of the token the message names
       (\code{NULL} if no position applies).
     }
     \item{\code{selectr_translation_error}}{
@@ -201,7 +201,18 @@ css_to_xpath(selector,
       1.0 by the requested \code{translator}, e.g. \code{:scope}
       nested inside \code{:is()}, or an unknown pseudo-class such as
       \code{":frobnicate"}. Carries \code{selector} and \code{feature},
-      a short description of the unsupported construct.
+      a short description of the unsupported construct, and - for a
+      construct that can be located, which is every unknown
+      pseudo-class, misplaced \code{:scope}, pseudo-element and
+      \code{:lang()} argument - \code{pos} and \code{column}, the
+      1-based character position of the construct within
+      \code{selector} and within its line. Both are \code{NULL} for
+      the two failures no single position describes: a namespace prefix
+      that is not an XPath name, and an of-type pseudo-class on the
+      universal selector. \code{feature} is the CSS that spells the
+      construct, except for that namespace-prefix failure, which no CSS
+      spells and which reads as the phrase the message uses, e.g.
+      \code{"a namespace prefix that is not an XPath name (`1ns`)"}.
     }
     \item{\code{selectr_argument_error}}{
       An R-level argument is invalid: the wrong type, length, or an
