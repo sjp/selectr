@@ -1,0 +1,30 @@
+{
+	"$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+	"name": "selectr-devcontainer",
+	"description": "Plugins for developing selectr inside the devcontainer",
+	"owner": {
+		"name": "selectr"
+	},
+	"plugins": [
+		{
+			"name": "r-lsp",
+			"description": "R language server (the languageserver CRAN package) for code intelligence",
+			"version": "1.0.0",
+			"source": "./r-lsp",
+			"category": "development",
+			"lspServers": {
+				"r-languageserver": {
+					"command": "Rscript",
+					"args": [
+						"-e",
+						"languageserver::run()"
+					],
+					"extensionToLanguage": {
+						".R": "r",
+						".r": "r"
+					}
+				}
+			}
+		}
+	]
+}

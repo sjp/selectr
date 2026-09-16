@@ -28,3 +28,28 @@ npm_root=$(npm root -g)
 if [ -d "$npm_root/@anthropic-ai" ]; then
     sudo chown -R "$(id -u):$(id -g)" "$npm_root/@anthropic-ai"
 fi
+
+# An R language server, so Claude Code's LSP tool and the VS Code R extension
+# can resolve symbols in the package. Debian has no r-cran-languageserver, but
+# it does package most of its dependencies; only collections, styler, the R.*
+# family and languageserver itself are left to build from source.
+languageserver_apt_deps=(
+    r-cran-brew r-cran-callr r-cran-cli r-cran-codetools r-cran-commonmark
+    r-cran-cpp11 r-cran-desc r-cran-digest r-cran-evaluate r-cran-fs
+    r-cran-glue r-cran-highr r-cran-jsonlite r-cran-knitr r-cran-lifecycle
+    r-cran-lintr r-cran-magrittr r-cran-otel r-cran-pkgbuild r-cran-pkgload
+    r-cran-processx r-cran-ps r-cran-purrr r-cran-r6 r-cran-rdtools r-cran-rex
+    r-cran-rlang r-cran-roxygen2 r-cran-rprojroot r-cran-stringi r-cran-vctrs
+    r-cran-withr r-cran-xfun r-cran-xml2 r-cran-xmlparsedata r-cran-yaml
+)
+sudo apt-get update -qq
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    "${languageserver_apt_deps[@]}"
+Rscript -e 'if (!requireNamespace("languageserver", quietly = TRUE))
+    install.packages("languageserver", Ncpus = parallel::detectCores())'
+
+# Claude Code only takes LSP servers from plugins, so register the one-plugin
+# marketplace in .devcontainer/claude-plugins and install the plugin from it.
+# Both commands are no-ops once they have run.
+claude plugin marketplace add "$PWD/.devcontainer/claude-plugins"
+claude plugin install r-lsp@selectr-devcontainer
