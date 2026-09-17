@@ -6,50 +6,22 @@
   \subsection{MINOR CHANGES}{
     \itemize{
 
-      \item Translating a selector is faster: \code{css_to_xpath()} and
-      the \code{querySelector()} family spend about a third less time
-      turning a selector into XPath, and a bare element name like
-      \code{"div"} takes about half as long as before. Parse-tree nodes
-      are now lightweight S3 objects instead of R6 objects, and are
-      about 18 times cheaper to create. The generated XPath is
-      unchanged.
-
-      \item Translating a selector is faster again, by about a quarter
-      for a typical selector such as \code{"div > p"}: the token stream
-      and the XPath expressions built during translation are now plain
-      environments instead of R6 objects. The generated XPath is
-      unchanged.
-
-      \item Translating a selector is faster again, by about a sixth:
-      the translator now finds the method for each part of a selector
-      in a precomputed table instead of building its name with regular
-      expressions. The generated XPath is unchanged.
-
-      \item \code{querySelector()} and \code{querySelectorAll()} on a
-      whole document from the \pkg{XML} package no longer run an extra
-      XPath query to find out whether the document is HTML; the
-      document's class already says so. This saves about 60 to 90
-      microseconds per query.
-
-      \item Parsing a selector skips about 60 microseconds of wasted
-      pattern matching: the check for a bare element, ID or class
-      selector such as \code{"div"}, \code{"#main"} or
-      \code{"p.note"} is now one match instead of up to three. Those
-      simple selectors parse two to four times faster, and a selector
-      like \code{"div > p"} translates about a sixth faster.
-
-      \item Tokenizing a selector is about five times faster, which
-      cuts the time \code{css_to_xpath()} takes on a typical
-      multi-part selector by about 45\%. The tokenizer now scans the
-      selector in a single regular-expression pass instead of trying
-      each token pattern in turn at every position.
+      \item Translating a selector is about four times faster.
+      \code{css_to_xpath()} takes a quarter of the time it used to,
+      and so do \code{querySelector()} and its relatives on small
+      documents, where translation is most of the work. On large
+      documents, where most of the time goes to evaluating the XPath,
+      they save about a millisecond per call. Parsing is about seven
+      times faster, and simple selectors like \code{"#main"} or
+      \code{"p.note"} parse 10 to 15 times faster. Parse-tree nodes,
+      the token stream and intermediate XPath expressions are now
+      lightweight S3 objects and plain environments instead of R6
+      objects. Tokenizing takes a single regular-expression pass. The
+      generated XPath is unchanged.
 
       \item Tokenizing a long selector that contains any non-ASCII
       character now takes time proportional to its length, as it
-      already did for a pure-ASCII one. It used to take time
-      proportional to the square of the length: a 136 000-character
-      selector with one accented letter in it took two and a half
-      minutes, and now takes half a second.
+      already did for a pure-ASCII one.
 
     }
   }
