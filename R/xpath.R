@@ -563,13 +563,28 @@ lang_extended_html_condition <- function(value, xhtml) {
            paste(conditions, collapse = " and "), "]")
 }
 
-# The type name of a parse-tree node (or of an XPathExpr), as repr() prints it and as the translator's xpath()
-# dispatch keys on. A ClassSelector node reads as "Class"; see
-# ClassSelector().
+# The type name of a parse-tree node (or of an XPathExpr), as repr()
+# prints it. A ClassSelector node reads as "Class"; see ClassSelector().
 first_class_name <- function(obj) {
     cls <- class(obj)[1]
     if (cls == "ClassSelector") "Class" else cls
 }
+
+# The translator method for each type of parse-tree node, keyed by the
+# node's first class, which the translator's xpath() dispatches on. A
+# type missing here (e.g. RelativeSelector, which only ever appears
+# inside :has() and is translated there) has no method of its own
+xpath_method_names <- c(CombinedSelector = "xpath_combinedselector",
+                        Negation = "xpath_negation",
+                        Matching = "xpath_matching",
+                        Where = "xpath_where",
+                        Has = "xpath_has",
+                        Function = "xpath_function",
+                        Pseudo = "xpath_pseudo",
+                        Attrib = "xpath_attrib",
+                        ClassSelector = "xpath_class",
+                        Hash = "xpath_hash",
+                        Element = "xpath_element")
 
 # The attributes whose *values* an HTML document matches ASCII
 # case-insensitively, from HTML's "Case-sensitivity of selectors". The
@@ -1017,10 +1032,10 @@ form_ancestor <- "ancestor::*[local-name() = 'form']"
 
 GenericTranslator <- R6Class("GenericTranslator",
     public = list(
-        combinator_mapping = c(" " = "descendant",
-                               ">" = "child",
-                               "+" = "direct_adjacent",
-                               "~" = "indirect_adjacent"),
+        combinator_methods = c(" " = "xpath_descendant_combinator",
+                               ">" = "xpath_child_combinator",
+                               "+" = "xpath_direct_adjacent_combinator",
+                               "~" = "xpath_indirect_adjacent_combinator"),
         attribute_operator_mapping = c("exists" = "exists",
                                        "=" = "equals",
                                        "~=" = "includes",
@@ -1093,10 +1108,10 @@ GenericTranslator <- R6Class("GenericTranslator",
             paste0(prefix, xpath$str())
         },
         xpath = function(parsed_selector) {
-            type_name <- first_class_name(parsed_selector)
-            method <- self[[paste0("xpath_", ascii_lower(type_name))]]
+            method <- self[[xpath_method_names[class(parsed_selector)[1]]]]
             if (is.null(method))
-                internal_stop("Unknown method name '", type_name, "'")
+                internal_stop("Unknown method name '",
+                              first_class_name(parsed_selector), "'")
             method(parsed_selector)
         },
         xpath_combinedselector = function(combined) {
@@ -1106,10 +1121,9 @@ GenericTranslator <- R6Class("GenericTranslator",
             spine <- combinator_spine(combined)
             left <- self$xpath(spine$leftmost)
             for (node in spine$nodes) {
-                combinator <- self$combinator_mapping[node$combinator]
-                method <- self[[paste0("xpath_", combinator, "_combinator")]]
+                method <- self[[self$combinator_methods[node$combinator]]]
                 if (is.null(method))
-                    internal_stop("Unknown combinator '", combinator, "'")
+                    internal_stop("Unknown combinator '", node$combinator, "'")
                 right <- self$xpath(node$subselector)
                 if (right$scoped)
                     stop_non_leading_scope(right$scope_pos)
@@ -1343,8 +1357,15 @@ GenericTranslator <- R6Class("GenericTranslator",
         # hyphenated; the method name replaces '-' with '_', so a name
         # containing an underscore is rejected up front, otherwise
         # ':first_child' would alias ':first-child' instead of being
-        # reported as unknown
+        # reported as unknown. A name the package's own translators
+        # implement is found in 'pseudo_method_names' without building
+        # the method name; anything else (including a handler only a
+        # subclass defines) takes the general route
         pseudo_method = function(name, suffix) {
+            methods <- pseudo_method_names[[suffix]]
+            i <- match(name, names(methods))
+            if (!is.na(i))
+                return(self[[methods[[i]]]])
             if (grepl("_", name, fixed = TRUE))
                 return(NULL)
             self[[paste0("xpath_", gsub("-", "_", name), suffix)]]
@@ -2321,3 +2342,23 @@ HTMLTranslator <- R6Class("HTMLTranslator",
         }
     )
 )
+
+# The pseudo-class methods of the package's translators, as one table
+# per method suffix ("_pseudo" for a plain pseudo-class, "_function"
+# for a functional one) mapping each hyphenated CSS name to its method
+# name. This is only a shortcut for pseudo_method(), which still reads
+# the method from the translator (so a subclass's override is used) and
+# falls back to building the name for one the table lacks.
+pseudo_method_names <- local({
+    methods <- unique(c(names(GenericTranslator$public_methods),
+                        names(HTMLTranslator$public_methods)))
+    table_for <- function(suffix) {
+        pattern <- paste0("^xpath_(.+)", suffix, "$")
+        found <- grep(pattern, methods, value = TRUE)
+        names(found) <- gsub("_", "-", sub(pattern, "\\1", found),
+                             fixed = TRUE)
+        found
+    }
+    list(`_pseudo` = table_for("_pseudo"),
+         `_function` = table_for("_function"))
+})

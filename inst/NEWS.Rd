@@ -20,6 +20,11 @@
       environments instead of R6 objects. The generated XPath is
       unchanged.
 
+      \item Translating a selector is faster again, by about a sixth:
+      the translator now finds the method for each part of a selector
+      in a precomputed table instead of building its name with regular
+      expressions. The generated XPath is unchanged.
+
       \item Tokenizing a selector is about five times faster, which
       cuts the time \code{css_to_xpath()} takes on a typical
       multi-part selector by about 45\%. The tokenizer now scans the
