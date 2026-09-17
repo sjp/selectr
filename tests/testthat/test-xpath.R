@@ -543,7 +543,7 @@ test_that("HTMLTranslator rejects unknown construction arguments", {
 test_that("a translator subclass can add new pseudo-class handlers", {
     # Dispatch is dynamic, so a handler defined only on a subclass is
     # found without editing the base class
-    BlinkTranslator <- R6::R6Class("BlinkTranslator",
+    BlinkTranslator <- translator_class("BlinkTranslator",
         inherit = GenericTranslator,
         public = list(
             xpath_blink_pseudo = function(xpath) {
@@ -568,7 +568,7 @@ test_that("a translator subclass can add new pseudo-class handlers", {
 })
 
 test_that("a translator subclass can override id_attribute", {
-    XMLIdTranslator <- R6::R6Class("XMLIdTranslator",
+    XMLIdTranslator <- translator_class("XMLIdTranslator",
         inherit = GenericTranslator,
         public = list(id_attribute = "xml:id"))
 

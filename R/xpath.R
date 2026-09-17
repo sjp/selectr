@@ -2,7 +2,7 @@
 # translator as it walks a compound selector. The translator relies on
 # reference semantics - a handler adds conditions to the expression it
 # is handed - so this is an environment, but a plain one built here
-# rather than an R6 object, which costs tens of microseconds more to
+# rather than a translator_class() object, which costs more to
 # construct and is built once per compound selector. The methods are
 # closures over this call's frame, so they reach the expression as
 # 'self' and are called as xpath$add_condition() etc., the same as when
@@ -1035,7 +1035,7 @@ checked_disjuncts <- list(
 # adding '[1]' to this picks the *nearest* enclosing form
 form_ancestor <- "ancestor::*[local-name() = 'form']"
 
-GenericTranslator <- R6Class("GenericTranslator",
+GenericTranslator <- translator_class("GenericTranslator",
     public = list(
         combinator_methods = c(" " = "xpath_descendant_combinator",
                                ">" = "xpath_child_combinator",
@@ -2082,7 +2082,7 @@ GenericTranslator <- R6Class("GenericTranslator",
     )
 )
 
-HTMLTranslator <- R6Class("HTMLTranslator",
+HTMLTranslator <- translator_class("HTMLTranslator",
     inherit = GenericTranslator,
     public = list(
         xhtml = FALSE,

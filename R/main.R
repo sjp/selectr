@@ -14,7 +14,7 @@ xpath_cache_key <- function(selector, prefix, translator) {
 # The three translators hold no per-call state (see GenericTranslator
 # and HTMLTranslator in xpath.R: neither ever assigns to a 'self$'
 # field outside 'initialize'), so one instance of each is created
-# lazily and reused rather than allocating a fresh R6 object -- and
+# lazily and reused rather than allocating a fresh translator object -- and
 # its inheritance chain of fields -- on every css_to_xpath() call.
 # This is purely an internal reuse of otherwise-stateless objects and
 # is not a cache of translation results.

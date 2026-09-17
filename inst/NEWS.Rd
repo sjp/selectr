@@ -6,6 +6,10 @@
   \subsection{MINOR CHANGES}{
     \itemize{
 
+      \item \pkg{selectr} no longer depends on \pkg{R6}, or on any
+      package other than base \R. The translators are now built by a
+      small internal class helper; the generated XPath is unchanged.
+
       \item Translating a selector is about four times faster.
       \code{css_to_xpath()} takes a quarter of the time it used to,
       and so do \code{querySelector()} and its relatives on small

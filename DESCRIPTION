@@ -10,7 +10,6 @@ Authors@R: c(person("Simon", "Potter",
 License: BSD_3_clause + file LICENCE
 Encoding: UTF-8
 Depends: R (>= 3.6)
-Imports: R6
 Suggests: testthat (>= 3.0.0), XML, xml2
 Config/testthat/edition: 3
 URL: https://sjp.co.nz/projects/selectr/
