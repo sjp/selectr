@@ -1450,8 +1450,10 @@ token_re <- paste0(
     # newline.
     "|(?<STRING>'(?<SQ>", string_content("'"), ")'?",
     "|\"(?<DQ>", string_content('"'), ")\"?)",
-    # Runs to the first '*/' after the '/', or to EOF if unterminated
-    "|(?<COMMENT>/(?=\\*)[\\s\\S]*?(?:\\*/|\\z))",
+    # css-syntax-3 "consume comments": runs to the first '*/' after the
+    # opening '/*', so the '*' that opens it cannot also close it ('/*/'
+    # is still open), or to EOF if unterminated
+    "|(?<COMMENT>/\\*[\\s\\S]*?(?:\\*/|\\z))",
     # The CDC's counterpart, read for the same reason: so that the
     # parser rejects the construct rather than the tokenizer rejecting
     # its first character.

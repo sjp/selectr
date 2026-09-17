@@ -202,6 +202,26 @@ test_that("tokens are unaffected by where they fall in the input", {
     }
 })
 
+test_that("a comment's opening '*' cannot also close it", {
+    reprs <- function(css) {
+        unlist(lapply(tokenize(css), token_repr))
+    }
+
+    # css-syntax-3 "consume comments" looks for '*/' only after the
+    # opening '/*', so '/*/' opens a comment that the next '*/' closes,
+    # or that runs to EOF
+    expect_equal(reprs("/*/a"), "<EOF at 5>")
+    expect_equal(reprs("/*/a*/b"),
+                 c("<IDENT 'b' at 7>", "<EOF at 8>"))
+    expect_equal(reprs("a/*/ b */c"),
+                 c("<IDENT 'a' at 1>", "<IDENT 'c' at 10>", "<EOF at 11>"))
+    # the shortest closed comment is still '/**/'
+    expect_equal(reprs("a/**/b"),
+                 c("<IDENT 'a' at 1>", "<IDENT 'b' at 6>", "<EOF at 7>"))
+    expect_equal(reprs("a/***/b"),
+                 c("<IDENT 'a' at 1>", "<IDENT 'b' at 7>", "<EOF at 8>"))
+})
+
 test_that("consecutive whitespace runs collapse into a single S token", {
     reprs <- function(css) {
         unlist(lapply(tokenize(css), token_repr))

@@ -35,6 +35,18 @@
 
     }
   }
+  \subsection{BUG FIXES}{
+    \itemize{
+
+      \item A comment's opening \code{*} no longer also closes it:
+      \code{"/*/"} opens a comment that runs to the next \code{*/}, or
+      to the end of the selector, as CSS specifies. It used to be read
+      as a complete comment, so \code{"a/*/ b"} selected \code{b}
+      elements inside \code{a} elements; it now selects \code{a}
+      elements, the rest being an unterminated comment.
+
+    }
+  }
 }
 
 \section{Changes in version 0.7-0}{
