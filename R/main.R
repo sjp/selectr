@@ -264,9 +264,11 @@ querySelector.XMLInternalNode <- function(doc, selector, ns = NULL,
     xmlFirstMatch(doc, query$xpath, query$ns)
 }
 
-querySelector.XMLInternalDocument <- function(doc, selector, ns = NULL, ...) {
+querySelector.XMLInternalDocument <- function(doc, selector, ns = NULL,
+                                              translator = NULL, ...) {
     validateSelector(selector)
-    querySelector(XML::xmlRoot(doc), selector, ns, ...)
+    translator <- xmlDocumentTranslator(translator, doc)
+    querySelector(XML::xmlRoot(doc), selector, ns, translator = translator, ...)
 }
 
 # Each node of the set is queried in turn and the first match ends the
@@ -288,9 +290,11 @@ querySelectorAll.XMLInternalNode <- function(doc, selector, ns = NULL,
     xmlMatches(doc, query$xpath, query$ns)
 }
 
-querySelectorAll.XMLInternalDocument <- function(doc, selector, ns = NULL, ...) {
+querySelectorAll.XMLInternalDocument <- function(doc, selector, ns = NULL,
+                                                 translator = NULL, ...) {
     validateSelector(selector)
-    querySelectorAll(XML::xmlRoot(doc), selector, ns, ...)
+    translator <- xmlDocumentTranslator(translator, doc)
+    querySelectorAll(XML::xmlRoot(doc), selector, ns, translator = translator, ...)
 }
 
 querySelectorAll.XMLNodeSet <- function(doc, selector, ns = NULL,
@@ -435,6 +439,18 @@ xmlTranslator <- function(translator, doc) {
     docNode <- tryCatch(XML::getNodeSet(doc, "/")[[1]],
                         error = function(e) NULL)
     if (inherits(docNode, "XMLHTMLDocumentNode"))
+        "html"
+    else
+        "generic"
+}
+
+# xmlTranslator() for a whole document. The document object's own
+# class already says whether XML::htmlParse() read it, so there is no
+# need to ask libxml2 through an XPath query as a node has to.
+xmlDocumentTranslator <- function(translator, doc) {
+    if (!is.null(translator))
+        translator
+    else if (inherits(doc, "HTMLInternalDocument"))
         "html"
     else
         "generic"
