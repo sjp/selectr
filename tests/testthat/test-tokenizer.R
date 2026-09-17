@@ -143,17 +143,17 @@ test_that("string tokens handle quotes, escapes, and unclosed strings", {
     expect_error(tokenize("'a\n"), "^Unclosed string$")
 })
 
-test_that("tokens are unaffected by where the match window falls", {
+test_that("tokens are unaffected by where they fall in the input", {
     reprs <- function(css) {
         unlist(lapply(tokenize(css), token_repr))
     }
 
-    # tokenize() matches against a bounded window of the input rather
-    # than the whole remaining tail, so a token can straddle the
-    # window's end. Slide each construct across the boundary one
-    # character at a time -- behind a run of 'a's and a space, so the
-    # padding is always exactly two tokens -- and check that it still
-    # comes out whole.
+    # tokenize() once matched against a bounded window of the input
+    # rather than the whole remaining tail, so a token could straddle
+    # the window's end. Slide each construct across the old boundary
+    # one character at a time -- behind a run of 'a's and a space, so
+    # the padding is always exactly two tokens -- and check that it
+    # still comes out whole.
     cases <- list(
         # tokens longer than the window itself
         list("abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnop",
@@ -247,6 +247,44 @@ test_that("a very long selector tokenizes in linear time", {
     expect_equal(token_repr(tokens[[1]]), "<IDENT 'a' at 1>")
     expect_equal(token_repr(tokens[[length(tokens)]]),
                  paste0("<EOF at ", nchar(css) + 1, ">"))
+})
+
+test_that("a long selector with a non-ASCII character tokenizes in linear time", {
+    # Matching by character offset makes R walk a UTF-8 string from its
+    # start on every match, so a single multibyte character made the
+    # tokenizer quadratic again. At 50 000 characters that took well
+    # over a minute; as above, a regression is felt rather than asserted.
+    css <- paste0("\u00e9 ", paste(rep("a.b", 12500), collapse = " "))
+    expect_equal(nchar(css), 50001)
+    tokens <- tokenize(css)
+    expect_equal(length(tokens), 2 + 3 * 12500 + 12499 + 1)
+    expect_equal(token_repr(tokens[[1]]), "<IDENT '\u00e9' at 1>")
+    expect_equal(token_repr(tokens[[3]]), "<IDENT 'a' at 3>")
+    expect_equal(token_repr(tokens[[length(tokens)]]),
+                 paste0("<EOF at ", nchar(css) + 1, ">"))
+})
+
+test_that("positions count characters, not bytes", {
+    reprs <- function(css) {
+        unlist(lapply(tokenize(css), token_repr))
+    }
+
+    # Two- and three-byte characters in names, strings and comments
+    expect_equal(reprs("\u00e9\u65e5.b '\u00e9' /*\u65e5*/#\u00e9"),
+                 c("<IDENT '\u00e9\u65e5' at 1>", "<DELIM '.' at 3>",
+                   "<IDENT 'b' at 4>", "<S ' ' at 5>",
+                   "<STRING '\u00e9' at 6>", "<S ' ' at 9>",
+                   "<HASH '\u00e9' at 15>", "<EOF at 17>"))
+    # An escape of a multibyte character is one escape, and a dimension
+    # can carry a non-ASCII unit
+    expect_equal(reprs("\\\u00e9x 2\u00e9"),
+                 c("<IDENT '\u00e9x' at 1>", "<S ' ' at 4>",
+                   "<DIMENSION '2\u00e9' at 5>", "<EOF at 7>"))
+    # Errors point at the character, wherever the bytes fall
+    err <- tryCatch(tokenize("\u00e9\u00e9 !"), error = identity)
+    expect_equal(err$pos, 4)
+    err <- tryCatch(tokenize("\u00e9 #1"), error = identity)
+    expect_equal(err$pos, 3)
 })
 
 test_that("a '-' that starts no name is a delimiter, and CDC and CDO are tokens", {

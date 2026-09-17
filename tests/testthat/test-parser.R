@@ -198,20 +198,6 @@ test_that("parsed elements print correctly", {
     expect_equal(shw("#id"), "Hash[Element[*]#id]")
 })
 
-test_that("compiled regex parsing functions behave as expected", {
-    m_whitespace <- compile_('^[ \t\r\n\f]+')
-    m_number <- compile_('^[+-]?(?:[0-9]*\\.[0-9]+|[0-9]+)')
-    m_hash <- compile_(paste0("^#([_a-zA-Z0-9-]|", nonascii, "|\\\\(?:", delim_escapes, "))+"))
-    m_ident <- compile_(paste0("^([_a-zA-Z0-9-]|", nonascii, "|\\\\(?:", delim_escapes, "))+"))
-
-    expect_equal(m_whitespace("a b"), match_whitespace("a b"))
-    expect_equal(m_whitespace(" a b"), match_whitespace(" a b"))
-    expect_equal(m_number("a 1"), match_number("a 1"))
-    expect_equal(m_number("1 a"), match_number("1 a"))
-    expect_equal(m_hash("a #test"), match_hash("a #test"))
-    expect_equal(m_ident(" test"), match_ident(" test"))
-})
-
 test_that("fast-path parses agree with the full parser", {
     full_parse <- function(css) {
         stream <- TokenStream(tokenize(css))

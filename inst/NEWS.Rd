@@ -20,6 +20,19 @@
       environments instead of R6 objects. The generated XPath is
       unchanged.
 
+      \item Tokenizing a selector is about five times faster, which
+      cuts the time \code{css_to_xpath()} takes on a typical
+      multi-part selector by about 45\%. The tokenizer now scans the
+      selector in a single regular-expression pass instead of trying
+      each token pattern in turn at every position.
+
+      \item Tokenizing a long selector that contains any non-ASCII
+      character now takes time proportional to its length, as it
+      already did for a pure-ASCII one. It used to take time
+      proportional to the square of the length: a 136 000-character
+      selector with one accented letter in it took two and a half
+      minutes, and now takes half a second.
+
     }
   }
 }

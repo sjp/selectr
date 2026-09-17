@@ -1,4 +1,4 @@
-escape <- paste0("\\\\([0-9a-fA-F]{1,6})(\r\n|[ \n\r\t\f])?",
+escape <- paste0("\\\\[0-9a-fA-F]{1,6}(?:\r\n|[ \n\r\t\f])?",
                  "|\\\\[^\n\r\f0-9a-fA-F]",
                  # css-syntax-3: a backslash immediately followed by EOF is
                  # still a valid escape (only a following newline is not);
@@ -390,11 +390,11 @@ combinator_spine <- function(selector) {
 # the full tokenize()/parse_selector_group() pipeline would parse to
 # the same result; anything else falls through to the full parser.
 # The name patterns are therefore conservative ASCII subsets of the
-# tokenizer's identifier grammar (match_ident, sans escapes and
-# non-ASCII) and hash grammar (match_hash).
+# tokenizer's identifier grammar (ident_char, sans escapes and
+# non-ASCII) and hash grammar (the HASH alternative of token_re).
 fast_ident <- "[a-zA-Z][a-zA-Z0-9_-]*"
 # An ID must be identifier-shaped, so it cannot start with a digit nor
-# with '-' followed by a digit (see match_ident_start)
+# with '-' followed by a digit (see ident_start)
 fast_id <- "[a-zA-Z_][a-zA-Z0-9_-]*|-[a-zA-Z_-][a-zA-Z0-9_-]*"
 
 # foo
@@ -1385,7 +1385,7 @@ ident_hint <- function(name, prefix) {
            m[2], "\\3", m[3], " ", m[4], "'")
 }
 
-# The only ways match_hash can match a non-ident name are a leading
+# The only ways token_re's HASH alternative can match a non-ident name are a leading
 # digit, a '-' before a digit, and a lone '-', so the two branches here
 # are exhaustive.
 hash_ident_hint <- function(name) {
@@ -1397,36 +1397,68 @@ token_is_delim <- function(token, values) {
     token$type == "DELIM" && token$value %in% values
 }
 
-compile_ <- function(pattern) {
-    function(x) {
-        m <- regexpr(pattern, x, perl = TRUE)
-        if (m == -1L)
-            c(NA_integer_, NA_integer_)
-        else
-            c(m, m + attr(m, "match.length") - 1L)
-    }
-}
-
 delims_2ch <- c("~=", "|=", "^=", "$=", "*=", "::")
 delims_1ch <- c(">", "+", "-", "~", ",", ".", "*", "=", "[", "]", "(", ")", "|", ":", "#")
-delim_escapes <- paste0("\\", delims_1ch, collapse = "|")
-match_whitespace <- compile_("^[ \t\r\n\f]+")
-match_number <- compile_("^[+-]?(?:[0-9]*\\.[0-9]+|[0-9]+)")
-# The escape alternative covers both unicode escapes (e.g. '\31 ') and
+
+# A name character, one escape sequence counting as one character. The
+# escape alternative covers both unicode escapes (e.g. '\31 ') and
 # simple escapes of any non-hex character, which includes all delimiters
-match_hash <- compile_(paste0("^#([_a-zA-Z0-9-]|", nonascii, "|", escape, ")+"))
+ident_char <- paste0("(?:[_a-zA-Z0-9-]|", nonascii, "|", escape, ")")
 # css-syntax-3 "would start an identifier": a name-start code point, or a
 # leading '-' followed by a name-start code point, another '-' or an
 # escape. Only a hash whose name starts an identifier is a hash of type
 # "id", i.e. an ID selector; '#1' is not one.
-match_ident_start <- compile_(paste0("^(--|-?([_a-zA-Z]|", nonascii,
-                                     "|(?:", escape, ")))"))
-match_ident <- compile_(paste0("^([_a-zA-Z0-9-]|", nonascii, "|", escape, ")+"))
+ident_start <- paste0("(?:--|-?(?:[_a-zA-Z]|", nonascii, "|", escape, "))")
+ident_start_re <- paste0("^", ident_start)
 # String content: any character except a newline, backslash, or the
-# quote character, or an escape sequence. Anchored so the match end
-# gives the content length; the closing quote must follow immediately.
-match_string_by_quote <- list("'" = compile_(paste0("^([^\n\r\f\\\\']|", TokenMacros$string_escape, ")*")),
-                              '"' = compile_(paste0('^([^\n\r\f\\\\"]|', TokenMacros$string_escape, ")*")))
+# quote character, or an escape sequence.
+string_content <- function(quote) {
+    paste0("(?:[^\n\r\f\\\\", quote, "]++|", TokenMacros$string_escape, ")*+")
+}
+
+# The whole token grammar as one alternation, which tokenize() runs over
+# the input in a single gregexpr() pass. PCRE takes the first
+# alternative that matches at each position, so they are listed in the
+# order css-syntax-3 "consume a token" tests for them; the named groups
+# say which one matched. Every alternative consumes at least one
+# character and the last one takes any character at all, so the matches
+# tile the input with no gaps.
+token_re <- paste0(
+    "(?<S>[ \t\r\n\f]+)",
+    # css-syntax-3 "consume a numeric token": a number followed
+    # immediately by something that would start an identifier is a
+    # single <dimension-token>, that identifier being its unit, and not
+    # a number with a name beside it
+    "|(?<NUMBER>[+-]?(?:[0-9]*\\.[0-9]+|[0-9]+))",
+    "(?<UNIT>(?=", ident_start, ")", ident_char, "++)?",
+    # A CDC is tested for before an identifier, so '-->' is one token
+    # and not the name '--' followed by a child combinator, even though
+    # '--' does start an ident sequence. A CDC cannot appear anywhere in
+    # a selector; tokenizing it is what lets the parser say so about the
+    # whole of it, at the position it starts.
+    "|(?<CDC>-->)",
+    # "Would start an ident sequence" is narrower than ident_char, which
+    # also matches a lone '-'. A leading digit is claimed by NUMBER
+    # above, so '-' is the only start whose two readings can differ: one
+    # with nothing name-like after it is not a name at all, and falls
+    # through to DELIM, the '-' <delim-token> the specification makes it.
+    "|(?<IDENT>(?=[^-]|", ident_start, ")", ident_char, "++)",
+    "|(?<HASH>#", ident_char, "++)",
+    "|(?<DELIM>[~|^$*]=|::|[>+~,.*=\\[\\]()|:#-])",
+    # A string still open at EOF is auto-closed, so the closing quote is
+    # optional here; tokenize() rejects one stopped short of EOF by a raw
+    # newline.
+    "|(?<STRING>'(?<SQ>", string_content("'"), ")'?",
+    "|\"(?<DQ>", string_content('"'), ")\"?)",
+    # Runs to the first '*/' after the '/', or to EOF if unterminated
+    "|(?<COMMENT>/(?=\\*)[\\s\\S]*?(?:\\*/|\\z))",
+    # The CDC's counterpart, read for the same reason: so that the
+    # parser rejects the construct rather than the tokenizer rejecting
+    # its first character.
+    "|(?<CDO><!--)",
+    "|(?<BAD>[\\s\\S])")
+token_groups <- c("S", "NUMBER", "CDC", "IDENT", "HASH", "DELIM",
+                  "STRING", "COMMENT", "CDO", "BAD")
 
 # Decode a token's escape sequences in one left-to-right pass
 # (css-syntax-3 "consume an escaped code point"): each backslash
@@ -1479,227 +1511,115 @@ decode_escapes <- function(x, newlines = FALSE) {
     x
 }
 
-# Anchored matchers only see the text they are handed, so slicing off the
-# whole remaining input at every position (`substring(s, pos, len_s)`)
-# copies O(n^2) characters over a long selector. Match against a bounded
-# window instead, widening it only when the window might be cutting a
-# token in half.
-token_window <- 64L
-
-# Run `matcher` (an anchored matcher built by compile_()) at `pos`,
-# returning its match bounds relative to `pos` exactly as if it had been
-# handed the whole remaining input.
-#
-# A match is known to be untruncated once it ends at least two characters
-# short of the window: every matcher consumes greedily one character (or
-# one escape sequence) at a time, so a match cut off by the window's end
-# reaches that end -- except in a number, where a window ending just
-# after the '.' of '1.5' loses the fractional alternative and falls back
-# to the shorter integer one, stopping one character short. Both cases
-# are covered by the slack.
-#
-# A failure to match is genuine as soon as the window is three characters
-# wide: every matcher decides on the character at `pos`, apart from a
-# number, which may need a sign and a '.' before its first digit.
-match_window <- function(matcher, s, pos, len_s) {
-    width <- token_window
-    repeat {
-        last <- min(pos + width - 1L, len_s)
-        m <- matcher(substring(s, pos, last))
-        if (last >= len_s ||
-            (if (anyNA(m)) width >= 3L else m[2] < last - pos))
-            return(m)
-        width <- width * 2L
-    }
-}
-
+# The tokenizer makes one gregexpr() pass over the input and then walks
+# the matches, so the regex engine scans each character once. It matches
+# on bytes: in character mode R converts every match offset back to a
+# character offset by counting from the start of the string, which is
+# O(n^2) over a selector with any non-ASCII character in it. The
+# grammar is safe to run on UTF-8 bytes, since every byte of a
+# multibyte character is non-ASCII and so is matched or refused
+# alike, and no token can end partway through one.
 tokenize <- function(s) {
-    pos <- 1
-    i <- 1
+    s <- enc2utf8(s)
     len_s <- nchar(s)
-    # Every token consumes at least one character, so this is an upper
-    # bound (plus the trailing EOF); growing the list one element at a
-    # time would copy it on each append
-    results <- vector("list", len_s + 1L)
-    while (pos <= len_s) {
-        match <- match_window(match_whitespace, s, pos, len_s)
-        if (!anyNA(match) && match[1] == 1) {
-            match_end <- match[2]
-            # A comment between two whitespace runs (or two adjacent
-            # comments) leaves no token behind, so this run may be the
-            # second one seen in a row. Extend the existing S token
-            # instead of emitting a second one, keeping the invariant
-            # that no two S tokens are ever adjacent; the token's pos
-            # stays at the start of the first run for error carets.
-            if (i == 1 || results[[i - 1]]$type != "S") {
-                results[[i]] <- Token("S", " ", pos)
-                i <- i + 1
-            }
-            pos <- pos + match_end
-            next
-        }
-        match <- match_window(match_number, s, pos, len_s)
-        if (!anyNA(match) && match[1] == 1) {
-            match_end <- max(match[1], match[2])
-            value <- substring(s, pos, pos + match_end - 1)
-            # css-syntax-3 "consume a numeric token": a number followed
-            # immediately by something that would start an identifier is
-            # a single <dimension-token>, that identifier being its
-            # unit, and not a number with a name beside it. Every start
-            # match_ident_start accepts is one match_ident carries on
-            # from, so the unit is always there to consume.
-            unit_pos <- pos + match_end
-            starts_unit <- unit_pos <= len_s &&
-                !anyNA(match_window(match_ident_start, s, unit_pos, len_s))
-            if (starts_unit) {
-                unit <- match_window(match_ident, s, unit_pos, len_s)
-                unit_end <- max(unit[1], unit[2])
-                results[[i]] <-
-                    DimensionToken(value,
-                                   substring(s, unit_pos,
-                                             unit_pos + unit_end - 1),
-                                   pos)
-                pos <- unit_pos + unit_end
-            } else {
-                results[[i]] <- Token("NUMBER", value, pos)
-                pos <- pos + match_end
-            }
-            i <- i + 1
-            next
-        }
-        # css-syntax-3 "consume a token" tests for a CDC before it
-        # tests for an identifier, so '-->' is one token and not the
-        # name '--' followed by a child combinator, even though '--'
-        # does start an ident sequence. A CDC cannot appear anywhere
-        # in a selector; tokenizing it is what lets the parser say so
-        # about the whole of it, at the position it starts.
-        if (substring(s, pos, pos + 2) == "-->") {
-            results[[i]] <- Token("CDC", "-->", pos)
-            pos <- pos + 3
-            i <- i + 1
-            next
-        }
-        # css-syntax-3 "would start an ident sequence" is narrower than
-        # match_ident's character class, which also matches a lone '-'.
-        # A leading digit cannot reach here, since match_number above
-        # claims it, so '-' is the only start whose two readings can
-        # differ: one with nothing name-like after it is not a name at
-        # all, and falls through to the delimiter table below, which
-        # gives it the '-' <delim-token> the specification makes it.
-        starts_ident <- substring(s, pos, pos) != "-" ||
-            !anyNA(match_window(match_ident_start, s, pos, len_s))
-        if (starts_ident) {
-            match <- match_window(match_ident, s, pos, len_s)
-            if (!anyNA(match) && match[1] == 1) {
-                match_end <- max(match[1], match[2])
-                value <- substring(s, pos, pos + match_end - 1)
-                results[[i]] <- Token("IDENT", decode_escapes(value), pos)
-                pos <- pos + match_end
-                i <- i + 1
-                next
-            }
-        }
-        match <- match_window(match_hash, s, pos, len_s)
-        if (!anyNA(match) && match[1] == 1) {
-            match_end <- max(match[1], match[2])
-            value <- substring(s, pos, pos + match_end - 1)
-            # The check is on the source text, not the decoded name,
-            # so that an escaped digit ('#\31 ' spells the id '1') stays
-            # legal while the bare digit ('#1') does not.
-            if (anyNA(match_ident_start(substring(value, 2))))
-                parse_stop("Invalid ID selector '", value, "'; ",
-                           hash_ident_hint(substring(value, 2)),
-                           pos = pos)
-            value <- decode_escapes(value)
-            hash_id <- substring(value, 2)
-            results[[i]] <- Token("HASH", hash_id, pos)
-            pos <- pos + match_end
-            i <- i + 1
-            next
-        }
-        # Testing presence of a two char delim at the current position
-        two_ch <- substring(s, pos, pos + 1)
-        if (two_ch %in% delims_2ch) {
-            results[[i]] <- Token("DELIM", two_ch, pos)
-            pos <- pos + 2
-            i <- i + 1
-            next
-        }
-
-        # Testing presence of a single char delim at the current position
-        ch <- substring(s, pos, pos)
-        if (ch %in% delims_1ch) {
-            results[[i]] <- Token("DELIM", ch, pos)
-            pos <- pos + 1
-            i <- i + 1
-            next
-        }
-        if (ch %in% c("'", '"')) {
-            # Match the string content after the opening quote; the
-            # closing quote must follow immediately
-            match <- match_window(match_string_by_quote[[ch]], s, pos + 1, len_s)
-            content_end <- if (anyNA(match)) 0 else match[2]
-            end_quote <- pos + 1 + content_end
-            # A string still open at EOF (content consumed to the end
-            # of the input, including a lone trailing backslash -- see
-            # `escape`) is auto-closed with the consumed value, as
-            # css-syntax requires; only a string stopped short of EOF
-            # by a raw newline is an error
-            if (end_quote <= len_s &&
-                substring(s, end_quote, end_quote) != ch) {
-                parse_stop("Unclosed string", pos = pos)
-            }
-            value <- substring(s, pos + 1, pos + content_end)
-            value <- decode_escapes(value, newlines = TRUE)
-            results[[i]] <- Token("STRING", value, pos)
-            # An auto-closed string has no closing quote to step over,
-            # so the EOF token keeps its position just past the input
-            pos <- min(end_quote, len_s) + 1
-            i <- i + 1
-            next
-        }
-        # Remove comments
-        if (two_ch == "/*") {
-            # Widening windows again: an unterminated '/*' at the start
-            # of a long selector would otherwise copy the whole tail
-            width <- token_window
-            repeat {
-                last <- min(pos + width - 1L, len_s)
-                # as.integer() strips regexpr()'s match.length and
-                # friends, which would otherwise ride along on `pos`
-                # and end up attached to every later token's position
-                rel_pos <- as.integer(regexpr("*/", substring(s, pos, last),
-                                              fixed = TRUE))
-                if (rel_pos != -1L || last >= len_s)
-                    break
-                width <- width * 2L
-            }
-            pos <-
-                if (rel_pos == -1L) {
-                    len_s + 1
-                } else {
-                    pos + rel_pos + 1
-                }
-            next
-        }
-        # The CDC's counterpart (css-syntax-3 "consume a token"). It is
-        # no more valid in a selector than a CDC is, and is read here
-        # for the same reason: so that the parser rejects the construct
-        # rather than the tokenizer rejecting its first character.
-        if (substring(s, pos, pos + 3) == "<!--") {
-            results[[i]] <- Token("CDO", "<!--", pos)
-            pos <- pos + 4
-            i <- i + 1
-            next
-        }
-        # Every successful match ends in 'next', so reaching here means
-        # the character cannot start any token
-        parse_stop("Unexpected character '",
-                   ch,
-                   "'",
-                   pos = pos)
+    eof <- EOFToken(len_s + 1L)
+    m <- gregexpr(token_re, s, perl = TRUE, useBytes = TRUE)[[1]]
+    if (m[1] == -1L)
+        return(list(eof))
+    starts <- as.integer(m)
+    ends <- starts + attr(m, "match.length") - 1L
+    cap_start <- attr(m, "capture.start")
+    cap_len <- attr(m, "capture.length")
+    types <- token_groups[max.col(cap_start[, token_groups, drop = FALSE] > 0L,
+                                  ties.method = "first")]
+    # Byte offsets to the 1-based character positions tokens report
+    positions <- starts
+    n_bytes <- nchar(s, type = "bytes")
+    if (n_bytes > len_s) {
+        bytes <- as.integer(charToRaw(s))
+        char_index <- cumsum(bytes < 0x80L | bytes >= 0xC0L)
+        positions <- char_index[starts]
     }
-    results[[i]] <- EOFToken(pos)
+    # Marked as bytes, substring() slices by byte offset in constant
+    # time rather than walking the string to each character offset
+    s_bytes <- s
+    Encoding(s_bytes) <- "bytes"
+    slice <- function(from, len) {
+        x <- substring(s_bytes, from, from + len - 1L)
+        Encoding(x) <- "UTF-8"
+        x
+    }
+
+    n <- length(types)
+    results <- vector("list", n + 1L)
+    i <- 1L
+    prev_type <- ""
+    for (k in seq_len(n)) {
+        type <- types[k]
+        pos <- positions[k]
+        token <- switch(type,
+            S = {
+                # A comment between two whitespace runs (or two adjacent
+                # comments) leaves no token behind, so this run may be
+                # the second one seen in a row. Keep the first instead
+                # of emitting a second, keeping the invariant that no
+                # two S tokens are ever adjacent; its pos stays at the
+                # start of the first run for error carets.
+                if (prev_type == "S")
+                    next
+                Token("S", " ", pos)
+            },
+            NUMBER = {
+                value <- slice(starts[k], cap_len[k, "NUMBER"])
+                if (cap_start[k, "UNIT"] > 0L)
+                    DimensionToken(value,
+                                   slice(cap_start[k, "UNIT"],
+                                         cap_len[k, "UNIT"]),
+                                   pos)
+                else
+                    Token("NUMBER", value, pos)
+            },
+            IDENT = Token("IDENT",
+                          decode_escapes(slice(starts[k],
+                                               ends[k] - starts[k] + 1L)),
+                          pos),
+            HASH = {
+                name <- slice(starts[k] + 1L, ends[k] - starts[k])
+                # The check is on the source text, not the decoded name,
+                # so that an escaped digit ('#\31 ' spells the id '1')
+                # stays legal while the bare digit ('#1') does not.
+                if (!grepl(ident_start_re, name, perl = TRUE))
+                    parse_stop("Invalid ID selector '#", name, "'; ",
+                               hash_ident_hint(name),
+                               pos = pos)
+                Token("HASH", decode_escapes(name), pos)
+            },
+            STRING = {
+                content_len <- max(cap_len[k, "SQ"], 0L) +
+                    max(cap_len[k, "DQ"], 0L)
+                # No closing quote was consumed and there is input left:
+                # the string was stopped by a raw newline. One open at
+                # EOF (including after a lone trailing backslash -- see
+                # `escape`) is auto-closed with the consumed value, as
+                # css-syntax requires.
+                if (ends[k] - starts[k] == content_len && ends[k] < n_bytes)
+                    parse_stop("Unclosed string", pos = pos)
+                Token("STRING",
+                      decode_escapes(slice(starts[k] + 1L, content_len),
+                                     newlines = TRUE),
+                      pos)
+            },
+            COMMENT = next,
+            BAD = parse_stop("Unexpected character '",
+                             slice(starts[k], 1L), "'",
+                             pos = pos),
+            # CDC, CDO and DELIM are their own source text
+            Token(type, slice(starts[k], ends[k] - starts[k] + 1L), pos))
+        results[[i]] <- token
+        i <- i + 1L
+        prev_type <- type
+    }
+    results[[i]] <- eof
     length(results) <- i
     results
 }
