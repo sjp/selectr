@@ -78,7 +78,7 @@ test_that("a translation error's column is its position within the line", {
 test_that("a hand-built tree translates without positions", {
     # Every position comes from the parser, so a tree built by hand
     # carries none; the error is the same but for its pos/column
-    tree <- selectr:::Pseudo$new(selectr:::Element$new(element = "a"),
+    tree <- selectr:::Pseudo(selectr:::Element(element = "a"),
                                  "frobnicate")
     e <- tryCatch(GenericTranslator$new()$xpath(tree), error = identity)
     expect_s3_class(e, "selectr_translation_error")

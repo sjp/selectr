@@ -29,10 +29,10 @@ test_that(":nth-child(n of S) with multiple selectors parses correctly", {
     expect_equal(length(fn_obj$selector_list), 2)
 })
 
-test_that("Function$repr() includes the 'of S' selector list", {
-    expect_equal(selectr:::parse(":nth-child(2 of .a)")[[1]]$repr(),
+test_that("Function repr() includes the 'of S' selector list", {
+    expect_equal(selectr:::repr(selectr:::parse(":nth-child(2 of .a)")[[1]]),
                  "Function[Element[*]:nth-child(['2'] of Class[Element[*].a])]")
-    expect_equal(selectr:::parse(":nth-child(2 of .a, .b)")[[1]]$repr(),
+    expect_equal(selectr:::repr(selectr:::parse(":nth-child(2 of .a, .b)")[[1]]),
                  paste0("Function[Element[*]:nth-child(['2'] of ",
                        "Class[Element[*].a], Class[Element[*].b])]"))
 })

@@ -437,7 +437,7 @@ lang_range_multi_subtag <- function(value) {
 # A lone '-' lexes as an IDENT but is not a valid <ident> per
 # css-syntax, so reject it too.
 validate_lang_args <- function(fn) {
-    arg_types <- fn$argument_types()
+    arg_types <- vapply(fn$arguments, function(a) a$type, character(1))
     arg_values <- sapply(fn$arguments, function(a) a$value)
     valid_types <- (arg_types %in% c("STRING", "IDENT") |
                   (arg_types == "DELIM" & arg_values == "*")) &
@@ -554,8 +554,13 @@ lang_extended_html_condition <- function(value, xhtml) {
            paste(conditions, collapse = " and "), "]")
 }
 
+# The type name of a parse-tree node (or of an R6 object such as
+# XPathExpr), as repr() prints it and as the translator's xpath()
+# dispatch keys on. A ClassSelector node reads as "Class"; see
+# ClassSelector().
 first_class_name <- function(obj) {
-    if (!is.null(obj$repr_name)) obj$repr_name else class(obj)[1]
+    cls <- class(obj)[1]
+    if (cls == "ClassSelector") "Class" else cls
 }
 
 # The attributes whose *values* an HTML document matches ASCII

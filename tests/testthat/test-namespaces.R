@@ -114,7 +114,7 @@ test_that("namespace selectors translate faithfully", {
 })
 
 test_that("namespace selector specificity is correct", {
-    spec <- function(css) parse(css)[[1]]$specificity()
+    spec <- function(css) specificity(parse(css)[[1]])
 
     # Universal selectors and namespace components contribute nothing
     expect_equal(spec("*|e"), c(0, 0, 1))

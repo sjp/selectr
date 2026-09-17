@@ -6,9 +6,9 @@ test_that("parser parses canonical test expressions", {
         for (i in seq_len(n)) {
             selector <- selectors[[i]]
             if (is.list(selector)) {
-                results[[i]] <- unlist(lapply(selector, function(x) x$repr()))
+                results[[i]] <- unlist(lapply(selector, repr))
             } else {
-                results[[i]] <- selector$repr()
+                results[[i]] <- repr(selector)
             }
         }
         if (n)
@@ -181,7 +181,7 @@ test_that("parser parses canonical test expressions", {
 })
 
 test_that("parsed elements print correctly", {
-    shw <- function(x) trimws(capture.output(parse(x)[[1]]$show()))
+    shw <- function(x) trimws(capture.output(print(parse(x)[[1]])))
 
     expect_equal(shw("a"), "Element[a]")
     expect_equal(shw(".test"), "Class[Element[*].test]")
@@ -218,7 +218,7 @@ test_that("fast-path parses agree with the full parser", {
         parse_selector_group(stream)
     }
     reprs <- function(selectors) {
-        unlist(lapply(selectors, function(s) s$repr()))
+        unlist(lapply(selectors, repr))
     }
 
     selectors <- c(

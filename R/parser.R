@@ -11,177 +11,164 @@ TokenMacros <- list(escape = escape,
                     string_escape = paste0("\\\\(?:\n|\r\n|\r|\f)|", escape),
                     nonascii = nonascii)
 
-# Base class for every parse-tree node below. Only repr() is
-# type-specific; show() and the "ClassName[...]" wrapping that most
-# repr() implementations use are common enough to live here once.
-Node <- R6Class("Node",
-    public = list(
-        # The name first_class_name() reports for this node, in place
-        # of its R6 class name. NULL for every class except
-        # ClassSelector, whose class is named to avoid an R.oo clash
-        # (fixed in 0.4-1 by renaming the R6 class) even though its
-        # repr() - matching the Python cssselect output - still needs
-        # to read "Class".
-        repr_name = NULL,
-        # Wraps 'content' as "ClassName[content]", the shape used by
-        # every repr() below except Selector's (which has no brackets)
-        # and CombinedSelector's (which wraps once per spine node, not
-        # just 'self').
-        repr_wrap = function(content) {
-            paste0(first_class_name(self), "[", content, "]")
-        },
-        show = function() { # nocov start
-            cat(self$repr(), "\n")
-        } # nocov end
-    )
-)
+#### Parse tree
 
-Selector <- R6Class("Selector",
-    inherit = Node,
-    public = list(
-        parsed_tree = NULL,
-        pseudo_element = NULL,
-        # Where the pseudo-element's ':' or '::' sits in the selector
-        # text, so that the translator can point at it when it refuses
-        # the pseudo-element; NULL when there is none, or when the node
-        # was built by hand rather than by the parser
-        pseudo_element_pos = NULL,
-        initialize = function(tree, pseudo_element = NULL,
-                              pseudo_element_pos = NULL) {
-            self$parsed_tree <- tree
-            if (!is.null(pseudo_element))
-                self$pseudo_element <- ascii_lower(pseudo_element)
-            self$pseudo_element_pos <- pseudo_element_pos
-        },
-        repr = function() {
-            pseudo_el <-
-                if (is.null(self$pseudo_element)) ""
-                else paste0("::", self$pseudo_element)
-            paste0(self$parsed_tree$repr(), pseudo_el)
-        },
-        specificity = function() {
-            specs <- self$parsed_tree$specificity()
-            if (!is.null(self$pseudo_element))
-                specs[3] <- specs[3] + 1
-            specs
-        }
-    )
-)
+# The parse tree is an immutable value, built once by the parser and
+# then only read by repr(), specificity() and the translator, so its
+# nodes are plain lists with a class attribute rather than R6 objects
+# (which cost tens of microseconds each to construct, mostly for the
+# inheritance machinery). The first class names the node type, which
+# is what first_class_name() and the translator's xpath() dispatch key
+# on; every node also carries "selectr_node" for printing.
+#
+# Each constructor lists every field of its node, NULL or not, so that
+# reading one with `$` finds it exactly rather than partially matching
+# a longer name (e.g. 'name' against 'namespace').
+new_node <- function(type, ..., subclass = NULL) {
+    structure(list(...), class = c(type, subclass, "selectr_node"))
+}
 
-ClassSelector <- R6Class("ClassSelector",
-    inherit = Node,
-    public = list(
-        repr_name = "Class",
-        selector = NULL,
-        class_name = NULL,
-        initialize = function(selector, class_name) {
-            self$selector <- selector
-            self$class_name <- class_name
-        },
-        repr = function() {
-            self$repr_wrap(paste0(self$selector$repr(), ".", self$class_name))
-        },
-        specificity = function() {
-            specs <- self$selector$specificity()
-            specs[2] <- specs[2] + 1
-            specs
-        }
-    )
-)
+# The "ClassName[...]" rendering of a parse-tree node, e.g.
+# "Element[a]" or "Class[Element[*].foo]".
+repr <- function(node) UseMethod("repr")
 
-Function <- R6Class("Function",
-    inherit = Node,
-    public = list(
-        selector = NULL,
-        name = NULL,
-        arguments = NULL,
-        selector_list = NULL,
-        # The (a, b) pair for an An+B (nth-*()) function, already
-        # validated and parsed by validate_series() at parse time; NULL
-        # for every other function
-        series = NULL,
-        # The comma-separated items of a :lang() argument list, one
-        # token each, reassembled at parse time (see
-        # lang_range_token()); NULL for every other function
-        ranges = NULL,
-        # Where the pseudo-class's ':' sits in the selector text, for
-        # the translator to point at when it cannot express the
-        # pseudo-class; NULL for a hand-built node
-        pos = NULL,
-        initialize = function(selector, name, arguments, selector_list = NULL,
-                              series = NULL, ranges = NULL, pos = NULL) {
-            self$selector <- selector
-            self$name <- ascii_lower(name)
-            self$arguments <- arguments
-            self$selector_list <- selector_list
-            self$series <- series
-            self$ranges <- ranges
-            self$pos <- pos
-        },
-        repr = function() {
-            token_values <- lapply(self$arguments,
-                function(token) paste0("'", token$value, "'"))
-            token_values <- paste0(unlist(token_values), collapse = ", ")
-            token_values <- paste0("[", token_values, "]")
-            selector_list_repr <- ""
-            if (!is.null(self$selector_list)) {
-                selector_list_repr <- paste0(
-                    " of ",
-                    paste0(sapply(self$selector_list, function(s) s$repr()), collapse = ", ")
-                )
-            }
-            self$repr_wrap(paste0(
-                self$selector$repr(),
-                ":",
-                self$name,
-                "(",
-                token_values,
-                selector_list_repr,
-                ")"))
-        },
-        argument_types = function() {
-            token_types <- lapply(self$arguments, function(token) token$type)
-            unlist(token_types)
-        },
-        specificity = function() {
-            specs <- self$selector$specificity()
-            specs[2] <- specs[2] + 1
-            if (!is.null(self$selector_list) && length(self$selector_list) > 0)
-                specs <- specs + max_specificity(self$selector_list)
-            specs
-        }
-    )
-)
+# A node's specificity, as a length 3 (id, class, element) vector
+specificity <- function(node) UseMethod("specificity")
 
-Pseudo <- R6Class("Pseudo",
-    inherit = Node,
-    public = list(
-        selector = NULL,
-        ident = NULL,
-        # See Function$pos
-        pos = NULL,
-        initialize = function(selector, ident, pos = NULL) {
-            self$selector <- selector
-            self$ident <- ascii_lower(ident)
-            self$pos <- pos
-        },
-        repr = function() {
-            self$repr_wrap(paste0(self$selector$repr(), ":", self$ident))
-        },
-        specificity = function() {
-            specs <- self$selector$specificity()
-            specs[2] <- specs[2] + 1
-            specs
-        }
-    )
-)
+# Wraps 'content' as "ClassName[content]", the shape used by every
+# repr() below except Selector's (which has no brackets) and
+# CombinedSelector's (which wraps once per spine node).
+repr_wrap <- function(node, content) {
+    paste0(first_class_name(node), "[", content, "]")
+}
+
+print.selectr_node <- function(x, ...) { # nocov start
+    cat(repr(x), "\n")
+    invisible(x)
+} # nocov end
+
+Selector <- function(tree, pseudo_element = NULL, pseudo_element_pos = NULL) {
+    if (!is.null(pseudo_element))
+        pseudo_element <- ascii_lower(pseudo_element)
+    new_node("Selector",
+             parsed_tree = tree,
+             pseudo_element = pseudo_element,
+             # Where the pseudo-element's ':' or '::' sits in the
+             # selector text, so that the translator can point at it
+             # when it refuses the pseudo-element; NULL when there is
+             # none, or when the node was built by hand rather than by
+             # the parser
+             pseudo_element_pos = pseudo_element_pos)
+}
+
+repr.Selector <- function(node) {
+    pseudo_el <-
+        if (is.null(node$pseudo_element)) ""
+        else paste0("::", node$pseudo_element)
+    paste0(repr(node$parsed_tree), pseudo_el)
+}
+
+specificity.Selector <- function(node) {
+    specs <- specificity(node$parsed_tree)
+    if (!is.null(node$pseudo_element))
+        specs[3] <- specs[3] + 1
+    specs
+}
+
+# The class is named to avoid an R.oo clash (fixed in 0.4-1 by
+# renaming the class), even though its repr() - matching the Python
+# cssselect output - and its translator method still read "Class"; see
+# first_class_name()
+ClassSelector <- function(selector, class_name) {
+    new_node("ClassSelector", selector = selector, class_name = class_name)
+}
+
+repr.ClassSelector <- function(node) {
+    repr_wrap(node, paste0(repr(node$selector), ".", node$class_name))
+}
+
+specificity.ClassSelector <- function(node) {
+    specs <- specificity(node$selector)
+    specs[2] <- specs[2] + 1
+    specs
+}
+
+Function <- function(selector, name, arguments, selector_list = NULL,
+                     series = NULL, ranges = NULL, pos = NULL) {
+    new_node("Function",
+             selector = selector,
+             name = ascii_lower(name),
+             arguments = arguments,
+             selector_list = selector_list,
+             # The (a, b) pair for an An+B (nth-*()) function, already
+             # validated and parsed by validate_series() at parse time;
+             # NULL for every other function
+             series = series,
+             # The comma-separated items of a :lang() argument list, one
+             # token each, reassembled at parse time (see
+             # lang_range_token()); NULL for every other function
+             ranges = ranges,
+             # Where the pseudo-class's ':' sits in the selector text,
+             # for the translator to point at when it cannot express the
+             # pseudo-class; NULL for a hand-built node
+             pos = pos)
+}
+
+repr.Function <- function(node) {
+    token_values <- lapply(node$arguments,
+        function(token) paste0("'", token$value, "'"))
+    token_values <- paste0(unlist(token_values), collapse = ", ")
+    token_values <- paste0("[", token_values, "]")
+    selector_list_repr <- ""
+    if (!is.null(node$selector_list)) {
+        selector_list_repr <- paste0(
+            " of ",
+            paste0(vapply(node$selector_list, repr, character(1)),
+                   collapse = ", ")
+        )
+    }
+    repr_wrap(node, paste0(
+        repr(node$selector),
+        ":",
+        node$name,
+        "(",
+        token_values,
+        selector_list_repr,
+        ")"))
+}
+
+specificity.Function <- function(node) {
+    specs <- specificity(node$selector)
+    specs[2] <- specs[2] + 1
+    if (!is.null(node$selector_list) && length(node$selector_list) > 0)
+        specs <- specs + max_specificity(node$selector_list)
+    specs
+}
+
+Pseudo <- function(selector, ident, pos = NULL) {
+    new_node("Pseudo",
+             selector = selector,
+             ident = ascii_lower(ident),
+             # See Function()'s 'pos'
+             pos = pos)
+}
+
+repr.Pseudo <- function(node) {
+    repr_wrap(node, paste0(repr(node$selector), ":", node$ident))
+}
+
+specificity.Pseudo <- function(node) {
+    specs <- specificity(node$selector)
+    specs[2] <- specs[2] + 1
+    specs
+}
 
 # :not(), :is() and :has() all take the specificity of their most
 # specific argument (CSS Selectors Level 4). vapply() pins the result to
 # a 3 x n matrix, so one argument is handled just like many; the caller
 # is responsible for the empty case, where there is no such argument.
 max_specificity <- function(selector_list) {
-    specs <- vapply(selector_list, function(s) s$specificity(), numeric(3))
+    specs <- vapply(selector_list, specificity, numeric(3))
     # most specific first: (id, class, element) descending
     specs[, order(-specs[1, ], -specs[2, ], -specs[3, ])[1]]
 }
@@ -195,246 +182,190 @@ max_specificity <- function(selector_list) {
 # which requires at least one selector.
 selector_list_specificity <- function(selector, selector_list,
                                       ignore_list = FALSE) {
-    base_specs <- selector$specificity()
+    base_specs <- specificity(selector)
     if (ignore_list || length(selector_list) == 0)
         return(base_specs)
     base_specs + max_specificity(selector_list)
 }
 
-# Base class for the four selector-list pseudo-classes (:not(), :is(),
-# :where(), :has()), which differ only in the pseudo-class name printed
-# by repr() and, for :where(), zero specificity from the argument list.
-# Thin subclasses below exist only so the translator's first_class_name()
-# dispatch (xpath_negation(), xpath_matching(), xpath_where(),
-# xpath_has()) still sees one method name per pseudo-class.
-SelectorListPseudo <- R6Class("SelectorListPseudo",
-    inherit = Node,
-    public = list(
-        selector = NULL,
-        selector_list = NULL,
-        pseudo_name = NULL,
-        zero_specificity = FALSE,
-        initialize = function(selector, selector_list, pseudo_name,
-                              zero_specificity = FALSE) {
-            self$selector <- selector
-            self$selector_list <- selector_list
-            self$pseudo_name <- pseudo_name
-            self$zero_specificity <- zero_specificity
-        },
-        repr = function() {
-            self$repr_wrap(paste0(
-                self$selector$repr(),
-                ":", self$pseudo_name, "(",
-                paste0(
-                    sapply(self$selector_list, function(s) s$repr()),
-                    collapse = ", "
-                ),
-                ")"))
-        },
-        specificity = function() {
-            selector_list_specificity(self$selector, self$selector_list,
-                                      ignore_list = self$zero_specificity)
-        }
-    )
-)
+# The four selector-list pseudo-classes (:not(), :is(), :where(),
+# :has()) differ only in the pseudo-class name printed by repr() and,
+# for :where(), zero specificity from the argument list, so they share
+# the "SelectorListPseudo" methods below. Each still has a type of its
+# own so that the translator's first_class_name() dispatch
+# (xpath_negation(), xpath_matching(), xpath_where(), xpath_has()) sees
+# one method name per pseudo-class.
+SelectorListPseudo <- function(type, selector, selector_list, pseudo_name,
+                               zero_specificity = FALSE) {
+    new_node(type,
+             selector = selector,
+             selector_list = selector_list,
+             pseudo_name = pseudo_name,
+             zero_specificity = zero_specificity,
+             subclass = "SelectorListPseudo")
+}
 
-Negation <- R6Class("Negation",
-    inherit = SelectorListPseudo,
-    public = list(
-        initialize = function(selector, selector_list) {
-            super$initialize(selector, selector_list, "not")
-        }
-    )
-)
+repr.SelectorListPseudo <- function(node) {
+    repr_wrap(node, paste0(
+        repr(node$selector),
+        ":", node$pseudo_name, "(",
+        paste0(vapply(node$selector_list, repr, character(1)),
+               collapse = ", "),
+        ")"))
+}
 
-Matching <- R6Class("Matching",
-    inherit = SelectorListPseudo,
-    public = list(
-        initialize = function(selector, selector_list) {
-            super$initialize(selector, selector_list, "is")
-        }
-    )
-)
+specificity.SelectorListPseudo <- function(node) {
+    selector_list_specificity(node$selector, node$selector_list,
+                              ignore_list = node$zero_specificity)
+}
 
-Where <- R6Class("Where",
-    inherit = SelectorListPseudo,
-    public = list(
-        initialize = function(selector, selector_list) {
-            super$initialize(selector, selector_list, "where",
-                             zero_specificity = TRUE)
-        }
-    )
-)
+Negation <- function(selector, selector_list) {
+    SelectorListPseudo("Negation", selector, selector_list, "not")
+}
+
+Matching <- function(selector, selector_list) {
+    SelectorListPseudo("Matching", selector, selector_list, "is")
+}
+
+Where <- function(selector, selector_list) {
+    SelectorListPseudo("Where", selector, selector_list, "where",
+                       zero_specificity = TRUE)
+}
+
+Has <- function(selector, selector_list) {
+    SelectorListPseudo("Has", selector, selector_list, "has")
+}
 
 # A :has() argument with an explicit leading combinator (selectors-4
 # <relative-selector>): wraps the parsed selector alongside its combinator.
 # Arguments with the omitted (implied descendant) combinator are stored
-# unwrapped in Has$selector_list.
-RelativeSelector <- R6Class("RelativeSelector",
-    inherit = Node,
-    public = list(
-        combinator = NULL,
-        selector = NULL,
-        initialize = function(combinator, selector) {
-            self$combinator <- combinator
-            self$selector <- selector
-        },
-        repr = function() {
-            self$repr_wrap(paste0(self$combinator, " ", self$selector$repr()))
-        },
-        specificity = function() {
-            # The leading combinator contributes no specificity
-            self$selector$specificity()
-        }
-    )
-)
+# unwrapped in the Has node's selector_list.
+RelativeSelector <- function(combinator, selector) {
+    new_node("RelativeSelector", combinator = combinator, selector = selector)
+}
 
-Has <- R6Class("Has",
-    inherit = SelectorListPseudo,
-    public = list(
-        initialize = function(selector, selector_list) {
-            super$initialize(selector, selector_list, "has")
-        }
-    )
-)
+repr.RelativeSelector <- function(node) {
+    repr_wrap(node, paste0(node$combinator, " ", repr(node$selector)))
+}
 
-Attrib <- R6Class("Attrib",
-    inherit = Node,
-    public = list(
-        selector = NULL,
-        namespace = NULL,
-        attrib = NULL,
-        operator = NULL,
-        value = NULL,
-        flag = NULL,
-        # See Element$any_namespace: '[*|attr]' against '[\2a|attr]'
-        any_namespace = FALSE,
-        initialize = function(selector, namespace, attrib, operator, value,
-                              flag = NULL,
-                              any_namespace = identical(namespace, "*")) {
-            self$selector <- selector
-            self$namespace <- namespace
-            self$any_namespace <- any_namespace
-            self$attrib <- attrib
-            self$operator <- operator
-            self$value <- value
-            self$flag <- flag
-        },
-        repr = function() {
-            attr <-
-                if (!is.null(self$namespace))
-                    paste0(self$namespace, "|", self$attrib)
-                else
-                    self$attrib
-            inner <-
-                if (self$operator == "exists")
-                    attr
-                else
-                    paste0(
-                        attr,
-                        " ",
-                        self$operator,
-                        " '",
-                        self$value,
-                        "'",
-                        if (!is.null(self$flag)) paste0(" ", self$flag) else "")
-            self$repr_wrap(paste0(self$selector$repr(), "[", inner, "]"))
-        },
-        specificity = function() {
-            specs <- self$selector$specificity()
-            specs[2] <- specs[2] + 1
-            specs
-        }
-    )
-)
+specificity.RelativeSelector <- function(node) {
+    # The leading combinator contributes no specificity
+    specificity(node$selector)
+}
 
-Element <- R6Class("Element",
-    inherit = Node,
-    public = list(
-        namespace = NULL,
-        element = NULL,
-        # Whether 'namespace' is the any-namespace wildcard, i.e. the
-        # delimiter '*' of an <ns-prefix>. An <ident-token> that merely
-        # decodes to the same character ('\2a|e') is a prefix *named*
-        # '*', which no @namespace rule can bind, so the two cannot be
-        # told apart by the stored value. Defaults to the reading a
-        # hand-built node would have had before the flag existed.
-        any_namespace = FALSE,
-        initialize = function(namespace = NULL, element = NULL,
-                              any_namespace = identical(namespace, "*")) {
-            self$namespace <- namespace
-            self$element <- element
-            self$any_namespace <- any_namespace
-        },
-        repr = function() {
-            el <-
-                if (!is.null(self$element)) self$element
-                else "*"
-            if (!is.null(self$namespace))
-                el <- paste0(self$namespace, "|", el)
-            self$repr_wrap(el)
-        },
-        specificity = function() {
-            if (!is.null(self$element)) c(0, 0, 1)
-            else rep(0, 3)
-        }
-    )
-)
+Attrib <- function(selector, namespace, attrib, operator, value,
+                   flag = NULL, any_namespace = identical(namespace, "*")) {
+    new_node("Attrib",
+             selector = selector,
+             namespace = namespace,
+             # See Element()'s 'any_namespace': '[*|attr]' against
+             # '[\2a|attr]'
+             any_namespace = any_namespace,
+             attrib = attrib,
+             operator = operator,
+             value = value,
+             flag = flag)
+}
 
-Hash <- R6Class("Hash",
-    inherit = Node,
-    public = list(
-        selector = NULL,
-        id = NULL,
-        initialize = function(selector, id) {
-            self$selector <- selector
-            self$id <- id
-        },
-        repr = function() {
-            self$repr_wrap(paste0(self$selector$repr(), "#", self$id))
-        },
-        specificity = function() {
-            specs <- self$selector$specificity()
-            specs[1] <- specs[1] + 1
-            specs
-        }
-    )
-)
+repr.Attrib <- function(node) {
+    attr <-
+        if (!is.null(node$namespace))
+            paste0(node$namespace, "|", node$attrib)
+        else
+            node$attrib
+    inner <-
+        if (node$operator == "exists")
+            attr
+        else
+            paste0(
+                attr,
+                " ",
+                node$operator,
+                " '",
+                node$value,
+                "'",
+                if (!is.null(node$flag)) paste0(" ", node$flag) else "")
+    repr_wrap(node, paste0(repr(node$selector), "[", inner, "]"))
+}
 
-CombinedSelector <- R6Class("CombinedSelector",
-    inherit = Node,
-    public = list(
-        selector = NULL,
-        combinator = NULL,
-        subselector = NULL,
-        initialize = function(selector, combinator, subselector) {
-            if (is.null(selector))
-                internal_stop("'selector' cannot be NULL")
-            self$selector <- selector
-            self$combinator <- combinator
-            self$subselector <- subselector
-        },
-        repr = function() {
-            spine <- combinator_spine(self)
-            out <- spine$leftmost$repr()
-            for (node in spine$nodes) {
-                comb <-
-                    if (node$combinator == " ") "<followed>"
-                    else node$combinator
-                out <- node$repr_wrap(paste0(out, " ", comb, " ",
-                                             node$subselector$repr()))
-            }
-            out
-        },
-        specificity = function() {
-            spine <- combinator_spine(self)
-            specs <- spine$leftmost$specificity()
-            for (node in spine$nodes)
-                specs <- specs + node$subselector$specificity()
-            specs
-        }
-    )
-)
+specificity.Attrib <- function(node) {
+    specs <- specificity(node$selector)
+    specs[2] <- specs[2] + 1
+    specs
+}
+
+Element <- function(namespace = NULL, element = NULL,
+                    any_namespace = identical(namespace, "*")) {
+    new_node("Element",
+             namespace = namespace,
+             element = element,
+             # Whether 'namespace' is the any-namespace wildcard, i.e.
+             # the delimiter '*' of an <ns-prefix>. An <ident-token>
+             # that merely decodes to the same character ('\2a|e') is a
+             # prefix *named* '*', which no @namespace rule can bind, so
+             # the two cannot be told apart by the stored value.
+             # Defaults to the reading a hand-built node would have had
+             # before the flag existed.
+             any_namespace = any_namespace)
+}
+
+repr.Element <- function(node) {
+    el <-
+        if (!is.null(node$element)) node$element
+        else "*"
+    if (!is.null(node$namespace))
+        el <- paste0(node$namespace, "|", el)
+    repr_wrap(node, el)
+}
+
+specificity.Element <- function(node) {
+    if (!is.null(node$element)) c(0, 0, 1)
+    else rep(0, 3)
+}
+
+Hash <- function(selector, id) {
+    new_node("Hash", selector = selector, id = id)
+}
+
+repr.Hash <- function(node) {
+    repr_wrap(node, paste0(repr(node$selector), "#", node$id))
+}
+
+specificity.Hash <- function(node) {
+    specs <- specificity(node$selector)
+    specs[1] <- specs[1] + 1
+    specs
+}
+
+CombinedSelector <- function(selector, combinator, subselector) {
+    if (is.null(selector))
+        internal_stop("'selector' cannot be NULL")
+    new_node("CombinedSelector",
+             selector = selector,
+             combinator = combinator,
+             subselector = subselector)
+}
+
+repr.CombinedSelector <- function(node) {
+    spine <- combinator_spine(node)
+    out <- repr(spine$leftmost)
+    for (step in spine$nodes) {
+        comb <-
+            if (step$combinator == " ") "<followed>"
+            else step$combinator
+        out <- repr_wrap(step, paste0(out, " ", comb, " ",
+                                      repr(step$subselector)))
+    }
+    out
+}
+
+specificity.CombinedSelector <- function(node) {
+    spine <- combinator_spine(node)
+    specs <- specificity(spine$leftmost)
+    for (step in spine$nodes)
+        specs <- specs + specificity(step$subselector)
+    specs
+}
 
 #### Parser
 
@@ -483,21 +414,21 @@ parse <- function(css) {
     # never matches an empty string
     el_match <- regmatches(css, regexec(el_re, css))[[1]]
     if (length(el_match))
-        return(list(Selector$new(Element$new(element = el_match[2]))))
+        return(list(Selector(Element(element = el_match[2]))))
     id_match <- regmatches(css, regexec(id_re, css))[[1]]
     if (length(id_match))
-        return(list(Selector$new(
-                        Hash$new(
-                            Element$new(
+        return(list(Selector(
+                        Hash(
+                            Element(
                                 element =
                                     if (nzchar(id_match[2])) id_match[2]
                                     else NULL),
                             id_match[3]))))
     class_match <- regmatches(css, regexec(class_re, css))[[1]]
     if (length(class_match))
-        return(list(Selector$new(
-                        ClassSelector$new(
-                            Element$new(
+        return(list(Selector(
+                        ClassSelector(
+                            Element(
                                 element =
                                     if (nzchar(class_match[2])) class_match[2]
                                     else NULL),
@@ -523,7 +454,7 @@ parse_selector_group <- function(stream) {
     results <- list()
     while (TRUE) {
         parsed_selector <- parse_selector(stream)
-        results[[i]] <- Selector$new(parsed_selector$result,
+        results[[i]] <- Selector(parsed_selector$result,
                                      parsed_selector$pseudo_element,
                                      parsed_selector$pseudo_element_pos)
         i <- i + 1
@@ -611,7 +542,7 @@ parse_selector <- function(stream) {
         stuff <- parse_simple_selector(stream)
         pseudo_element <- stuff$pseudo_element
         pseudo_element_pos <- stuff$pseudo_element_pos
-        result <- CombinedSelector$new(result, combinator, stuff$result)
+        result <- CombinedSelector(result, combinator, stuff$result)
     }
     list(result = result, pseudo_element = pseudo_element,
          pseudo_element_pos = pseudo_element_pos)
@@ -667,7 +598,7 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
         element <- namespace <- NULL
         any_namespace <- FALSE
     }
-    result <- Element$new(namespace, element, any_namespace)
+    result <- Element(namespace, element, any_namespace)
     pseudo_element <- NULL
     # Where the pseudo-element's ':' or '::' sits, kept for the errors
     # that name the pseudo-element from further along the selector
@@ -681,14 +612,14 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
         }
         reject_pseudo_element_not_last(pseudo_element, pseudo_element_pos)
         if (peek$type == "HASH") {
-            result <- Hash$new(result, stream$nxt()$value)
+            result <- Hash(result, stream$nxt()$value)
         } else if (token_equality(peek, "DELIM", ".")) {
             stream$nxt()
             after_dot <- stream$peek()
             if (any(after_dot$type == c("NUMBER", "DIMENSION")))
                 reject_invalid_class(paste0(".", after_dot$value),
                                      after_dot$pos)
-            result <- ClassSelector$new(result, stream$next_ident())
+            result <- ClassSelector(result, stream$next_ident())
         } else if (token_equality(peek, "DELIM", "[")) {
             stream$nxt()
             result <- parse_attrib(result, stream)
@@ -718,7 +649,7 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                 next
             }
             if (!token_equality(stream$peek(), "DELIM", "(")) {
-                result <- Pseudo$new(result, ident, peek$pos)
+                result <- Pseudo(result, ident, peek$pos)
                 next
             }
             stream$nxt()
@@ -728,19 +659,19 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                 # :not(), so :not(:not(a)), :is(:not(a)), etc. are valid.
                 selectors <- parse_simple_selector_arguments(stream, "not",
                                                              inside_has = inside_has)
-                result <- Negation$new(result, selectors)
+                result <- Negation(result, selectors)
             } else if (any(lident == c("matches", "is"))) {
                 # :is()/:matches() take a <forgiving-selector-list>, so
                 # an empty argument list is valid (it matches nothing)
                 selectors <- parse_simple_selector_arguments(stream, lident,
                                                              inside_has = inside_has,
                                                              forgiving = TRUE)
-                result <- Matching$new(result, selectors)
+                result <- Matching(result, selectors)
             } else if (lident == "where") {
                 selectors <- parse_simple_selector_arguments(stream, "where",
                                                              inside_has = inside_has,
                                                              forgiving = TRUE)
-                result <- Where$new(result, selectors)
+                result <- Where(result, selectors)
             } else if (lident == "has") {
                 # The :has() argument grammar excludes :has() at any
                 # depth (selectors-4): "nesting :has() is not allowed"
@@ -750,7 +681,7 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                 selectors <- parse_simple_selector_arguments(stream, "has",
                                                              inside_has = TRUE,
                                                              relative = TRUE)
-                result <- Has$new(result, selectors)
+                result <- Has(result, selectors)
             } else {
                 arguments <- list()
                 selector_list <- NULL
@@ -885,7 +816,7 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                     arguments <- Filter(function(a) a$type != "S", arguments)
                 }
 
-                result <- Function$new(result, ident, arguments, selector_list,
+                result <- Function(result, ident, arguments, selector_list,
                                        series = series,
                                        ranges = if (allow_commas) ranges,
                                        pos = peek$pos)
@@ -980,12 +911,12 @@ parse_simple_selector_arguments <- function(stream, function_name = NULL, # noli
             stuff <- parse_simple_selector(stream, inside_arguments = TRUE,
                                            inside_has = inside_has)
             check_no_pseudo_element(stuff)
-            result <- CombinedSelector$new(result, chain_combinator,
+            result <- CombinedSelector(result, chain_combinator,
                                            stuff$result)
         }
 
         if (!is.null(combinator)) {
-            result <- RelativeSelector$new(combinator, result)
+            result <- RelativeSelector(combinator, result)
         }
         arguments[[index]] <- result
         index <- index + 1
@@ -1061,7 +992,7 @@ parse_attrib <- function(selector, stream) {
         # '[rel' means '[rel]'. Anything else before the ']' is still
         # an error
         if (token_equality(nt, "DELIM", "]") || nt$type == "EOF") {
-            return(Attrib$new(selector, namespace, attrib, "exists", NULL,
+            return(Attrib(selector, namespace, attrib, "exists", NULL,
                               any_namespace = any_namespace))
         } else if (token_equality(nt, "DELIM", "=")) {
             op <- "="
@@ -1101,7 +1032,7 @@ parse_attrib <- function(selector, stream) {
     if (!token_equality(nt, "DELIM", "]") && nt$type != "EOF") {
         parse_stop("Expected ']', got ", token_repr(nt), pos = nt$pos)
     }
-    Attrib$new(selector, namespace, attrib, op, value$value, flag,
+    Attrib(selector, namespace, attrib, op, value$value, flag,
                any_namespace = any_namespace)
 }
 

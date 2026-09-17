@@ -294,7 +294,7 @@ test_that("an escaped delimiter names an element instead of being one", {
     # (which no document has), and they count as a type selector
     for (css in c("\\*", "\\2a")) {
         expect_equal(xpath(css), "*[name() = '*' and namespace-uri() = '']")
-        expect_equal(parse(css)[[1]]$specificity(), c(0, 0, 1))
+        expect_equal(specificity(parse(css)[[1]]), c(0, 0, 1))
     }
     expect_equal(xpath("*"), "*")
 
@@ -505,8 +505,8 @@ test_that("long combinator chains report and score without recursion", {
     expect_equal(length(selectors), 1)
 
     # repr() and specificity() walk the same left spine iteratively
-    expect_equal(selectors[[1]]$specificity(), c(0, 0, n))
-    expect_true(grepl("^CombinedSelector\\[", selectors[[1]]$repr()))
+    expect_equal(specificity(selectors[[1]]), c(0, 0, n))
+    expect_true(grepl("^CombinedSelector\\[", repr(selectors[[1]])))
 
     # Pseudo-class arguments are still translated recursively; this is
     # a regression guard on a nesting depth that is known to work

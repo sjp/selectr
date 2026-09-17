@@ -3,7 +3,7 @@ test_that("parser creates correct specificity", {
         selectors <- parse(css)
         if (length(selectors) != 1)
             stop("More than one result attempting to be parsed.")
-        selectors[[1]]$specificity()
+        specificity(selectors[[1]])
     }
 
     expect_equal(spec("*"), rep(0, 3))

@@ -10,13 +10,15 @@ test_that("parser parses canonical pseudo element expressions", {
                                        function(x) {
                                            el <- x
                                            pseudo <- x$pseudo_element
-                                           el$pseudo_element <- NULL
-                                           list(el$repr(), pseudo)
+                                           # keep the field, as NULL, rather
+                                           # than dropping it from the node
+                                           el["pseudo_element"] <- list(NULL)
+                                           list(repr(el), pseudo)
                                        })
             } else {
                 pseudo <- selector$pseudo_element
-                selector$pseudo_element <- NULL
-                results[[i]] <- list(list(selector$repr(), pseudo))
+                selector["pseudo_element"] <- list(NULL)
+                results[[i]] <- list(list(repr(selector), pseudo))
             }
         }
         if (n)

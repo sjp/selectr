@@ -3,6 +3,19 @@
 \encoding{UTF-8}
 
 \section{Changes in version 0.8-0}{
+  \subsection{MINOR CHANGES}{
+    \itemize{
+
+      \item Translating a selector is faster: \code{css_to_xpath()} and
+      the \code{querySelector()} family spend about a third less time
+      turning a selector into XPath, and a bare element name like
+      \code{"div"} takes about half as long as before. Parse-tree nodes
+      are now lightweight S3 objects instead of R6 objects, and are
+      about 18 times cheaper to create. The generated XPath is
+      unchanged.
+
+    }
+  }
 }
 
 \section{Changes in version 0.7-0}{
