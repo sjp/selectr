@@ -84,11 +84,11 @@
   \tabular{lll}{
     \bold{Selector} \tab \bold{Status} \tab \bold{Example XPath} \cr
     \code{:root} \tab supported \tab \code{descendant-or-self::*[not(parent::*)]} \cr
-    \code{:first-child} \tab supported \tab \code{...[count(preceding-sibling::*) = 0]} \cr
-    \code{:last-child} \tab supported \tab \code{...[count(following-sibling::*) = 0]} \cr
+    \code{:first-child} \tab supported \tab \code{...[not(preceding-sibling::*[1])]} \cr
+    \code{:last-child} \tab supported \tab \code{...[not(following-sibling::*[1])]} \cr
     \code{:only-child} \tab supported \tab preceding- and following-sibling counts both 0 \cr
-    \code{e:first-of-type} \tab supported (needs a named element) \tab \code{...e[count(preceding-sibling::e) = 0]} \cr
-    \code{e:last-of-type} \tab supported (needs a named element) \tab \code{...e[count(following-sibling::e) = 0]} \cr
+    \code{e:first-of-type} \tab supported (needs a named element) \tab \code{...e[not(preceding-sibling::e[1])]} \cr
+    \code{e:last-of-type} \tab supported (needs a named element) \tab \code{...e[not(following-sibling::e[1])]} \cr
     \code{e:only-of-type} \tab supported (needs a named element) \tab preceding- and following-sibling \code{e} counts both 0 \cr
     \code{*:first-of-type} etc. \tab error \tab needs each sibling's own name; not expressible in XPath 1.0 \cr
     \code{:nth-child(An+B)} \tab supported \tab \code{:nth-child(2n+1)} gives \code{...[count(preceding-sibling::*) mod 2 = 0]}; a \code{B} outside the first cycle adds a \code{>= B-1} bound and an offset in the \code{mod} \cr

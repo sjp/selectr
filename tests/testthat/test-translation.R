@@ -92,59 +92,59 @@ test_that("translation from parsed objects to XPath works", {
     expect_equal(xpath('e[foo^="Bar" s]'),
                  "e[starts-with(@foo, 'Bar')]")
     expect_equal(xpath('e:nth-child(1)'),
-                 "e[count(preceding-sibling::*) = 0]")
+                 "e[not(preceding-sibling::*[1])]")
     expect_equal(xpath('e:nth-child(3n+2)'),
-                 "e[count(preceding-sibling::*) >= 1 and (count(preceding-sibling::*) + 2) mod 3 = 0]")
+                 "e[preceding-sibling::*[1] and (count(preceding-sibling::*) + 2) mod 3 = 0]")
     expect_equal(xpath('e:nth-child(3n-2)'),
                  "e[count(preceding-sibling::*) mod 3 = 0]")
     expect_equal(xpath('e:nth-child(-n+6)'),
-                 "e[count(preceding-sibling::*) <= 5]")
+                 "e[not(preceding-sibling::*[6])]")
     expect_equal(xpath('e:nth-last-child(1)'),
-                 "e[count(following-sibling::*) = 0]")
+                 "e[not(following-sibling::*[1])]")
     expect_equal(xpath('e:nth-last-child(2n)'),
                  "e[(count(following-sibling::*) + 1) mod 2 = 0]")
     expect_equal(xpath('e:nth-last-child(2n+1)'),
                  "e[count(following-sibling::*) mod 2 = 0]")
     expect_equal(xpath('e:nth-last-child(2n+2)'),
-                 "e[count(following-sibling::*) >= 1 and (count(following-sibling::*) + 1) mod 2 = 0]")
+                 "e[following-sibling::*[1] and (count(following-sibling::*) + 1) mod 2 = 0]")
     expect_equal(xpath('e:nth-last-child(3n+1)'),
                  "e[count(following-sibling::*) mod 3 = 0]")
     expect_equal(xpath('e:nth-last-child(-n+2)'),
-                 "e[count(following-sibling::*) <= 1]")
+                 "e[not(following-sibling::*[2])]")
     expect_equal(xpath('e:nth-of-type(1)'),
-                 "e[count(preceding-sibling::e) = 0]")
+                 "e[not(preceding-sibling::e[1])]")
     expect_equal(xpath('e:nth-last-of-type(1)'),
-                 "e[count(following-sibling::e) = 0]")
+                 "e[not(following-sibling::e[1])]")
     expect_equal(xpath('div e:nth-last-of-type(1) .aclass'),
-                 "div//e[count(following-sibling::e) = 0]//*[contains(concat(' ', normalize-space(@class), ' '), ' aclass ')]")
+                 "div//e[not(following-sibling::e[1])]//*[contains(concat(' ', normalize-space(@class), ' '), ' aclass ')]")
     expect_equal(xpath('e:first-child'),
-                 "e[count(preceding-sibling::*) = 0]")
+                 "e[not(preceding-sibling::*[1])]")
     expect_equal(xpath('e:last-child'),
-                 "e[count(following-sibling::*) = 0]")
+                 "e[not(following-sibling::*[1])]")
     expect_equal(xpath('e:first-of-type'),
-                 "e[count(preceding-sibling::e) = 0]")
+                 "e[not(preceding-sibling::e[1])]")
     expect_equal(xpath('e:last-of-type'),
-                 "e[count(following-sibling::e) = 0]")
+                 "e[not(following-sibling::e[1])]")
     expect_equal(xpath('e:only-child'),
-                 "e[count(preceding-sibling::*) = 0 and count(following-sibling::*) = 0]")
+                 "e[not(preceding-sibling::*[1]) and not(following-sibling::*[1])]")
     expect_equal(xpath('e:only-of-type'),
-                 "e[count(preceding-sibling::e) = 0 and count(following-sibling::e) = 0]")
+                 "e[not(preceding-sibling::e[1]) and not(following-sibling::e[1])]")
     # element names that cannot be used as an XPath name test still
     # support the of-type pseudo-classes via a name() node test, which
     # carries the null-namespace pin the name test would have implied
     expect_equal(xpath('é:first-of-type'),
-                 "*[name() = 'é' and namespace-uri() = '' and count(preceding-sibling::*[name() = 'é' and namespace-uri() = '']) = 0]")
+                 "*[name() = 'é' and namespace-uri() = '' and not(preceding-sibling::*[name() = 'é' and namespace-uri() = ''][1])]")
     expect_equal(xpath('é:last-of-type'),
-                 "*[name() = 'é' and namespace-uri() = '' and count(following-sibling::*[name() = 'é' and namespace-uri() = '']) = 0]")
+                 "*[name() = 'é' and namespace-uri() = '' and not(following-sibling::*[name() = 'é' and namespace-uri() = ''][1])]")
     expect_equal(xpath('é:only-of-type'),
-                 "*[name() = 'é' and namespace-uri() = '' and count(preceding-sibling::*[name() = 'é' and namespace-uri() = '']) = 0 and count(following-sibling::*[name() = 'é' and namespace-uri() = '']) = 0]")
+                 "*[name() = 'é' and namespace-uri() = '' and not(preceding-sibling::*[name() = 'é' and namespace-uri() = ''][1]) and not(following-sibling::*[name() = 'é' and namespace-uri() = ''][1])]")
     expect_equal(xpath('é:nth-of-type(2)'),
-                 "*[name() = 'é' and namespace-uri() = '' and count(preceding-sibling::*[name() = 'é' and namespace-uri() = '']) = 1]")
+                 "*[name() = 'é' and namespace-uri() = '' and preceding-sibling::*[name() = 'é' and namespace-uri() = ''][1] and not(preceding-sibling::*[name() = 'é' and namespace-uri() = ''][2])]")
     expect_equal(xpath('é:nth-last-of-type(2)'),
-                 "*[name() = 'é' and namespace-uri() = '' and count(following-sibling::*[name() = 'é' and namespace-uri() = '']) = 1]")
+                 "*[name() = 'é' and namespace-uri() = '' and following-sibling::*[name() = 'é' and namespace-uri() = ''][1] and not(following-sibling::*[name() = 'é' and namespace-uri() = ''][2])]")
     # likewise for elements in any namespace, via local-name()
     expect_equal(xpath('*|e:first-of-type'),
-                 "*[local-name() = 'e' and count(preceding-sibling::*[local-name() = 'e']) = 0]")
+                 "*[local-name() = 'e' and not(preceding-sibling::*[local-name() = 'e'][1])]")
     expect_equal(xpath('e:empty'),
                  "e[not(*) and not(string-length())]")
     expect_equal(xpath('e:EmPTY'),
@@ -209,7 +209,7 @@ test_that("translation from parsed objects to XPath works", {
     expect_equal(xpath('e.warning:is(.a, .b)'),
                  "e[contains(concat(' ', normalize-space(@class), ' '), ' warning ') and (contains(concat(' ', normalize-space(@class), ' '), ' a ') or contains(concat(' ', normalize-space(@class), ' '), ' b '))]")
     expect_equal(xpath(':is(f, g):first-child'),
-                 "*[(self::f or self::g) and count(preceding-sibling::*) = 0]")
+                 "*[(self::f or self::g) and not(preceding-sibling::*[1])]")
     expect_equal(xpath('e:is(.a):is(.b)'),
                  "e[contains(concat(' ', normalize-space(@class), ' '), ' a ') and contains(concat(' ', normalize-space(@class), ' '), ' b ')]")
     expect_equal(xpath('e.warning:where(f, g)'),
@@ -238,9 +238,9 @@ test_that("translation from parsed objects to XPath works", {
     expect_equal(xpath('e:not(f, *)'),
                  "e[0]")
     expect_equal(xpath('e:nth-child(2 of f, *)'),
-                 "e[count(preceding-sibling::*) = 1]")
+                 "e[preceding-sibling::*[1] and not(preceding-sibling::*[2])]")
     expect_equal(xpath('e:nth-last-child(2 of f, *)'),
-                 "e[count(following-sibling::*) = 1]")
+                 "e[following-sibling::*[1] and not(following-sibling::*[2])]")
     expect_equal(xpath('e f'),
                  "e//f")
     expect_equal(xpath('e > f'),
@@ -250,7 +250,7 @@ test_that("translation from parsed objects to XPath works", {
     expect_equal(xpath('e ~ f'),
                  "e/following-sibling::f")
     expect_equal(xpath('e ~ f:nth-child(3)'),
-                 "e/following-sibling::f[count(preceding-sibling::*) = 2]")
+                 "e/following-sibling::f[preceding-sibling::*[2] and not(preceding-sibling::*[3])]")
     expect_equal(xpath('div#container p'),
                  "div[@id = 'container']//p")
 
@@ -315,8 +315,8 @@ test_that("an escaped delimiter names an element instead of being one", {
                         "/following-sibling::*[1][self::c]"))
     expect_equal(xpath("a\\:b:first-of-type"),
                  paste0("*[name() = 'a:b' and namespace-uri() = '' and ",
-                        "count(preceding-sibling::*[name() = 'a:b' and ",
-                        "namespace-uri() = '']) = 0]"))
+                        "not(preceding-sibling::*[name() = 'a:b' and ",
+                        "namespace-uri() = ''][1])]"))
 
     # The HTML translator lowercases such a name like any other
     expect_equal(xpath("A\\:B", HTMLTranslator$new()),
@@ -396,7 +396,7 @@ test_that("a conjunct the compound repeats exactly is kept once", {
                  paste0("e[not(", class_test("a"), ")]"))
     expect_equal(xpath("e[href][href]"), "e[@href]")
     expect_equal(xpath("e:nth-child(2):nth-child(2)"),
-                 "e[count(preceding-sibling::*) = 1]")
+                 "e[preceding-sibling::*[1] and not(preceding-sibling::*[2])]")
 
     # Only an exact repeat is dropped
     expect_equal(xpath("div.scene.warning"),

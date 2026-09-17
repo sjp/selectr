@@ -83,22 +83,22 @@ test_that("man/selectors.Rd structural pseudo-class examples match live translat
     expect_equal(gt$css_to_xpath(":root"),
                  "descendant-or-self::*[not(parent::*)]")
     expect_equal(gt$css_to_xpath(":first-child"),
-                 "descendant-or-self::*[count(preceding-sibling::*) = 0]")
+                 "descendant-or-self::*[not(preceding-sibling::*[1])]")
     expect_equal(gt$css_to_xpath(":last-child"),
-                 "descendant-or-self::*[count(following-sibling::*) = 0]")
+                 "descendant-or-self::*[not(following-sibling::*[1])]")
     expect_equal(gt$css_to_xpath(":only-child"),
-                 "descendant-or-self::*[count(preceding-sibling::*) = 0 and count(following-sibling::*) = 0]")
+                 "descendant-or-self::*[not(preceding-sibling::*[1]) and not(following-sibling::*[1])]")
     expect_equal(gt$css_to_xpath("e:first-of-type"),
-                 "descendant-or-self::e[count(preceding-sibling::e) = 0]")
+                 "descendant-or-self::e[not(preceding-sibling::e[1])]")
     expect_equal(gt$css_to_xpath("e:last-of-type"),
-                 "descendant-or-self::e[count(following-sibling::e) = 0]")
+                 "descendant-or-self::e[not(following-sibling::e[1])]")
     expect_equal(gt$css_to_xpath("e:only-of-type"),
-                 "descendant-or-self::e[count(preceding-sibling::e) = 0 and count(following-sibling::e) = 0]")
+                 "descendant-or-self::e[not(preceding-sibling::e[1]) and not(following-sibling::e[1])]")
     expect_error(gt$css_to_xpath("*:first-of-type"))
     expect_equal(gt$css_to_xpath(":nth-child(2n+1)"),
                  "descendant-or-self::*[count(preceding-sibling::*) mod 2 = 0]")
     expect_equal(gt$css_to_xpath(":nth-child(3n+2)"),
-                 "descendant-or-self::*[count(preceding-sibling::*) >= 1 and (count(preceding-sibling::*) + 2) mod 3 = 0]")
+                 "descendant-or-self::*[preceding-sibling::*[1] and (count(preceding-sibling::*) + 2) mod 3 = 0]")
     expect_equal(gt$css_to_xpath(":empty"),
                  "descendant-or-self::*[not(*) and not(string-length())]")
     expect_equal(gt$css_to_xpath(":scope"), "self::*")

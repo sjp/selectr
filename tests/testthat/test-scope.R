@@ -22,7 +22,7 @@ test_that("a leading :scope generates XPath anchored at the context node", {
     expect_equal(css_to_xpath(":scope.foo"),
                  "self::*[contains(concat(' ', normalize-space(@class), ' '), ' foo ')]")
     expect_equal(css_to_xpath(":scope:first-child"),
-                 "self::*[count(preceding-sibling::*) = 0]")
+                 "self::*[not(preceding-sibling::*[1])]")
 
     # In a selector list only the scoped selector is anchored
     expect_equal(css_to_xpath(":scope > a, b"),

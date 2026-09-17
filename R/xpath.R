@@ -297,6 +297,47 @@ of_type_nodetest_or_stop <- function(xpath, name) {
     nodetest
 }
 
+# A test on the number of siblings along 'axis' ("preceding-sibling"
+# or "following-sibling") that match 'nodetest' and then 'predicate'
+# (the "[S]" of an 'of S' argument, or ""). 'op' is "=", ">=" or "<=",
+# and 'k' is a non-negative whole number; ">=" needs k > 0, since a
+# count is always >= 0.
+#
+# The test is written with positional predicates rather than
+# count(): count() walks the whole axis, so each element costs
+# O(siblings), and selecting among n siblings costs O(n^2). A
+# positional predicate lets the engine stop at the k-th node. On a
+# reverse axis [k] counts back from the context node, so axis[k] is
+# non-empty exactly when there are at least k matching siblings:
+#
+#   count = 0        not(axis[1])
+#   count = k (k>0)  axis[k] and not(axis[k+1])
+#   count >= k       axis[k]
+#   count <= k       not(axis[k+1])
+#
+# The [1] must stay: libxml2 takes a pathological path for a bare
+# not(preceding-sibling::*), minutes rather than milliseconds on a few
+# thousand siblings.
+#
+# "= k" for k > 0 writes the axis twice. With a 'predicate' that would
+# also write S twice, and since S may itself hold an nth-child 'of S',
+# nested arguments would grow the output 3x per level rather than 2x,
+# so that one case keeps the count() form.
+sibling_count_test <- function(axis, nodetest, predicate, op, k) {
+    step <- paste0(axis, "::", nodetest, predicate)
+    if (op == "=" && k > 0 && nzchar(predicate))
+        return(paste0("count(", step, ") = ", xpath_number(k)))
+    at_least <- function(n) paste0(step, "[", xpath_number(n), "]")
+    switch(op,
+           "=" = if (k == 0) {
+               paste0("not(", at_least(1), ")")
+           } else {
+               paste0(at_least(k), " and not(", at_least(k + 1), ")")
+           },
+           ">=" = at_least(k),
+           "<=" = paste0("not(", at_least(k + 1), ")"))
+}
+
 # A translation failure: valid CSS that names a feature the current
 # translator cannot express as XPath 1.0 (e.g. a non-leading ':scope',
 # or an of-type pseudo-class on the universal selector). Raised without
@@ -1715,13 +1756,14 @@ GenericTranslator <- translator_class("GenericTranslator",
                 if (is.null(selector_list_cond)) ""
                 else paste0("[", selector_list_cond$condition, "]")
 
-            # count siblings before or after the element
-            if (!last) {
-                siblings_count <- paste0("count(preceding-sibling::",
-                                         nodetest, selector_predicate, ")")
-            } else {
-                siblings_count <- paste0("count(following-sibling::",
-                                         nodetest, selector_predicate, ")")
+            # count siblings before or after the element. Comparisons
+            # against the count are written positionally by
+            # sibling_count_test(); only the "mod a" term needs count()
+            axis <- if (last) "following-sibling" else "preceding-sibling"
+            siblings_count <- paste0("count(", axis, "::",
+                                     nodetest, selector_predicate, ")")
+            count_test <- function(op, k) {
+                sibling_count_test(axis, nodetest, selector_predicate, op, k)
             }
 
             # special case of fixed position: nth-*(0n+b)
@@ -1729,8 +1771,7 @@ GenericTranslator <- translator_class("GenericTranslator",
             # ~~~~~~~~~~
             #    count(***-sibling::***) = b-1
             if (a == 0) {
-                xpath$add_condition(paste0(siblings_count, " = ",
-                                           xpath_number(b_min_1)))
+                xpath$add_condition(count_test("=", b_min_1))
 
                 # CSS Level 4: When selector list is provided, ensure current element matches
                 if (!is.null(selector_list_cond)) {
@@ -1748,15 +1789,13 @@ GenericTranslator <- translator_class("GenericTranslator",
                 # so if a>0, and (b-1)<=0, an "n" exists to satisfy this,
                 # therefore, the predicate is only interesting if (b-1)>0
                 if (b_min_1 > 0) {
-                    expr <- c(expr, paste0(siblings_count, " >= ",
-                                           xpath_number(b_min_1)))
+                    expr <- c(expr, count_test(">=", b_min_1))
                 }
             } else {
                 # if a<0, and (b-1)<0, no "n" satisfies this,
                 # this is tested above as an early exist condition
                 # otherwise,
-                expr <- c(expr, paste0(siblings_count, " <= ",
-                                       xpath_number(b_min_1)))
+                expr <- c(expr, count_test("<=", b_min_1))
             }
 
             # operations modulo 1 or -1 are simpler, one only needs to verify:
@@ -1910,23 +1949,23 @@ GenericTranslator <- translator_class("GenericTranslator",
             xpath
         },
         xpath_first_child_pseudo = function(xpath) {
-            xpath$add_condition("count(preceding-sibling::*) = 0")
+            xpath$add_condition("not(preceding-sibling::*[1])")
             xpath
         },
         xpath_last_child_pseudo = function(xpath) {
-            xpath$add_condition("count(following-sibling::*) = 0")
+            xpath$add_condition("not(following-sibling::*[1])")
             xpath
         },
         xpath_first_of_type_pseudo = function(xpath) {
             nodetest <- of_type_nodetest_or_stop(xpath, "first-of-type")
             xpath$add_condition(paste0(
-                "count(preceding-sibling::", nodetest, ") = 0"))
+                "not(preceding-sibling::", nodetest, "[1])"))
             xpath
         },
         xpath_last_of_type_pseudo = function(xpath) {
             nodetest <- of_type_nodetest_or_stop(xpath, "last-of-type")
             xpath$add_condition(paste0(
-                "count(following-sibling::", nodetest, ") = 0"))
+                "not(following-sibling::", nodetest, "[1])"))
             xpath
         },
         xpath_only_child_pseudo = function(xpath) {
@@ -1935,15 +1974,15 @@ GenericTranslator <- translator_class("GenericTranslator",
             # would make the count 0 and the root never match, while the
             # equivalent :first-child:last-child does match it.
             xpath$add_condition(paste(
-                "count(preceding-sibling::*) = 0 and",
-                "count(following-sibling::*) = 0"))
+                "not(preceding-sibling::*[1]) and",
+                "not(following-sibling::*[1])"))
             xpath
         },
         xpath_only_of_type_pseudo = function(xpath) {
             nodetest <- of_type_nodetest_or_stop(xpath, "only-of-type")
             xpath$add_condition(paste0(
-                "count(preceding-sibling::", nodetest, ") = 0 and ",
-                "count(following-sibling::", nodetest, ") = 0"))
+                "not(preceding-sibling::", nodetest, "[1]) and ",
+                "not(following-sibling::", nodetest, "[1])"))
             xpath
         },
         xpath_empty_pseudo = function(xpath) {

@@ -6,6 +6,20 @@
   \subsection{MINOR CHANGES}{
     \itemize{
 
+      \item Structural pseudo-classes such as \code{:first-child},
+      \code{:last-of-type} and \code{:nth-child(-n+5)} now translate to
+      XPath that tests for a sibling at a given position, e.g.
+      \code{not(preceding-sibling::*[1])}, instead of counting them all
+      with \code{count(preceding-sibling::*) = 0}. The two forms match
+      the same elements, but the new one lets the XPath engine stop
+      early. With \pkg{libxml2} (used by \pkg{XML} and \pkg{xml2}),
+      selecting from a list with thousands of siblings takes
+      milliseconds rather than seconds. Only the \code{an} part of
+      \code{:nth-child(an+b)} with \code{a} other than 1 or -1, and an
+      exact position together with an \code{of S} argument, still
+      count siblings. Code that compares the generated XPath text will
+      need updating.
+
       \item \pkg{selectr} no longer depends on \pkg{R6}, or on any
       package other than base \R. The translators are now built by a
       small internal class helper; the generated XPath is unchanged.

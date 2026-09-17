@@ -632,9 +632,9 @@ test_that("pseudo-class names spelled with underscores are unknown", {
 
     # The hyphenated spellings are unaffected
     expect_equal(css_to_xpath("a:first-child"),
-                 "descendant-or-self::a[count(preceding-sibling::*) = 0]")
+                 "descendant-or-self::a[not(preceding-sibling::*[1])]")
     expect_equal(css_to_xpath("a:nth-child(2)"),
-                 "descendant-or-self::a[count(preceding-sibling::*) = 1]")
+                 "descendant-or-self::a[preceding-sibling::*[1] and not(preceding-sibling::*[2])]")
     expect_equal(css_to_xpath(":any-link", translator = "html"),
                  css_to_xpath(":link", translator = "html"))
 })

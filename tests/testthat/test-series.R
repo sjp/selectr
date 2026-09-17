@@ -139,8 +139,8 @@ test_that("a number and the name after it are one token, so 'of' needs a space",
                  paste0("descendant-or-self::a[count(preceding-sibling::*",
                         "[self::b]) mod 2 = 0 and self::b]"))
     expect_equal(css_to_xpath("a:nth-child(1 of b)"),
-                 paste0("descendant-or-self::a[count(preceding-sibling::*",
-                        "[self::b]) = 0 and self::b]"))
+                 paste0("descendant-or-self::a[not(preceding-sibling::*",
+                        "[self::b][1]) and self::b]"))
     expect_equal(css_to_xpath(":nth-child(2n-1)"),
                  css_to_xpath(":nth-child(2n - 1)"))
 })
@@ -243,15 +243,16 @@ test_that("an A or B beyond the integer range is saturated", {
     # a huge B still counts down to B-1 without overflowing to NA, in
     # either direction
     expect_equal(css_to_xpath(":nth-child(99999999999)"),
-                 paste0("descendant-or-self::*[count(preceding-sibling::*) = ",
-                        imax - 1, "]"))
+                 paste0("descendant-or-self::*[preceding-sibling::*[",
+                        imax - 1, "] and not(preceding-sibling::*[",
+                        imax, "])]"))
     expect_equal(css_to_xpath(":nth-child(-99999999999)"),
                  "descendant-or-self::*[0]")
     expect_equal(css_to_xpath(":nth-child(n-99999999999)"),
                  "descendant-or-self::*")
     expect_equal(css_to_xpath(":nth-child(-n+99999999999)"),
-                 paste0("descendant-or-self::*[count(preceding-sibling::*) <= ",
-                        imax - 1, "]"))
+                 paste0("descendant-or-self::*[not(preceding-sibling::*[",
+                        imax, "])]"))
 
     # the saturated value is written out in full, not in E notation
     expect_false(grepl("e+", css_to_xpath(":nth-child(99999999999n+1)"),

@@ -5,11 +5,12 @@ test_that(":nth-child() generates correct XPath", {
 
     # :nth-child(1) - first child
     result <- xpath("li:nth-child(1)")
-    expect_true(grepl("count\\(preceding-sibling::\\*\\) = 0", result))
+    expect_equal(result, "li[not(preceding-sibling::*[1])]")
 
     # :nth-child(2) - second child
     result <- xpath("li:nth-child(2)")
-    expect_true(grepl("count\\(preceding-sibling::\\*\\) = 1", result))
+    expect_equal(result,
+                 "li[preceding-sibling::*[1] and not(preceding-sibling::*[2])]")
 
     # :nth-child(odd) - odd children
     result <- xpath("li:nth-child(odd)")
@@ -35,7 +36,7 @@ test_that(":nth-child() generates correct XPath", {
 
     # :nth-child(-n+3) - first 3 children
     result <- xpath("li:nth-child(-n+3)")
-    expect_true(grepl("count\\(preceding-sibling::\\*\\)", result))
+    expect_equal(result, "li[not(preceding-sibling::*[3])]")
 })
 
 test_that(":nth-last-child() generates correct XPath", {
@@ -45,11 +46,12 @@ test_that(":nth-last-child() generates correct XPath", {
 
     # :nth-last-child(1) - last child
     result <- xpath("li:nth-last-child(1)")
-    expect_true(grepl("count\\(following-sibling::\\*\\) = 0", result))
+    expect_equal(result, "li[not(following-sibling::*[1])]")
 
     # :nth-last-child(2) - second from last
     result <- xpath("li:nth-last-child(2)")
-    expect_true(grepl("count\\(following-sibling::\\*\\) = 1", result))
+    expect_equal(result,
+                 "li[following-sibling::*[1] and not(following-sibling::*[2])]")
 
     # :nth-last-child(odd) - odd from end
     result <- xpath("li:nth-last-child(odd)")
@@ -63,7 +65,7 @@ test_that(":nth-last-child() generates correct XPath", {
 
     # :nth-last-child(-n+2) - last 2 children
     result <- xpath("li:nth-last-child(-n+2)")
-    expect_true(grepl("count\\(following-sibling::\\*\\)", result))
+    expect_equal(result, "li[not(following-sibling::*[2])]")
 })
 
 test_that(":nth-child() works correctly with XML documents", {
@@ -740,19 +742,19 @@ test_that("large An+B values are written out in full", {
     # XPath 1.0 numbers have no exponent form, so neither a nor b may
     # reach the expression as "1e+05"
     expect_equal(xpath("li:nth-child(100001)"),
-                 "li[count(preceding-sibling::*) = 100000]")
+                 "li[preceding-sibling::*[100000] and not(preceding-sibling::*[100001])]")
     expect_equal(xpath("li:nth-child(n+100001)"),
-                 "li[count(preceding-sibling::*) >= 100000]")
+                 "li[preceding-sibling::*[100000]]")
     expect_equal(xpath("li:nth-child(200000n)"),
                  "li[(count(preceding-sibling::*) + 1) mod 200000 = 0]")
     expect_equal(xpath("li:nth-child(1000000n+1000001)"),
-                 paste0("li[count(preceding-sibling::*) >= 1000000 and ",
+                 paste0("li[preceding-sibling::*[1000000] and ",
                         "count(preceding-sibling::*) mod 1000000 = 0]"))
     expect_equal(xpath("li:nth-last-child(-100000n+100000)"),
-                 paste0("li[count(following-sibling::*) <= 99999 and ",
+                 paste0("li[not(following-sibling::*[100000]) and ",
                         "(count(following-sibling::*) + 1) mod -100000 = 0]"))
     expect_equal(xpath("li:nth-of-type(100000n+3)"),
-                 paste0("li[count(preceding-sibling::li) >= 2 and ",
+                 paste0("li[preceding-sibling::li[2] and ",
                         "(count(preceding-sibling::li) + 99998) mod 100000 = 0]"))
 
     # and the formatting does not follow the session's number-printing
@@ -760,7 +762,7 @@ test_that("large An+B values are written out in full", {
     op <- options(scipen = -9)
     on.exit(options(op))
     expect_equal(xpath("li:nth-child(100001)"),
-                 "li[count(preceding-sibling::*) = 100000]")
+                 "li[preceding-sibling::*[100000] and not(preceding-sibling::*[100001])]")
     expect_equal(xpath("li:nth-child(200000n)"),
                  "li[(count(preceding-sibling::*) + 1) mod 200000 = 0]")
 })

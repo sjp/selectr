@@ -27,22 +27,22 @@ test_that("namespace selectors translate faithfully", {
     # they do for 'ns|*' itself
     expect_equal(xpath("ns|é:first-of-type"),
                  paste0("ns:*[local-name() = 'é' and ",
-                        "count(preceding-sibling::",
-                        "ns:*[local-name() = 'é']) = 0]"))
+                        "not(preceding-sibling::",
+                        "ns:*[local-name() = 'é'][1])]"))
     expect_equal(xpath("ns|é:nth-of-type(2)"),
                  paste0("ns:*[local-name() = 'é' and ",
-                        "count(preceding-sibling::",
-                        "ns:*[local-name() = 'é']) = 1]"))
+                        "preceding-sibling::ns:*[local-name() = 'é'][1] and ",
+                        "not(preceding-sibling::ns:*[local-name() = 'é'][2])]"))
     expect_equal(xpath("svg|di\\[v:last-of-type"),
                  paste0("svg:*[local-name() = 'di[v' and ",
-                        "count(following-sibling::",
-                        "svg:*[local-name() = 'di[v']) = 0]"))
+                        "not(following-sibling::",
+                        "svg:*[local-name() = 'di[v'][1])]"))
     expect_equal(xpath("ns|é:only-of-type"),
                  paste0("ns:*[local-name() = 'é' and ",
-                        "count(preceding-sibling::",
-                        "ns:*[local-name() = 'é']) = 0 and ",
-                        "count(following-sibling::",
-                        "ns:*[local-name() = 'é']) = 0]"))
+                        "not(preceding-sibling::",
+                        "ns:*[local-name() = 'é'][1]) and ",
+                        "not(following-sibling::",
+                        "ns:*[local-name() = 'é'][1])]"))
     # 'ns|*' names no type and is still refused
     expect_error(xpath("ns|*:first-of-type"),
                  "\\*:first-of-type is not implemented")

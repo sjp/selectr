@@ -609,6 +609,6 @@ test_that("unimplemented methods throw errors", {
     # A namespaced *name* is still counted by its own node test
     expect_equal(translator$css_to_xpath("svg|g:first-of-type"),
                  paste("descendant-or-self::svg:g",
-                       "[count(preceding-sibling::svg:g) = 0]",
+                       "[not(preceding-sibling::svg:g[1])]",
                        sep = ""))
 })

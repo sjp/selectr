@@ -90,9 +90,9 @@ test_that("Regular :nth-child without 'of' still works", {
     expect_false(grepl("@class", xpath1))
     expect_false(grepl("@class", xpath2))
 
-    # Should have simple counting
-    expect_true(grepl("count\\(preceding-sibling::\\*\\)", xpath1))
-    expect_true(grepl("count\\(following-sibling::\\*\\)", xpath2))
+    # Should test plain siblings
+    expect_true(grepl("preceding-sibling::*[1]", xpath1, fixed = TRUE))
+    expect_true(grepl("following-sibling::*[2]", xpath2, fixed = TRUE))
 })
 
 test_that(":nth-child(odd of S) works", {
@@ -123,4 +123,19 @@ test_that(":nth-child with complex selector works", {
 
     # Should check class
     expect_true(grepl("foo", xpath))
+})
+
+test_that("sibling tests are positional, except an exact position with 'of S'", {
+    # the [1] must stay: libxml2 is pathologically slow on a bare
+    # not(preceding-sibling::*)
+    expect_equal(css_to_xpath("li:first-child", prefix = ""),
+                 "li[not(preceding-sibling::*[1])]")
+    expect_equal(css_to_xpath("li:nth-child(-n+2 of b)", prefix = ""),
+                 "li[not(preceding-sibling::*[self::b][2]) and self::b]")
+    expect_equal(css_to_xpath("li:nth-last-child(n+3 of b)", prefix = ""),
+                 "li[following-sibling::*[self::b][2] and self::b]")
+    # writing S once rather than twice keeps nested 'of S' arguments
+    # from growing faster than they already do
+    expect_equal(css_to_xpath("li:nth-child(3 of b)", prefix = ""),
+                 "li[count(preceding-sibling::*[self::b]) = 2 and self::b]")
 })
