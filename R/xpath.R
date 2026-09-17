@@ -220,7 +220,12 @@ ascii_lower_letters <- "abcdefghijklmnopqrstuvwxyz"
 # unclassed "invalid input ... in 'utf8towcs'", instead of translating
 # like any other name XPath cannot spell. gsub() takes the string as it
 # stands.
+#
+# Most input is already lowercase, so the substitution is only run when
+# there is a letter to fold.
 ascii_lower <- function(x) {
+    if (!any(grepl("[A-Z]", x, useBytes = TRUE)))
+        return(x)
     gsub("([A-Z])", "\\L\\1", x, perl = TRUE)
 }
 
@@ -1509,11 +1514,10 @@ GenericTranslator <- R6Class("GenericTranslator",
                 # '*|e': 'e' in any namespace, including none.  An
                 # unprefixed XPath name test only matches the null
                 # namespace, so test against local-name() instead.
+                condition <- paste0("local-name() = ", xpath_literal(element))
                 xpath <- XPathExpr()
-                xpath$add_condition(paste0("local-name() = ",
-                                           xpath_literal(element)))
-                xpath$name_test <- paste0("*[local-name() = ",
-                                          xpath_literal(element), "]")
+                xpath$add_condition(condition)
+                xpath$name_test <- paste0("*[", condition, "]")
                 xpath$local_name <- element
                 return(xpath)
             }

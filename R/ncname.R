@@ -119,6 +119,15 @@ is_name_char <- function(cp) {
 # Whether 'name' is an XML NCName, i.e. a Name (Appendix B above) with
 # no colon in it
 is_ncname <- function(name) {
+    # An all-ASCII name made of letters, digits, '_', '.' and '-' that
+    # does not start with a digit, '.' or '-' is an NCName by the
+    # ranges above, and that is nearly every prefix anyone writes; it
+    # is accepted without decoding it into code points. Matching bytes
+    # is safe whatever the encoding, since none of those characters can
+    # be part of a multibyte sequence.
+    if (grepl("^[A-Za-z_][A-Za-z0-9_.-]*$", name, perl = TRUE,
+              useBytes = TRUE))
+        return(TRUE)
     cp <- suppressWarnings(utf8ToInt(enc2utf8(name)))
     # A name that is not valid UTF-8 (utf8ToInt() gives NA) is no more
     # writable into an XPath expression than one made of the wrong
