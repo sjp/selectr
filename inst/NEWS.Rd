@@ -20,6 +20,17 @@
       count siblings. Code that compares the generated XPath text will
       need updating.
 
+      \item With an \code{of S} argument, \code{:nth-child()} and
+      \code{:nth-last-child()} now test whether the element itself
+      matches \code{S} before counting its siblings, so elements that
+      do not match are rejected without the count. When most elements
+      fail \code{S}, selection is several times faster. The XPath for
+      \code{:nth-child(an+b)} also no longer includes a lower bound
+      that its \code{mod} test already implies, e.g. for \code{3n+2}.
+      Nested \code{of S} arguments using such a formula now produce
+      much shorter XPath. Both changes alter the generated XPath text
+      but not which elements match.
+
       \item \pkg{selectr} no longer depends on \pkg{R6}, or on any
       package other than base \R. The translators are now built by a
       small internal class helper; the generated XPath is unchanged.

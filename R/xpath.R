@@ -322,7 +322,9 @@ of_type_nodetest_or_stop <- function(xpath, name) {
 # "= k" for k > 0 writes the axis twice. With a 'predicate' that would
 # also write S twice, and since S may itself hold an nth-child 'of S',
 # nested arguments would grow the output 3x per level rather than 2x,
-# so that one case keeps the count() form.
+# so that one case keeps the count() form. (A bound that the "mod a"
+# test does not already imply, as in :nth-child(2n+3 of S), still
+# writes S twice beside that test, so such nesting can triple.)
 sibling_count_test <- function(axis, nodetest, predicate, op, k) {
     step <- paste0(axis, "::", nodetest, predicate)
     if (op == "=" && k > 0 && nzchar(predicate))
@@ -1766,19 +1768,24 @@ GenericTranslator <- translator_class("GenericTranslator",
                 sibling_count_test(axis, nodetest, selector_predicate, op, k)
             }
 
+            # CSS Level 4: When selector list is provided, ensure current
+            # element matches. This goes before the sibling test: "and"
+            # evaluates left to right and stops at the first false
+            # operand, so an element failing S - usually a cheap test -
+            # never pays for the O(siblings) walk below. Conditions the
+            # author wrote alongside the pseudo-class keep their source
+            # order; only the two this pseudo-class generates are ordered
+            if (!is.null(selector_list_cond)) {
+                xpath$add_condition(selector_list_cond$condition,
+                                    selector_list_cond$is_or)
+            }
+
             # special case of fixed position: nth-*(0n+b)
             # if a == 0:
             # ~~~~~~~~~~
             #    count(***-sibling::***) = b-1
             if (a == 0) {
                 xpath$add_condition(count_test("=", b_min_1))
-
-                # CSS Level 4: When selector list is provided, ensure current element matches
-                if (!is.null(selector_list_cond)) {
-                    xpath$add_condition(selector_list_cond$condition,
-                                        selector_list_cond$is_or)
-                }
-
                 return(xpath)
             }
 
@@ -1787,8 +1794,12 @@ GenericTranslator <- translator_class("GenericTranslator",
             if (a > 0) {
                 # siblings count, an+b-1, is always >= 0,
                 # so if a>0, and (b-1)<=0, an "n" exists to satisfy this,
-                # therefore, the predicate is only interesting if (b-1)>0
-                if (b_min_1 > 0) {
+                # therefore, the predicate is only interesting if (b-1)>0.
+                # For a>1 the "mod a" test below also holds only for counts
+                # congruent to b-1; when 0 < b-1 < a the smallest such
+                # count is b-1 itself, so that test already implies this
+                # bound and writing it too would walk the siblings twice
+                if (b_min_1 > 0 && (a == 1 || b_min_1 >= a)) {
                     expr <- c(expr, count_test(">=", b_min_1))
                 }
             } else {
@@ -1829,12 +1840,6 @@ GenericTranslator <- translator_class("GenericTranslator",
             if (length(expr)) {
                 expr <- paste0(expr, collapse = " and ")
                 xpath$add_condition(expr)
-            }
-
-            # CSS Level 4: When selector list is provided, ensure current element matches
-            if (!is.null(selector_list_cond)) {
-                xpath$add_condition(selector_list_cond$condition,
-                                    selector_list_cond$is_or)
             }
 
             xpath

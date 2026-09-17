@@ -94,7 +94,7 @@ test_that("translation from parsed objects to XPath works", {
     expect_equal(xpath('e:nth-child(1)'),
                  "e[not(preceding-sibling::*[1])]")
     expect_equal(xpath('e:nth-child(3n+2)'),
-                 "e[preceding-sibling::*[1] and (count(preceding-sibling::*) + 2) mod 3 = 0]")
+                 "e[(count(preceding-sibling::*) + 2) mod 3 = 0]")
     expect_equal(xpath('e:nth-child(3n-2)'),
                  "e[count(preceding-sibling::*) mod 3 = 0]")
     expect_equal(xpath('e:nth-child(-n+6)'),
@@ -106,7 +106,7 @@ test_that("translation from parsed objects to XPath works", {
     expect_equal(xpath('e:nth-last-child(2n+1)'),
                  "e[count(following-sibling::*) mod 2 = 0]")
     expect_equal(xpath('e:nth-last-child(2n+2)'),
-                 "e[following-sibling::*[1] and (count(following-sibling::*) + 1) mod 2 = 0]")
+                 "e[(count(following-sibling::*) + 1) mod 2 = 0]")
     expect_equal(xpath('e:nth-last-child(3n+1)'),
                  "e[count(following-sibling::*) mod 3 = 0]")
     expect_equal(xpath('e:nth-last-child(-n+2)'),
@@ -365,7 +365,7 @@ test_that("a branch the selector list repeats exactly is kept once", {
     # A list left with a single branch is no longer a disjunction, so
     # it sheds the parentheses it would have carried into a conjunction
     expect_equal(xpath(":nth-child(2 of a, a)"),
-                 "*[count(preceding-sibling::*[self::a]) = 1 and self::a]")
+                 "*[self::a and count(preceding-sibling::*[self::a]) = 1]")
     expect_equal(xpath("e:is(a, a):is(b, b)"), "e[self::a and self::b]")
 
     # Only an exact repeat is dropped
@@ -373,8 +373,8 @@ test_that("a branch the selector list repeats exactly is kept once", {
     expect_equal(xpath("a:not(b, c)"), "a[not(self::b or self::c)]")
     expect_equal(
         xpath(":nth-child(2 of a, b)"),
-        paste0("*[count(preceding-sibling::*[self::a or self::b]) = 1",
-               " and (self::a or self::b)]"))
+        paste0("*[(self::a or self::b) and",
+               " count(preceding-sibling::*[self::a or self::b]) = 1]"))
 })
 
 test_that("a conjunct the compound repeats exactly is kept once", {

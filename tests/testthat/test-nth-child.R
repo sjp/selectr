@@ -754,8 +754,8 @@ test_that("large An+B values are written out in full", {
                  paste0("li[not(following-sibling::*[100000]) and ",
                         "(count(following-sibling::*) + 1) mod -100000 = 0]"))
     expect_equal(xpath("li:nth-of-type(100000n+3)"),
-                 paste0("li[preceding-sibling::li[2] and ",
-                        "(count(preceding-sibling::li) + 99998) mod 100000 = 0]"))
+                 paste0("li[(count(preceding-sibling::li) + 99998) ",
+                        "mod 100000 = 0]"))
 
     # and the formatting does not follow the session's number-printing
     # options
