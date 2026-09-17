@@ -435,7 +435,7 @@ parse <- function(css) {
                             class_match[3]))))
     tryCatch(
         {
-            stream <- TokenStream$new(tokenize(css))
+            stream <- TokenStream(tokenize(css))
             parse_selector_group(stream)
         },
         selectr_parse_error = function(e) {
@@ -1704,72 +1704,73 @@ tokenize <- function(s) {
     results
 }
 
-TokenStream <- R6Class("TokenStream",
-    public = list(
-        pos = 1,
-        tokens = NULL,
-        ntokens = 0,
-        # Index of the token most recently returned by nxt(). Positions
-        # are consumed in order, so this doubles as a count of consumed
-        # tokens: parse_simple_selector() only compares it against an
-        # earlier reading to ask whether anything was consumed in
-        # between. The sticky EOF token (see next_token()) leaves pos --
-        # and so this -- alone once it has been consumed the first time.
-        consumed = 0,
-        peeked = list(),
-        peeking = FALSE,
-        initialize = function(tokens) {
-            self$tokens <- tokens
-            self$ntokens <- length(tokens)
-        },
-        nxt = function() {
-            nt <- if (self$peeking) {
-                self$peeking <- FALSE
-                self$peeked
-            } else {
-                self$next_token()
-            }
-            self$consumed <- self$pos
-            nt
-        },
-        next_token = function() {
-            if (self$pos > self$ntokens) {
-                # The trailing EOF token is sticky: consuming it
-                # (e.g. when it auto-closes a construct) must not run
-                # past the token list, as the caller will peek again
-                self$tokens[[self$ntokens]]
-            } else {
-                nt <- self$tokens[[self$pos]]
-                self$pos <- self$pos + 1
-                nt
-            }
-        },
-        peek = function() {
-            if (!self$peeking) {
-                self$peeked <- self$next_token()
-                self$peeking <- TRUE
-            }
+# A cursor over the tokens of one parse. It is built once per parse()
+# and has reference semantics, like XPathExpr and for the same reason
+# it is a plain environment rather than an R6 object, which costs tens
+# of microseconds more to construct. The methods are closures over
+# this call's frame, so they reach the stream as 'self' and are called
+# as stream$peek() etc.
+TokenStream <- function(tokens) {
+    self <- new.env(parent = emptyenv())
+    self$pos <- 1L
+    self$tokens <- tokens
+    self$ntokens <- length(tokens)
+    # Index of the token most recently returned by nxt(). Positions
+    # are consumed in order, so this doubles as a count of consumed
+    # tokens: parse_simple_selector() only compares it against an
+    # earlier reading to ask whether anything was consumed in
+    # between. The sticky EOF token (see next_token()) leaves pos --
+    # and so this -- alone once it has been consumed the first time.
+    self$consumed <- 0L
+    self$peeked <- NULL
+    self$peeking <- FALSE
+    self$nxt <- function() {
+        nt <- if (self$peeking) {
+            self$peeking <- FALSE
             self$peeked
-        },
-        next_ident = function() {
-            nt <- self$nxt()
-            if (nt$type != "IDENT")
-                parse_stop("Expected ident, got ", token_repr(nt), pos = nt$pos)
-            nt$value
-        },
-        next_ident_or_star = function() {
-            nt <- self$nxt()
-            if (nt$type == "IDENT")
-                nt$value
-            else if (token_equality(nt, "DELIM", "*"))
-                NULL
-            else
-                parse_stop("Expected ident or '*', got ", token_repr(nt), pos = nt$pos)
-        },
-        skip_whitespace = function() {
-            peek <- self$peek()
-            if (peek$type == "S")
-                self$nxt()
+        } else {
+            self$next_token()
         }
-    )
-)
+        self$consumed <- self$pos
+        nt
+    }
+    self$next_token <- function() {
+        if (self$pos > self$ntokens) {
+            # The trailing EOF token is sticky: consuming it
+            # (e.g. when it auto-closes a construct) must not run
+            # past the token list, as the caller will peek again
+            self$tokens[[self$ntokens]]
+        } else {
+            nt <- self$tokens[[self$pos]]
+            self$pos <- self$pos + 1L
+            nt
+        }
+    }
+    self$peek <- function() {
+        if (!self$peeking) {
+            self$peeked <- self$next_token()
+            self$peeking <- TRUE
+        }
+        self$peeked
+    }
+    self$next_ident <- function() {
+        nt <- self$nxt()
+        if (nt$type != "IDENT")
+            parse_stop("Expected ident, got ", token_repr(nt), pos = nt$pos)
+        nt$value
+    }
+    self$next_ident_or_star <- function() {
+        nt <- self$nxt()
+        if (nt$type == "IDENT")
+            nt$value
+        else if (token_equality(nt, "DELIM", "*"))
+            NULL
+        else
+            parse_stop("Expected ident or '*', got ", token_repr(nt), pos = nt$pos)
+    }
+    self$skip_whitespace <- function() {
+        if (self$peek()$type == "S")
+            self$nxt()
+    }
+    self
+}

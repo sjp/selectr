@@ -214,7 +214,7 @@ test_that("compiled regex parsing functions behave as expected", {
 
 test_that("fast-path parses agree with the full parser", {
     full_parse <- function(css) {
-        stream <- TokenStream$new(tokenize(css))
+        stream <- TokenStream(tokenize(css))
         parse_selector_group(stream)
     }
     reprs <- function(selectors) {

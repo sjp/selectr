@@ -1,19 +1,19 @@
 test_that("XPathExpr objects print correctly", {
     shw <- function(x) trimws(capture.output(x$show()))
 
-    xp <- XPathExpr$new()
+    xp <- XPathExpr()
     expect_equal(xp$repr(), "XPathExpr[*]")
     expect_equal(shw(xp), "XPathExpr[*]")
 
-    xp <- XPathExpr$new("//")
+    xp <- XPathExpr("//")
     expect_equal(xp$repr(), "XPathExpr[//*]")
     expect_equal(shw(xp), "XPathExpr[//*]")
 
-    xp <- XPathExpr$new(element = "a")
+    xp <- XPathExpr(element = "a")
     expect_equal(xp$repr(), "XPathExpr[a]")
     expect_equal(shw(xp), "XPathExpr[a]")
 
-    xp <- XPathExpr$new("//a/", "b")
+    xp <- XPathExpr("//a/", "b")
     expect_equal(xp$repr(), "XPathExpr[//a/b]")
     expect_equal(shw(xp), "XPathExpr[//a/b]")
 })

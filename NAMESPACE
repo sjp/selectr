@@ -73,3 +73,6 @@ S3method(specificity, Attrib)
 S3method(specificity, Element)
 S3method(specificity, Hash)
 S3method(specificity, CombinedSelector)
+
+# XPath expressions (internal)
+S3method(print, XPathExpr)

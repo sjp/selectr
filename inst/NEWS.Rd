@@ -14,6 +14,12 @@
       about 18 times cheaper to create. The generated XPath is
       unchanged.
 
+      \item Translating a selector is faster again, by about a quarter
+      for a typical selector such as \code{"div > p"}: the token stream
+      and the XPath expressions built during translation are now plain
+      environments instead of R6 objects. The generated XPath is
+      unchanged.
+
     }
   }
 }
