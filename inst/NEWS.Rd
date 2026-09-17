@@ -2,6 +2,9 @@
 \title{NEWS file for the selectr package}
 \encoding{UTF-8}
 
+\section{Changes in version 0.8-0}{
+}
+
 \section{Changes in version 0.7-0}{
   \subsection{NEW FEATURES}{
     \itemize{
