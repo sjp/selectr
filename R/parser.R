@@ -397,42 +397,38 @@ fast_ident <- "[a-zA-Z][a-zA-Z0-9_-]*"
 # with '-' followed by a digit (see ident_start)
 fast_id <- "[a-zA-Z_][a-zA-Z0-9_-]*|-[a-zA-Z_-][a-zA-Z0-9_-]*"
 
-# foo
-el_re <- paste0("^[ \t\r\n\f]*(", fast_ident, ")[ \t\r\n\f]*$")
-
-# foo#bar or #bar
-id_re <- paste0("^[ \t\r\n\f]*(", fast_ident, ")?",
-                "#(", fast_id, ")[ \t\r\n\f]*$")
-
-# foo.bar or .bar
-class_re <- paste0("^[ \t\r\n\f]*(", fast_ident, ")?",
-                   "\\.(", fast_ident, ")[ \t\r\n\f]*$")
+# One pattern covers all three shapes, so a selector that takes none
+# of them costs a single match: 'foo', 'foo#bar' or '#bar', and
+# 'foo.bar' or '.bar'. Capture 1 is the element name, capture 2 the ID
+# and capture 3 the class; a selector that is empty or all whitespace
+# also matches, with no capture set. '\z' rather than '$', which
+# PCRE would also let match before a trailing newline.
+fast_re <- paste0("^[ \t\r\n\f]*(", fast_ident, ")?",
+                  "(?:#(", fast_id, ")|\\.(", fast_ident, "))?",
+                  "[ \t\r\n\f]*\\z")
 
 parse <- function(css) {
-    # regmatches() represents an unmatched optional group as "", which
-    # cannot be confused with a present element name since fast_ident
-    # never matches an empty string
-    el_match <- regmatches(css, regexec(el_re, css))[[1]]
-    if (length(el_match))
-        return(list(Selector(Element(element = el_match[2]))))
-    id_match <- regmatches(css, regexec(id_re, css))[[1]]
-    if (length(id_match))
-        return(list(Selector(
-                        Hash(
-                            Element(
-                                element =
-                                    if (nzchar(id_match[2])) id_match[2]
-                                    else NULL),
-                            id_match[3]))))
-    class_match <- regmatches(css, regexec(class_re, css))[[1]]
-    if (length(class_match))
-        return(list(Selector(
-                        ClassSelector(
-                            Element(
-                                element =
-                                    if (nzchar(class_match[2])) class_match[2]
-                                    else NULL),
-                            class_match[3]))))
+    # regexpr() with capture attributes is several times cheaper than
+    # regexec() + regmatches(), on a hit and a miss alike
+    m <- regexpr(fast_re, css, perl = TRUE)
+    if (m != -1L) {
+        start <- attr(m, "capture.start")
+        len <- attr(m, "capture.length")
+        element <- if (len[1L] > 0L)
+            substr(css, start[1L], start[1L] + len[1L] - 1L)
+        if (len[2L] > 0L)
+            return(list(Selector(
+                            Hash(Element(element = element),
+                                 substr(css, start[2L],
+                                        start[2L] + len[2L] - 1L)))))
+        if (len[3L] > 0L)
+            return(list(Selector(
+                            ClassSelector(Element(element = element),
+                                          substr(css, start[3L],
+                                                 start[3L] + len[3L] - 1L)))))
+        if (!is.null(element))
+            return(list(Selector(Element(element = element))))
+    }
     tryCatch(
         {
             stream <- TokenStream(tokenize(css))

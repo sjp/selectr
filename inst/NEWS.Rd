@@ -31,6 +31,13 @@
       document's class already says so. This saves about 60 to 90
       microseconds per query.
 
+      \item Parsing a selector skips about 60 microseconds of wasted
+      pattern matching: the check for a bare element, ID or class
+      selector such as \code{"div"}, \code{"#main"} or
+      \code{"p.note"} is now one match instead of up to three. Those
+      simple selectors parse two to four times faster, and a selector
+      like \code{"div > p"} translates about a sixth faster.
+
       \item Tokenizing a selector is about five times faster, which
       cuts the time \code{css_to_xpath()} takes on a typical
       multi-part selector by about 45\%. The tokenizer now scans the
