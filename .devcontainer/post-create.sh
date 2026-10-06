@@ -51,5 +51,18 @@ Rscript -e 'if (!requireNamespace("languageserver", quietly = TRUE))
 # Claude Code only takes LSP servers from plugins, so register the one-plugin
 # marketplace in .devcontainer/claude-plugins and install the plugin from it.
 # Both commands are no-ops once they have run.
-claude plugin marketplace add "$PWD/.devcontainer/claude-plugins"
-claude plugin install r-lsp@selectr-devcontainer
+#
+# The claude-code-config volume is shared with other devcontainers, so this
+# directory may already be registered under another marketplace name (e.g. one
+# copied from a different project). `marketplace add` then keeps the old name
+# and the install below can't find selectr-devcontainer, so drop those first.
+marketplace_dir="$PWD/.devcontainer/claude-plugins"
+marketplace_name=$(jq -r .name "$marketplace_dir/.claude-plugin/marketplace.json")
+claude plugin marketplace list --json |
+    jq -r --arg dir "$marketplace_dir" --arg name "$marketplace_name" \
+        '.[] | select(.path == $dir and .name != $name) | .name' |
+    while read -r stale; do
+        claude plugin marketplace remove "$stale"
+    done
+claude plugin marketplace add "$marketplace_dir"
+claude plugin install "r-lsp@$marketplace_name"
