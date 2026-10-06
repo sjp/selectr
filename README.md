@@ -42,8 +42,6 @@ The key functions in selectr are:
 
     * Find all matching nodes in a namespaced document with `querySelectorAllNS()`.
 
-Documents read with `htmlParse()` (`XML`) or `read_html()` (`xml2`) are auto-detected and queried with the HTML translator, so `:checked`, `:disabled`, `:link` and case-insensitive names all work without passing `translator = "html"` yourself. Queries also chain: `querySelectorAll()` accepts a node set as well as a document, so `querySelectorAll(querySelectorAll(doc, "table"), "tr")` runs the second selector from each node the first matched. `:scope`, `:is()`, `:where()`, `:has()` and `:nth-child(An+B of S)` are all supported. See `?selectors` for the full table of what selectr supports and what each translates to, and `?css_to_xpath` for the reasoning behind its more surprising entries.
-
 ## Examples
 
 ### Scraping an HTML document
@@ -88,28 +86,9 @@ querySelectorAllNS(svgdoc, "svg|script, math|mo",
                      math = "http://www.w3.org/1998/Math/MathML"))
 ```
 
-Parsing a large namespaced document with `xml2` builds its namespace map on every call by default; pass `ns = character(0)` to `querySelector()`/`querySelectorAll()` to skip that lookup when the document is known to be un-namespaced.
-
-### Structured, position-annotated errors
-
-Every error `css_to_xpath()` and the `querySelector*()` functions raise inherits `selectr_error`, so a caller can catch the whole family or a specific class such as `selectr_parse_error`, which also carries the 1-based character position the parser gave up at:
-
-``` r
-tryCatch(
-  css_to_xpath("div >"),
-  selectr_parse_error = function(e) cat(conditionMessage(e), "\n")
-)
-#> Expected selector, got <EOF at 6>
-#>   |
-#>   | div >
-#>   |      ^
-```
-
-See `?css_to_xpath` (section "Errors") for the full condition hierarchy.
-
 ## Development
 
-The Makefile wraps the usual tasks:
+The `Makefile` wraps the usual tasks:
 
 * `make test` runs the test suite (`testthat::test_local()`).
 * `make lint` lints the package (configured by `.lintr`).
