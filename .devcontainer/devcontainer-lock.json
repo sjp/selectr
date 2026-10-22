@@ -10,10 +10,10 @@
       "resolved": "ghcr.io/devcontainers/features/node@sha256:2a19d3b0b3879437637cfd292eb29fee0afcfbe6364e33db9afc4f80c5c1f956",
       "integrity": "sha256:2a19d3b0b3879437637cfd292eb29fee0afcfbe6364e33db9afc4f80c5c1f956"
     },
-    "ghcr.io/rocker-org/devcontainer-features/r-apt:0.5": {
-      "version": "0.5.0",
-      "resolved": "ghcr.io/rocker-org/devcontainer-features/r-apt@sha256:77b2f97468c79afa09afd7141fac0bda0f395e265f606e13365e6767949dcc55",
-      "integrity": "sha256:77b2f97468c79afa09afd7141fac0bda0f395e265f606e13365e6767949dcc55"
+    "ghcr.io/rocker-org/devcontainer-features/r-apt:1.0": {
+      "version": "1.0.0",
+      "resolved": "ghcr.io/rocker-org/devcontainer-features/r-apt@sha256:974638ac879c4f812793dd0256d27040539efd0f4d9d5b9ce5826ac7c6b8e898",
+      "integrity": "sha256:974638ac879c4f812793dd0256d27040539efd0f4d9d5b9ce5826ac7c6b8e898"
     }
   }
 }
