@@ -57,6 +57,16 @@
       \code{lang="de-Latn-x-DE"}, and \code{":lang(\\*-DE)"} matched
       \code{lang="de-a-foo-DE"}.
 
+      \item The HTML translator's attribute selectors in any namespace,
+      such as \code{"[*|type=Foo]"}, now compare the value of an HTML
+      attribute whose values are ASCII case-insensitive (e.g.
+      \code{type}) case-insensitively when that attribute is in no
+      namespace, as \code{"[type=Foo]"} already does. Before, no
+      attribute was folded, so \code{type="foo"} was not matched. An
+      attribute in a namespace, such as \code{x:type}, is still compared
+      case-sensitively, and an explicit \code{i} or \code{s} flag applies
+      to every attribute.
+
     }
   }
 }
