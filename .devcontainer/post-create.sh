@@ -42,9 +42,12 @@ languageserver_apt_deps=(
     r-cran-rlang r-cran-roxygen2 r-cran-rprojroot r-cran-stringi r-cran-vctrs
     r-cran-withr r-cran-xfun r-cran-xml2 r-cran-xmlparsedata r-cran-yaml
 )
+# What `make test` needs beyond those: testthat, and XML for the tests that
+# query through it. Debian's XML is prebuilt, so libxml2-dev isn't needed.
+test_apt_deps=(r-cran-testthat r-cran-xml)
 sudo apt-get update -qq
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    "${languageserver_apt_deps[@]}"
+    "${languageserver_apt_deps[@]}" "${test_apt_deps[@]}"
 Rscript -e 'if (!requireNamespace("languageserver", quietly = TRUE))
     install.packages("languageserver", Ncpus = parallel::detectCores())'
 
