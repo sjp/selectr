@@ -137,10 +137,10 @@ test_that("a number and the name after it are one token, so 'of' needs a space",
     # A value is one whenever it is written with a coefficient
     expect_equal(css_to_xpath("a:nth-child(2n+1 of b)"),
                  paste0("descendant-or-self::a[self::b and count(",
-                        "preceding-sibling::*[self::b]) mod 2 = 0]"))
+                        "preceding-sibling::b) mod 2 = 0]"))
     expect_equal(css_to_xpath("a:nth-child(1 of b)"),
                  paste0("descendant-or-self::a[self::b and not(",
-                        "preceding-sibling::*[self::b][1])]"))
+                        "preceding-sibling::b[1])]"))
     expect_equal(css_to_xpath(":nth-child(2n-1)"),
                  css_to_xpath(":nth-child(2n - 1)"))
 })

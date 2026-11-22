@@ -125,19 +125,28 @@ test_that(":nth-child with complex selector works", {
     expect_true(grepl("foo", xpath))
 })
 
-test_that("sibling tests are positional, except an exact position with 'of S'", {
+test_that("sibling tests are positional, except an exact position counting a filtered S", {
+    cls_x <- "contains(concat(' ', normalize-space(@class), ' '), ' x ')"
     # the [1] must stay: libxml2 is pathologically slow on a bare
     # not(preceding-sibling::*)
     expect_equal(css_to_xpath("li:first-child", prefix = ""),
                  "li[not(preceding-sibling::*[1])]")
     expect_equal(css_to_xpath("li:nth-child(-n+2 of b)", prefix = ""),
-                 "li[self::b and not(preceding-sibling::*[self::b][2])]")
+                 "li[self::b and not(preceding-sibling::b[2])]")
     expect_equal(css_to_xpath("li:nth-last-child(n+3 of b)", prefix = ""),
-                 "li[self::b and following-sibling::*[self::b][2]]")
-    # writing S once rather than twice keeps nested 'of S' arguments
-    # from growing faster than they already do
+                 "li[self::b and following-sibling::b[2]]")
+    # an S that is only a name leaves no predicate to repeat
     expect_equal(css_to_xpath("li:nth-child(3 of b)", prefix = ""),
-                 "li[self::b and count(preceding-sibling::*[self::b]) = 2]")
+                 paste0("li[self::b and preceding-sibling::b[2] and ",
+                        "not(preceding-sibling::b[3])]"))
+    # writing the rest of S once rather than twice keeps nested 'of S'
+    # arguments from growing faster than they already do
+    expect_equal(css_to_xpath("li:nth-child(3 of b.x)", prefix = ""),
+                 paste0("li[", cls_x, " and self::b and count(",
+                        "preceding-sibling::b[", cls_x, "]) = 2]"))
+    expect_equal(css_to_xpath("li:nth-child(3 of :is(b))", prefix = ""),
+                 paste0("li[self::b and count(preceding-sibling::*",
+                        "[self::b]) = 2]"))
 })
 
 test_that("An+B omits a bound the mod test implies, and tests S first", {
@@ -160,17 +169,17 @@ test_that("An+B omits a bound the mod test implies, and tests S first", {
     # the element's own S test comes before the sibling walk, so an
     # element failing S is rejected without counting
     expect_equal(css_to_xpath("li:nth-child(3n+2 of b)", prefix = ""),
-                 paste0("li[self::b and (count(preceding-sibling::*",
-                        "[self::b]) + 2) mod 3 = 0]"))
+                 paste0("li[self::b and (count(preceding-sibling::b)",
+                        " + 2) mod 3 = 0]"))
     # conditions the author wrote keep their source order
     expect_equal(css_to_xpath("li:nth-child(3).x", prefix = ""),
                  paste0("li[preceding-sibling::*[2] and not(preceding-sibling",
                         "::*[3]) and contains(concat(' ', normalize-space(",
                         "@class), ' '), ' x ')]"))
     expect_equal(css_to_xpath("li:nth-child(2 of b).x", prefix = ""),
-                 paste0("li[self::b and count(preceding-sibling::*[self::b])",
-                        " = 1 and contains(concat(' ', normalize-space(",
-                        "@class), ' '), ' x ')]"))
+                 paste0("li[self::b and preceding-sibling::b[1] and ",
+                        "not(preceding-sibling::b[2]) and contains(concat(",
+                        "' ', normalize-space(@class), ' '), ' x ')]"))
 
     # without a bound, nested 'of S' arguments write S twice per level
     nest <- function(series, depth) {

@@ -1305,18 +1305,22 @@ GenericTranslator <- translator_class("GenericTranslator",
                 list(xpath = sub_xpath, rev_test = NULL)
             }
         },
-        selector_list_condition = function(selector_list) {
+        selector_list_condition = function(selector_list,
+                                           conditions = NULL) {
             # OR-join the conditions imposed by a selector list's
             # arguments into a single list(condition, is_or). NULL when
             # the list imposes no condition: either it is absent, or
             # one of its arguments (e.g. the universal selector '*') is
             # always true, making the whole list match unconditionally.
             # A single-argument list is an or-group only if that
-            # argument's own condition is one (e.g. a nested :is())
+            # argument's own condition is one (e.g. a nested :is()).
+            # 'conditions' passes in the arguments' conditions when the
+            # caller has already rendered them
             if (is.null(selector_list) || length(selector_list) == 0)
                 return(NULL)
-            conditions <- lapply(selector_list,
-                                 self$xpath_argument_condition)
+            if (is.null(conditions))
+                conditions <- lapply(selector_list,
+                                     self$xpath_argument_condition)
             exprs <- vapply(conditions, `[[`, character(1), "condition")
             if (any(exprs == "true()"))
                 return(NULL)
@@ -1884,10 +1888,33 @@ GenericTranslator <- translator_class("GenericTranslator",
             # Build the predicate for selector list filtering (CSS Level 4):
             # only siblings matching the list are counted; a list that
             # matches everything counts all siblings (no predicate)
-            selector_list_cond <- self$selector_list_condition(fn$selector_list)
-            selector_predicate <-
-                if (is.null(selector_list_cond)) ""
-                else paste0("[", selector_list_cond$condition, "]")
+            if (length(fn$selector_list) == 1) {
+                # A single selector S names its element in the node
+                # test of the sibling step where it can, as a
+                # reversed combinator test does: 'preceding-sibling::li'
+                # rather than 'preceding-sibling::*[self::li]', which
+                # selects the same siblings but which libxml2 evaluates
+                # far more slowly. The candidate's own test against S
+                # still needs the name in its condition, so fold it in
+                # afterwards from the same translation
+                argument <- self$argument_xpath(fn$selector_list[[1]])
+                counted <- argument_condition(argument)
+                argument$xpath$add_name_test()
+                selector_list_cond <- self$selector_list_condition(
+                    fn$selector_list, list(argument_condition(argument)))
+                nodetest <- counted$node_test
+                selector_predicate <-
+                    if (counted$condition == "true()") ""
+                    else paste0("[", counted$condition, "]")
+            } else {
+                # A list has no single name to test, and the union of
+                # one step per selector would be slower still
+                selector_list_cond <-
+                    self$selector_list_condition(fn$selector_list)
+                selector_predicate <-
+                    if (is.null(selector_list_cond)) ""
+                    else paste0("[", selector_list_cond$condition, "]")
+            }
 
             # count siblings before or after the element. Comparisons
             # against the count are written positionally by
