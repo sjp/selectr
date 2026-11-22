@@ -32,6 +32,13 @@
       \code{i} flag with any operator, used to test only the first such
       attribute, so \code{<p xml:lang="fr" lang="en">} was not matched.
 
+      \item The HTML and XHTML translators' \code{:lang()} no longer
+      matches a range subtag found past a singleton subtag, which opens
+      an extension or private-use section (RFC 4647 section 3.3.2).
+      \code{":lang(de-DE)"} used to match \code{lang="de-x-DE"} and
+      \code{lang="de-Latn-x-DE"}, and \code{":lang(\\*-DE)"} matched
+      \code{lang="de-a-foo-DE"}.
+
     }
   }
 }
