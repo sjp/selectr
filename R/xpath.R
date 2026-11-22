@@ -339,6 +339,46 @@ sibling_count_test <- function(axis, nodetest, predicate, op, k) {
            "<=" = paste0("not(", at_least(k + 1), ")"))
 }
 
+# The condition and node test of a pseudo-class argument translated by
+# the translator's argument_xpath(), as list(condition, is_or,
+# node_test) (see xpath_argument_condition()). Only reads the
+# translation, so it can be rendered both before and after the element
+# name is folded into the condition.
+argument_condition <- function(argument) {
+    sub_xpath <- argument$xpath
+    rev_test <- argument$rev_test
+    if (!is.null(rev_test)) {
+        condition <-
+            if (identical(sub_xpath$condition, "0")) {
+                # A rightmost compound that can never match makes
+                # the whole argument impossible; drop the
+                # existence test, as add_condition() would
+                "0"
+            } else if (nzchar(sub_xpath$condition)) {
+                cond <- sub_xpath$condition
+                # The condition becomes one operand of an "and", so
+                # a stored or-group needs its parentheses now
+                if (sub_xpath$condition_is_or)
+                    cond <- paste0("(", cond, ")")
+                paste0(cond, " and ", rev_test)
+            } else
+                rev_test
+        list(condition = condition, is_or = FALSE,
+             node_test = sub_xpath$element)
+    } else if (nzchar(sub_xpath$condition)) {
+        list(condition = sub_xpath$condition,
+             is_or = sub_xpath$condition_is_or,
+             node_test = sub_xpath$element)
+    } else {
+        # An argument that imposes no condition (a bare '*') matches
+        # everything; return an explicit "true()" so callers can tell
+        # "always true" apart from "no condition" instead of silently
+        # dropping the argument from the selector list
+        list(condition = "true()", is_or = FALSE,
+             node_test = sub_xpath$element)
+    }
+}
+
 # A translation failure: valid CSS that names a feature the current
 # translator cannot express as XPath 1.0 (e.g. a non-leading ':scope',
 # or an of-type pseudo-class on the universal selector). Raised without
@@ -1239,50 +1279,30 @@ GenericTranslator <- translator_class("GenericTranslator",
             # 'node_test', for a caller that writes it as the node test
             # of its own axis step - exactly as the compound would be
             # written as a path step outside the pseudo-class
+            argument <- self$argument_xpath(subselector)
+            if (!keep_node_test)
+                argument$xpath$add_name_test()
+            argument_condition(argument)
+        },
+        argument_xpath = function(subselector) {
+            # The translated rightmost compound of a pseudo-class
+            # argument, as list(xpath, rev_test): 'rev_test' is the
+            # reversed combinator test for the rest of a complex
+            # argument, NULL for a compound. argument_condition()
+            # renders it; in between, a caller may fold the element
+            # name into the condition with xpath$add_name_test()
             if (first_class_name(subselector) == "CombinedSelector") {
                 sub_xpath <- self$xpath(subselector$subselector)
                 if (sub_xpath$scoped)
                     stop_non_leading_scope(sub_xpath$scope_pos)
-                if (!keep_node_test)
-                    sub_xpath$add_name_test()
                 rev_test <- self$reversed_combinator_test(
                     subselector$selector, subselector$combinator)
-                condition <-
-                    if (identical(sub_xpath$condition, "0")) {
-                        # A rightmost compound that can never match makes
-                        # the whole argument impossible; drop the
-                        # existence test, as add_condition() would
-                        "0"
-                    } else if (nzchar(sub_xpath$condition)) {
-                        cond <- sub_xpath$condition
-                        # The condition becomes one operand of an
-                        # "and", so a stored or-group needs its
-                        # parentheses now
-                        if (sub_xpath$condition_is_or)
-                            cond <- paste0("(", cond, ")")
-                        paste0(cond, " and ", rev_test)
-                    } else
-                        rev_test
-                list(condition = condition, is_or = FALSE,
-                     node_test = sub_xpath$element)
+                list(xpath = sub_xpath, rev_test = rev_test)
             } else {
                 sub_xpath <- self$xpath(subselector)
                 if (sub_xpath$scoped)
                     stop_non_leading_scope(sub_xpath$scope_pos)
-                if (!keep_node_test)
-                    sub_xpath$add_name_test()
-                # An argument that imposes no condition (a bare '*')
-                # matches everything; return an explicit "true()" so
-                # callers can tell "always true" apart from "no
-                # condition" instead of silently dropping the argument
-                # from the selector list
-                if (nzchar(sub_xpath$condition))
-                    list(condition = sub_xpath$condition,
-                         is_or = sub_xpath$condition_is_or,
-                         node_test = sub_xpath$element)
-                else
-                    list(condition = "true()", is_or = FALSE,
-                         node_test = sub_xpath$element)
+                list(xpath = sub_xpath, rev_test = NULL)
             }
         },
         selector_list_condition = function(selector_list) {
