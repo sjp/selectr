@@ -462,6 +462,101 @@ test_that("HTML :lang() applies extended filtering to exact multi-subtag ranges"
         HTMLTranslator$new()$css_to_xpath("*:lang(de-*)"))
 })
 
+test_that("HTML :lang() extended filtering stops at a singleton subtag", {
+    # RFC 4647 step 3.C: a singleton subtag (one letter or digit, which
+    # opens an extension or private-use section) reached before a range
+    # subtag is found ends the match, so a "DE" after "-x-" is not a
+    # region. A singleton after the match, or as the primary subtag,
+    # changes nothing.
+    tags <- c("de-DE", "de-x-DE", "de-Latn-x-DE", "de-a-foo-DE",
+              "de-DE-x-foo", "de-Latn-DE", "de-1-DE", "x-foo", "i-klingon",
+              "x-de", "de", "de-x-foo", "de-DE-x-foo-y-bar", "de-y-bar-x-foo",
+              "de-x-a-foo")
+    html <- paste0("<html><body>",
+                   paste0(sprintf('<p id="%s" lang="%s">x</p>', tags, tags),
+                          collapse = ""),
+                   "</body></html>")
+    expected <- list(
+        "de-DE" = c("de-DE", "de-DE-x-foo", "de-Latn-DE",
+                    "de-DE-x-foo-y-bar"),
+        "de-Latn-DE" = "de-Latn-DE",
+        "\\*-DE" = c("de-DE", "de-DE-x-foo", "de-Latn-DE", "x-de",
+                     "de-DE-x-foo-y-bar"),
+        "de-DE, fr-CA" = c("de-DE", "de-DE-x-foo", "de-Latn-DE",
+                           "de-DE-x-foo-y-bar"),
+        "de-*-DE" = c("de-DE", "de-DE-x-foo", "de-Latn-DE",
+                      "de-DE-x-foo-y-bar"),
+        # a singleton in the range matches the tag's first singleton
+        # after the primary subtag, and the search then resumes up to
+        # the next one
+        "de-x-foo" = c("de-DE-x-foo", "de-x-foo", "de-DE-x-foo-y-bar"),
+        "de-x-*-bar" = character(0),
+        "de-y-bar" = "de-y-bar-x-foo",
+        "de-y-foo" = character(0),
+        # a singleton primary subtag is matched like any other
+        "x-foo" = "x-foo",
+        "i-klingon" = "i-klingon",
+        "\\*-foo" = "x-foo",
+        # a single-subtag range is a prefix test, blind to singletons
+        "de" = c("de-DE", "de-x-DE", "de-Latn-x-DE", "de-a-foo-DE",
+                 "de-DE-x-foo", "de-Latn-DE", "de-1-DE", "de", "de-x-foo",
+                 "de-DE-x-foo-y-bar", "de-y-bar-x-foo", "de-x-a-foo"),
+        "x" = c("x-foo", "x-de"))
+
+    # queried through both xml2 and XML
+    for (range in names(expected)) {
+        css <- paste0("p:lang(", range, ")")
+        if (requireNamespace("xml2", quietly = TRUE)) {
+            doc <- xml2::read_html(html)
+            ids <- xml2::xml_attr(querySelectorAll(doc, css), "id")
+            expect_equal(ids, expected[[range]], label = css)
+        }
+        if (requireNamespace("XML", quietly = TRUE)) {
+            doc <- XML::htmlParse(html, asText = TRUE)
+            ids <- vapply(querySelectorAll(doc, css), XML::xmlGetAttr,
+                          character(1), "id")
+            expect_equal(ids, expected[[range]], label = css)
+        }
+    }
+})
+
+test_that("XHTML :lang() extended filtering stops at a singleton subtag", {
+    skip_if_not_installed("xml2")
+    skip_if_not_installed("XML")
+    doc_text <- paste0(
+        "<html xmlns='http://www.w3.org/1999/xhtml'>",
+        "<p id='a' xml:lang='de-DE'/>",
+        "<p id='b' xml:lang='de-x-DE'/>",
+        "<p id='c' lang='de-Latn-x-DE'/>",
+        "<p id='d' xml:lang='de-DE-x-foo' lang='de-x-DE'/>",
+        "<p id='e' xml:lang='de-x-DE' lang='de-DE'/>",
+        "</html>")
+    ns <- c(h = "http://www.w3.org/1999/xhtml")
+    xp <- css_to_xpath("h|p:lang(de-DE)", prefix = "//",
+                       translator = "xhtml")
+    ids <- xml2::xml_attr(
+        xml2::xml_find_all(xml2::read_xml(doc_text), xp, ns), "id")
+    expect_equal(ids, c("a", "d"))
+    ids <- unlist(XML::xpathApply(XML::xmlParse(doc_text, asText = TRUE),
+                                  xp, XML::xmlGetAttr, "id",
+                                  namespaces = ns))
+    expect_equal(ids, c("a", "d"))
+})
+
+test_that("HTML :lang() singleton cut is case-insensitive", {
+    translator <- HTMLTranslator$new()
+    # the tag is lowercased before the singleton search, so an
+    # uppercase "X" ends it too, and the range is lowercased alike
+    expect_equal(translator$css_to_xpath("p:lang(DE-DE)"),
+                 translator$css_to_xpath("p:lang(de-de)"))
+    skip_if_not_installed("xml2")
+    doc <- xml2::read_html(paste0('<p id="a" lang="DE-X-DE">x</p>',
+                                  '<p id="b" lang="DE-LATN-DE">y</p>'))
+    expect_equal(xml2::xml_attr(querySelectorAll(doc, "p:lang(de-DE)"),
+                                "id"),
+                 "b")
+})
+
 test_that("generic translator's :lang() stays Selectors 3 prefix matching", {
     skip_if_not_installed("xml2")
     # Unlike the html/xhtml translators, the generic translator has no
