@@ -3,6 +3,24 @@
 \encoding{UTF-8}
 
 \section{Changes in version 0.8-1}{
+  \subsection{MINOR CHANGES}{
+    \itemize{
+
+      \item A complex selector inside \code{:is()}, \code{:where()},
+      \code{:not()} or an \code{of S} argument now names the element
+      of each compound to the left of a combinator in the node test of
+      the axis step, e.g. \code{preceding-sibling::span} for
+      \code{:is(span ~ p)}, instead of testing every node of the axis
+      with \code{preceding-sibling::*[self::span]}. The two forms
+      match the same elements, but with \pkg{libxml2} (used by
+      \pkg{XML} and \pkg{xml2}) the new one is about ten times faster
+      on long sibling lists. The universal selector, \code{*|e},
+      \code{|*}, names that need quoting and the compound before a
+      \code{+} combinator keep the old form. Code that compares the
+      generated XPath text will need updating.
+
+    }
+  }
   \subsection{BUG FIXES}{
     \itemize{
 
