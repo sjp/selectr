@@ -1519,13 +1519,27 @@ GenericTranslator <- translator_class("GenericTranslator",
                   local_name %in% html_case_insensitive_attrs))
 
             xp <- self$xpath(selector$selector)
-            if (fold_value) {
-                value <- ascii_lower(value)
-                attrib <- xpath_ascii_lower(attrib)
-            }
             method <- self[[method_name]]
             if (is.null(method))
                 internal_stop("Unknown attribute operator '", operator, "'")
+            if (fold_value)
+                value <- ascii_lower(value)
+            # '[*|attr]' selects a node-set that can hold several
+            # attributes, one per namespace. XPath's '=' tests each of
+            # them, but a string function (starts-with(), translate(),
+            # ...) sees only the first, so any other value test is run
+            # once per attribute, in a predicate on the attribute step
+            if (selector$any_namespace &&
+                (fold_value || !operator %in% c("exists", "equals"))) {
+                each <- if (fold_value) xpath_ascii_lower(".") else "."
+                test <- method(XPathExpr(), each, value)$condition
+                xp$add_condition(
+                    if (identical(test, "0")) "0"
+                    else paste0(attrib, "[", test, "]"))
+                return(xp)
+            }
+            if (fold_value)
+                attrib <- xpath_ascii_lower(attrib)
             method(xp, attrib, value)
         },
         # .foo is defined as [class~=foo] in the spec

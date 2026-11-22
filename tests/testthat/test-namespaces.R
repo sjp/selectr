@@ -236,6 +236,97 @@ test_that("namespace selectors match correct elements", {
     expect_equal(matches("[|a]"), "r")
 })
 
+test_that("'[*|attr]' value tests run against every matching attribute", {
+    gt <- GenericTranslator$new()
+    xpath <- function(css) gt$css_to_xpath(css, prefix = "")
+    any_lang <- "@*[local-name() = 'lang']"
+    lower <- function(x) {
+        paste0("translate(", x, ", 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
+               "'abcdefghijklmnopqrstuvwxyz')")
+    }
+
+    # A string function would see only the first attribute of the
+    # node-set, so each test sits in a predicate on the attribute step
+    expect_equal(xpath("[*|lang^=en]"),
+                 paste0("*[", any_lang, "[starts-with(., 'en')]]"))
+    expect_equal(xpath("[*|lang$=US]"),
+                 paste0("*[", any_lang,
+                        "[substring(., string-length(.) - 1) = 'US']]"))
+    expect_equal(xpath("[*|lang*=n-U]"),
+                 paste0("*[", any_lang, "[contains(., 'n-U')]]"))
+    expect_equal(xpath("[*|lang~=en]"),
+                 paste0("*[", any_lang, "[contains(concat(' ', ",
+                        "normalize-space(.), ' '), ' en ')]]"))
+    expect_equal(xpath("[*|lang|=en]"),
+                 paste0("*[", any_lang,
+                        "[. = 'en' or starts-with(., 'en-')]]"))
+    expect_equal(xpath("[*|lang=EN i]"),
+                 paste0("*[", any_lang, "[", lower("."), " = 'en']]"))
+    expect_equal(xpath("[*|lang^=EN i]"),
+                 paste0("*[", any_lang,
+                        "[starts-with(", lower("."), ", 'en')]]"))
+    # '=' already compares every node of a node-set, and existence
+    # needs no value, so both keep the plain form
+    expect_equal(xpath("[*|lang=en]"), paste0("*[", any_lang, " = 'en']"))
+    expect_equal(xpath("[*|lang=en s]"), paste0("*[", any_lang, " = 'en']"))
+    expect_equal(xpath("[*|lang]"), paste0("*[", any_lang, "]"))
+    # A test that can never match stays a constant
+    expect_equal(xpath("[*|lang^='']"), "*[0]")
+    expect_equal(xpath("[*|lang~='a b']"), "*[0]")
+    # The HTML translator's per-attribute case rule does not apply to
+    # '*|', but an explicit flag does
+    ht <- HTMLTranslator$new()
+    expect_equal(ht$css_to_xpath("[*|type^=Foo]", prefix = ""),
+                 "*[@*[local-name() = 'type'][starts-with(., 'Foo')]]")
+    expect_equal(ht$css_to_xpath("[*|type^=Foo i]", prefix = ""),
+                 paste0("*[@*[local-name() = 'type']",
+                        "[starts-with(", lower("."), ", 'foo')]]"))
+    # A namespaced or unprefixed attribute is a single node, and keeps
+    # the direct form
+    expect_equal(xpath("[lang^=en]"), "*[starts-with(@lang, 'en')]")
+    expect_equal(xpath("[ns|lang^=en]"), "*[starts-with(@ns:lang, 'en')]")
+})
+
+# Each 'p' carries two 'lang' attributes, only one of which satisfies
+# every selector in any_lang_selectors; 'q' has neither. Both orders
+# are covered, so a test of the first attribute alone fails one of them
+any_lang_markup <- paste0(
+    '<r xmlns:x="urn:x">',
+    '<p id="first" lang="en-US x" xml:lang="fr"/>',
+    '<p id="second" xml:lang="fr" lang="en-US x"/>',
+    '<p id="third" x:lang="en-US x" lang="fr"/>',
+    '<p id="fourth" lang="fr" x:lang="en-US x"/>',
+    '<q id="none" lang="fr" xml:lang="fr"/></r>')
+any_lang_ids <- c("first", "second", "third", "fourth")
+any_lang_selectors <- c(
+    "[*|lang^=en]", "[*|lang$=x]", "[*|lang*=n-U]", "[*|lang~=x]",
+    "[*|lang|=en]", "[*|lang='en-US x']", "[*|lang='EN-us X' i]",
+    "[*|lang^=EN i]", "[*|lang|=EN i]", "[*|lang~=X i]",
+    "[*|lang$='-us x' i]", "[*|lang*=N-u i]")
+
+test_that("'[*|attr]' value tests match any attribute (xml2)", {
+    skip_if_not_installed("xml2")
+
+    doc <- xml2::read_xml(any_lang_markup)
+    ids <- function(sel) xml2::xml_attr(querySelectorAll(doc, sel), "id")
+    for (sel in any_lang_selectors)
+        expect_equal(ids(sel), any_lang_ids, info = sel)
+    expect_equal(ids("[*|lang^=EN]"), character(0))
+})
+
+test_that("'[*|attr]' value tests match any attribute (XML)", {
+    skip_if_not_installed("XML")
+
+    doc <- XML::xmlParse(any_lang_markup, asText = TRUE)
+    ids <- function(sel) {
+        vapply(querySelectorAll(doc, sel), XML::xmlGetAttr,
+               character(1), "id")
+    }
+    for (sel in any_lang_selectors)
+        expect_equal(ids(sel), any_lang_ids, info = sel)
+    expect_equal(ids("[*|lang^=EN]"), character(0))
+})
+
 test_that("an of-type pseudo-class counts a prefixed unsafe name", {
     skip_if_not_installed("xml2")
 
