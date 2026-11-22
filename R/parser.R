@@ -7,8 +7,7 @@ escape <- paste0("\\\\[0-9a-fA-F]{1,6}(?:\r\n|[ \n\r\t\f])?",
                  "|\\\\\\z")
 nonascii <- "[^\1-\177]"
 
-TokenMacros <- list(escape = escape,
-                    string_escape = paste0("\\\\(?:\n|\r\n|\r|\f)|", escape))
+string_escape <- paste0("\\\\(?:\n|\r\n|\r|\f)|", escape)
 
 #### Parse tree
 
@@ -1416,7 +1415,7 @@ ident_start_re <- paste0("^", ident_start)
 # String content: any character except a newline, backslash, or the
 # quote character, or an escape sequence.
 string_content <- function(quote) {
-    paste0("(?:[^\n\r\f\\\\", quote, "]++|", TokenMacros$string_escape, ")*+")
+    paste0("(?:[^\n\r\f\\\\", quote, "]++|", string_escape, ")*+")
 }
 
 # The whole token grammar as one alternation, which tokenize() runs over
