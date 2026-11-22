@@ -644,7 +644,11 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
                 reject_functional_pseudo_element(ident, name_pos, stream)
                 next
             }
-            if (!token_equality(stream$peek(), "DELIM", "(")) {
+            # A function token is its name and '(' written together, so
+            # a comment between the two leaves a bare pseudo-class
+            # followed by a stray '('
+            if (!token_equality(stream$peek(), "DELIM", "(") ||
+                isTRUE(stream$peek()$after_comment)) {
                 result <- Pseudo(result, ident, peek$pos)
                 next
             }
@@ -710,6 +714,24 @@ parse_simple_selector <- function(stream, inside_arguments = FALSE,
 
                 while (TRUE) {
                     nt <- stream$nxt()
+                    # A comment separates arguments as whitespace does,
+                    # so the tokens either side are not read as one: a
+                    # :lang() range does not continue across it, and
+                    # An+B sees a whitespace token. The exception is
+                    # '+' then 'n', where An+B forbids whitespace but
+                    # a comment leaves the two tokens adjacent.
+                    if (isTRUE(nt$after_comment)) {
+                        ws_since_arg <- TRUE
+                        if (startsWith(lident, "nth-") && i > 1) {
+                            last <- arguments[[i - 1]]
+                            if (last$type != "S" &&
+                                !(token_equality(last, "DELIM", "+") &&
+                                  nt$type == "IDENT")) {
+                                arguments[[i]] <- Token("S", " ", nt$pos)
+                                i <- i + 1
+                            }
+                        }
+                    }
                     if (nt$type %in% c("IDENT", "STRING", "NUMBER",
                                        "DIMENSION") ||
                         (token_equality(nt, "DELIM", "+") ||
@@ -1552,11 +1574,15 @@ tokenize <- function(s) {
     results <- vector("list", n + 1L)
     i <- 1L
     prev_type <- ""
+    after_comment <- FALSE
     for (k in seq_len(n)) {
         type <- types[k]
         pos <- positions[k]
         token <- switch(type,
             S = {
+                # Whitespace separates tokens on its own, so a comment
+                # next to it needs no marking
+                after_comment <- FALSE
                 # A comment between two whitespace runs (or two adjacent
                 # comments) leaves no token behind, so this run may be
                 # the second one seen in a row. Keep the first instead
@@ -1607,12 +1633,24 @@ tokenize <- function(s) {
                                      newlines = TRUE),
                       pos)
             },
-            COMMENT = next,
+            # A comment leaves no token, but it still separates the
+            # tokens either side of it: a comment-separated '1' and '0'
+            # are two numbers, not 10. Flag the next token so that the
+            # parser can tell it from one written straight after the
+            # previous token.
+            COMMENT = {
+                after_comment <- TRUE
+                next
+            },
             BAD = parse_stop("Unexpected character '",
                              slice(starts[k], 1L), "'",
                              pos = pos),
             # CDC, CDO and DELIM are their own source text
             Token(type, slice(starts[k], ends[k] - starts[k] + 1L), pos))
+        if (after_comment) {
+            token$after_comment <- TRUE
+            after_comment <- FALSE
+        }
         results[[i]] <- token
         i <- i + 1L
         prev_type <- type

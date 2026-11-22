@@ -222,6 +222,22 @@ test_that("a comment's opening '*' cannot also close it", {
                  c("<IDENT 'a' at 1>", "<IDENT 'b' at 7>", "<EOF at 8>"))
 })
 
+test_that("a token straight after a comment is flagged", {
+    flags <- function(css) {
+        vapply(tokenize(css), function(t) isTRUE(t$after_comment),
+               logical(1))
+    }
+
+    expect_equal(flags("a/**/b"), c(FALSE, TRUE, FALSE))
+    expect_equal(flags("1/*x*//*y*/0"), c(FALSE, TRUE, FALSE))
+    # Whitespace after the comment clears the flag; whitespace before
+    # it does not, but the S token already separates the two
+    expect_equal(flags("a/**/ b"), c(FALSE, FALSE, FALSE, FALSE))
+    expect_equal(flags("a /**/b"), c(FALSE, FALSE, TRUE, FALSE))
+    # Nor is the EOF token after a trailing comment
+    expect_equal(flags("a/**/"), c(FALSE, FALSE))
+})
+
 test_that("consecutive whitespace runs collapse into a single S token", {
     reprs <- function(css) {
         unlist(lapply(tokenize(css), token_repr))

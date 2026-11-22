@@ -11,6 +11,14 @@
       of the selector like \code{":not(a"} already was, instead of
       raising \code{"Expected selector, got <EOF>"}.
 
+      \item A comment now separates the tokens either side of it, as
+      CSS specifies, instead of joining them. \code{":nth-child(1/**/0)"}
+      used to be read as \code{":nth-child(10)"} and
+      \code{":lang(en/**/fr)"} as \code{":lang(enfr)"}; both are now
+      errors, as are \code{":nth-child(2/**/n)"} and
+      \code{":not/**/(a)"}. Comments where whitespace is allowed, as in
+      \code{":nth-child(2n /**/ + 1)"}, are unaffected.
+
     }
   }
 }
