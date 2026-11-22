@@ -11,8 +11,11 @@
       \code{:is(span ~ p)} now uses \code{preceding-sibling::span}
       rather than \code{preceding-sibling::*[self::span]}, which
       \pkg{libxml2} evaluates about ten times faster on long sibling
-      lists. The same elements match, but the generated XPath text
-      changes.
+      lists. The sibling count of \code{:nth-child(an+b of S)} and
+      \code{:nth-last-child()} now names the element of \code{S} in
+      the same way, and an exact position such as \code{3 of li} is
+      tested positionally. The same elements match, but the generated
+      XPath text changes.
 
     }
   }
