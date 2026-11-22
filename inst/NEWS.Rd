@@ -6,66 +6,43 @@
   \subsection{MINOR CHANGES}{
     \itemize{
 
-      \item A complex selector inside \code{:is()}, \code{:where()},
-      \code{:not()} or an \code{of S} argument now names the element
-      of each compound to the left of a combinator in the node test of
-      the axis step, e.g. \code{preceding-sibling::span} for
-      \code{:is(span ~ p)}, instead of testing every node of the axis
-      with \code{preceding-sibling::*[self::span]}. The two forms
-      match the same elements, but with \pkg{libxml2} (used by
-      \pkg{XML} and \pkg{xml2}) the new one is about ten times faster
-      on long sibling lists. The universal selector, \code{*|e},
-      \code{|*}, names that need quoting and the compound before a
-      \code{+} combinator keep the old form. Code that compares the
-      generated XPath text will need updating.
+      \item Complex selectors inside \code{:is()}, \code{:where()},
+      \code{:not()} and \code{of S} translate to faster XPath:
+      \code{:is(span ~ p)} now uses \code{preceding-sibling::span}
+      rather than \code{preceding-sibling::*[self::span]}, which
+      \pkg{libxml2} evaluates about ten times faster on long sibling
+      lists. The same elements match, but the generated XPath text
+      changes.
 
     }
   }
   \subsection{BUG FIXES}{
     \itemize{
 
-      \item An unclosed functional pseudo-class whose argument ends in
-      whitespace, such as \code{":not(a "}, is now closed at the end
-      of the selector like \code{":not(a"} already was, instead of
-      raising \code{"Expected selector, got <EOF>"}.
+      \item An unclosed functional pseudo-class ending in whitespace,
+      such as \code{":not(a "}, is now closed at the end of the
+      selector instead of raising an error.
 
       \item A comment now separates the tokens either side of it, as
-      CSS specifies, instead of joining them. \code{":nth-child(1/**/0)"}
-      used to be read as \code{":nth-child(10)"} and
-      \code{":lang(en/**/fr)"} as \code{":lang(enfr)"}; both are now
-      errors, as are \code{":nth-child(2/**/n)"} and
-      \code{":not/**/(a)"}. Comments where whitespace is allowed, as in
-      \code{":nth-child(2n /**/ + 1)"}, are unaffected.
+      CSS specifies, instead of joining them, so
+      \code{":nth-child(1/**/0)"} is an error rather than
+      \code{":nth-child(10)"}.
 
-      \item A selector nesting functional pseudo-classes very deeply
-      is now reported as \code{"selector nests functional pseudo-classes
-      too deeply"} whichever of R's stacks overflows first. Before, only
-      the expression limit was caught, and nesting \code{:not()} 800
-      deep raised a bare \code{"node stack overflow"} error.
+      \item Very deep nesting of functional pseudo-classes now always
+      raises the \code{"selector nests functional pseudo-classes too
+      deeply"} error, never a bare \code{"node stack overflow"}.
 
       \item An attribute selector in any namespace, such as
-      \code{"[*|lang^=en]"}, now matches when any of the element's
-      attributes with that local name satisfies it. The \code{~=},
-      \code{|=}, \code{^=}, \code{$=} and \code{*=} operators, and the
-      \code{i} flag with any operator, used to test only the first such
-      attribute, so \code{<p xml:lang="fr" lang="en">} was not matched.
+      \code{"[*|lang^=en]"}, now matches when any attribute with that
+      local name matches, not only the first.
 
-      \item The HTML and XHTML translators' \code{:lang()} no longer
-      matches a range subtag found past a singleton subtag, which opens
-      an extension or private-use section (RFC 4647 section 3.3.2).
-      \code{":lang(de-DE)"} used to match \code{lang="de-x-DE"} and
-      \code{lang="de-Latn-x-DE"}, and \code{":lang(\\*-DE)"} matched
-      \code{lang="de-a-foo-DE"}.
+      \item The HTML translator's \code{"[*|type=Foo]"} now ignores
+      case for a \code{type} attribute in no namespace, as
+      \code{"[type=Foo]"} does.
 
-      \item The HTML translator's attribute selectors in any namespace,
-      such as \code{"[*|type=Foo]"}, now compare the value of an HTML
-      attribute whose values are ASCII case-insensitive (e.g.
-      \code{type}) case-insensitively when that attribute is in no
-      namespace, as \code{"[type=Foo]"} already does. Before, no
-      attribute was folded, so \code{type="foo"} was not matched. An
-      attribute in a namespace, such as \code{x:type}, is still compared
-      case-sensitively, and an explicit \code{i} or \code{s} flag applies
-      to every attribute.
+      \item The HTML and XHTML translators' \code{:lang()} now stops
+      at a singleton subtag (RFC 4647), so \code{":lang(de-DE)"} no
+      longer matches \code{lang="de-x-DE"}.
 
     }
   }
