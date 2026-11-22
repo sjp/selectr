@@ -3,6 +3,16 @@
 \encoding{UTF-8}
 
 \section{Changes in version 0.8-1}{
+  \subsection{BUG FIXES}{
+    \itemize{
+
+      \item An unclosed functional pseudo-class whose argument ends in
+      whitespace, such as \code{":not(a "}, is now closed at the end
+      of the selector like \code{":not(a"} already was, instead of
+      raising \code{"Expected selector, got <EOF>"}.
+
+    }
+  }
 }
 
 \section{Changes in version 0.8-0}{

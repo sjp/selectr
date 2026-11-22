@@ -113,6 +113,8 @@ test_that("useful errors are returned", {
     # trailing combinators in arguments
     expect_error(get_error(":is(a >)"),
                  "Expected selector, got <DELIM '\\)' at 8>")
+    expect_error(get_error(":is(a > "),
+                 "Expected selector, got <EOF at 9>")
     # Only :is()/:where() take a forgiving selector list, so an empty
     # argument list stays an error for the other functional pseudo-classes
     expect_error(get_error(":not()"),
@@ -153,6 +155,13 @@ test_that("constructs unclosed at EOF translate as their closed forms", {
     eof("a:where(", "a:where()")
     eof(":not(a", ":not(a)")
     eof(":has(> a", ":has(> a)")
+    # Whitespace before EOF is not a descendant combinator: there is
+    # no selector after it
+    eof(":not(a ", ":not(a)")
+    eof(":is(a b ", ":is(a b)")
+    eof(":has(> a ", ":has(> a)")
+    eof(":where(a, b ", ":where(a, b)")
+    eof(":not(a /* comment", ":not(a)")
     # An ident ending in an escaped backslash, then an unclosed
     # attribute block: tokenizes as <IDENT 'di\'> <DELIM '['>
     # <IDENT 'v'> and auto-closes to an existence test

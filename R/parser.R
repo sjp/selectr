@@ -889,7 +889,7 @@ parse_simple_selector_arguments <- function(stream, function_name = NULL, # noli
             if (peek$type == "S") {
                 stream$skip_whitespace()
                 peek <- stream$peek()
-                if (token_is_delim(peek, c(")", ","))) {
+                if (token_is_delim(peek, c(")", ",")) || peek$type == "EOF") {
                     break
                 }
                 if (token_is_delim(peek, c("+", ">", "~"))) {
