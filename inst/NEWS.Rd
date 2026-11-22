@@ -25,6 +25,13 @@
       the expression limit was caught, and nesting \code{:not()} 800
       deep raised a bare \code{"node stack overflow"} error.
 
+      \item An attribute selector in any namespace, such as
+      \code{"[*|lang^=en]"}, now matches when any of the element's
+      attributes with that local name satisfies it. The \code{~=},
+      \code{|=}, \code{^=}, \code{$=} and \code{*=} operators, and the
+      \code{i} flag with any operator, used to test only the first such
+      attribute, so \code{<p xml:lang="fr" lang="en">} was not matched.
+
     }
   }
 }
