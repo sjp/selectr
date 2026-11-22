@@ -330,6 +330,127 @@ test_that("'[*|attr]' value tests match any attribute (XML)", {
     expect_equal(ids("[*|lang^=EN]"), character(0))
 })
 
+test_that("HTML '[*|attr]' folds the value of the no-namespace attribute", {
+    ht <- HTMLTranslator$new()
+    xpath <- function(css) ht$css_to_xpath(css, prefix = "")
+    any_type <- "@*[local-name() = 'type']"
+    lower <- function(x) {
+        paste0("translate(", x, ", 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
+               "'abcdefghijklmnopqrstuvwxyz')")
+    }
+    split <- function(folded, exact) {
+        paste0("*[", any_type, "[namespace-uri() = '' and ", folded,
+               " or ", exact, "]]")
+    }
+
+    # Every operator tests the attribute in no namespace folded and any
+    # other attribute exactly
+    expect_equal(xpath("[*|type=Foo]"),
+                 split(paste0(lower("."), " = 'foo'"), ". = 'Foo'"))
+    expect_equal(xpath("[*|type~=Foo]"),
+                 split(paste0("contains(concat(' ', normalize-space(",
+                              lower("."), "), ' '), ' foo ')"),
+                       "contains(concat(' ', normalize-space(.), ' '), ' Foo ')"))
+    expect_equal(xpath("[*|type|=Foo]"),
+                 split(paste0("(", lower("."), " = 'foo' or starts-with(",
+                              lower("."), ", 'foo-'))"),
+                       ". = 'Foo' or starts-with(., 'Foo-')"))
+    expect_equal(xpath("[*|type^=Foo]"),
+                 split(paste0("starts-with(", lower("."), ", 'foo')"),
+                       "starts-with(., 'Foo')"))
+    expect_equal(xpath("[*|type$=Foo]"),
+                 split(paste0("substring(", lower("."), ", string-length(",
+                              lower("."), ") - 2) = 'foo'"),
+                       "substring(., string-length(.) - 2) = 'Foo'"))
+    expect_equal(xpath("[*|type*=Foo]"),
+                 split(paste0("contains(", lower("."), ", 'foo')"),
+                       "contains(., 'Foo')"))
+
+    # Existence, an empty value and a test that can never match are as
+    # before
+    expect_equal(xpath("[*|type]"), paste0("*[", any_type, "]"))
+    expect_equal(xpath("[*|type='']"), paste0("*[", any_type, " = '']"))
+    expect_equal(xpath("[*|type^='']"), "*[0]")
+    expect_equal(xpath("[*|type~='a b']"), "*[0]")
+
+    # An explicit flag applies to every attribute, whatever its namespace
+    expect_equal(xpath("[*|type=Foo i]"),
+                 paste0("*[", any_type, "[", lower("."), " = 'foo']]"))
+    expect_equal(xpath("[*|type=Foo s]"),
+                 paste0("*[", any_type, " = 'Foo']"))
+    expect_equal(xpath("[*|type^=Foo s]"),
+                 paste0("*[", any_type, "[starts-with(., 'Foo')]]"))
+
+    # An attribute off the case-insensitive list is left exact
+    expect_equal(xpath("[*|class^=Foo]"),
+                 "*[@*[local-name() = 'class'][starts-with(., 'Foo')]]")
+
+    # A named namespace or none is unchanged
+    expect_equal(xpath("[type=Foo]"), paste0("*[", lower("@type"), " = 'foo']"))
+    expect_equal(xpath("[|type=Foo]"), paste0("*[", lower("@type"), " = 'foo']"))
+    expect_equal(xpath("[ns|type=Foo]"), "*[@ns:type = 'Foo']")
+
+    # Neither the xhtml nor the generic translator folds
+    for (tr in list(HTMLTranslator$new(xhtml = TRUE),
+                    GenericTranslator$new())) {
+        expect_equal(tr$css_to_xpath("[*|type=Foo]", prefix = ""),
+                     paste0("*[", any_type, " = 'Foo']"))
+        expect_equal(tr$css_to_xpath("[*|type^=Foo]", prefix = ""),
+                     paste0("*[", any_type, "[starts-with(., 'Foo')]]"))
+    }
+})
+
+# Each 'p' has a 'type' in no namespace and an 'x:type', in either
+# order; the one spelt in upper case matches the case-insensitive
+# selectors below only when it has no namespace
+any_type_markup <- paste0(
+    '<r xmlns:x="urn:x">',
+    '<p id="a" type="FOO-bar baz" x:type="zzz"/>',
+    '<p id="b" x:type="zzz" type="FOO-bar baz"/>',
+    '<p id="c" x:type="FOO-bar baz" type="zzz"/>',
+    '<p id="d" type="zzz" x:type="FOO-bar baz"/>',
+    '<p id="e" x:type="foo-bar baz" type="zzz"/>',
+    '<p id="f" type="zzz" x:type="foo-bar baz"/>',
+    '<q id="g" type="foo-bar baz"/></r>')
+any_type_expected <- list(
+    "[*|type='foo-bar baz']" = c("a", "b", "e", "f", "g"),
+    "[*|type~=foo-bar]" = c("a", "b", "e", "f", "g"),
+    "[*|type|=foo]" = c("a", "b", "e", "f", "g"),
+    "[*|type^=foo]" = c("a", "b", "e", "f", "g"),
+    "[*|type$=BAZ]" = c("a", "b", "g"),
+    "[*|type*=o-B]" = c("a", "b", "g"),
+    "[*|type='foo-bar baz' s]" = c("e", "f", "g"),
+    "[*|type^=foo s]" = c("e", "f", "g"),
+    "[*|type^=FOO i]" = c("a", "b", "c", "d", "e", "f", "g"),
+    "[*|type]" = c("a", "b", "c", "d", "e", "f", "g"),
+    "[type^=foo]" = c("a", "b", "g"),
+    "[|type^=foo]" = c("a", "b", "g"),
+    "[x|type^=foo]" = c("e", "f"))
+
+test_that("HTML '[*|attr]' folds only the no-namespace value (xml2)", {
+    skip_if_not_installed("xml2")
+
+    doc <- xml2::read_xml(any_type_markup)
+    for (sel in names(any_type_expected)) {
+        xp <- css_to_xpath(sel, prefix = "//", translator = "html")
+        nodes <- xml2::xml_find_all(doc, xp, c(x = "urn:x"))
+        expect_equal(xml2::xml_attr(nodes, "id"), any_type_expected[[sel]],
+                     info = sel)
+    }
+})
+
+test_that("HTML '[*|attr]' folds only the no-namespace value (XML)", {
+    skip_if_not_installed("XML")
+
+    doc <- XML::xmlParse(any_type_markup, asText = TRUE)
+    for (sel in names(any_type_expected)) {
+        xp <- css_to_xpath(sel, prefix = "//", translator = "html")
+        nodes <- XML::getNodeSet(doc, xp, c(x = "urn:x"))
+        expect_equal(vapply(nodes, XML::xmlGetAttr, character(1), "id"),
+                     any_type_expected[[sel]], info = sel)
+    }
+})
+
 test_that("an of-type pseudo-class counts a prefixed unsafe name", {
     skip_if_not_installed("xml2")
 
