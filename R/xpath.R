@@ -571,9 +571,21 @@ lang_attr_value_lc <- function(xhtml) {
 # validated (see lang_ranges()), so every subtag is non-empty and at
 # least one is a literal - an all-wildcard range is "any", not
 # "extended", and never reaches here with nothing to test.
+#
+# RFC 4647 step 3.C also ends the search at a singleton subtag (one
+# letter or digit, which opens an extension or private-use section):
+# in "de-x-DE" the "DE" is not a region, so "de-DE" must not match it.
+# So once the primary subtag is consumed, each literal is searched for
+# only in the tail cut just after its first singleton (see
+# lang_tail_to_singleton()) - the cut keeps the singleton itself, which
+# a singleton in the range (as in "de-x-foo") may match. The uncut tail
+# is threaded alongside, and a matched singleton re-cuts it for the
+# search that follows. A literal found before the cut is at the same
+# place in both, so substring-after advances them together.
 lang_extended_html_condition <- function(value, xhtml) {
     lang <- lang_attr_value_lc(xhtml)
-    cursor <- paste0("concat(", lang, ", '-')")
+    tail <- paste0("concat(", lang, ", '-')")
+    cut <- NULL  # the tail up to its first singleton, past the primary
     subtags <- strsplit(ascii_lower(value), "-", fixed = TRUE)[[1]]
     conditions <- character(0)
     anywhere <- FALSE  # may the next literal subtag be preceded by others?
@@ -584,7 +596,8 @@ lang_extended_html_condition <- function(value, xhtml) {
         # primary subtag rather than skipping over it: the rest of the
         # range is searched for in what follows, and "*-CH" matches
         # "de-CH" but neither "ch" nor "ch-DE"
-        cursor <- paste0("substring-after(", cursor, ", '-')")
+        tail <- paste0("substring-after(", tail, ", '-')")
+        cut <- lang_tail_to_singleton(tail)
     }
     for (subtag in subtags) {
         if (subtag == "*") {
@@ -592,23 +605,49 @@ lang_extended_html_condition <- function(value, xhtml) {
             next
         }
         if (!anchored && !anywhere) {
+            # The primary subtag may itself be a singleton ("x-foo",
+            # "i-klingon"), so the tail is cut only after it
             needle <- xpath_literal(paste0(subtag, "-"))
             conditions <- c(conditions,
-                            paste0("starts-with(", cursor, ", ", needle, ")"))
+                            paste0("starts-with(", tail, ", ", needle, ")"))
+            tail <- paste0("substring-after(", tail, ", ", needle, ")")
+            cut <- lang_tail_to_singleton(tail)
         } else {
-            # The tail carries no leading dash, so one is put back for
+            # The tails carry no leading dash, so one is put back for
             # the delimited search
-            cursor <- paste0("concat('-', ", cursor, ")")
             needle <- xpath_literal(paste0("-", subtag, "-"))
             conditions <- c(conditions,
-                            paste0("contains(", cursor, ", ", needle, ")"))
+                            paste0("contains(concat('-', ", cut, "), ",
+                                   needle, ")"))
+            tail <- paste0("substring-after(concat('-', ", tail, "), ",
+                           needle, ")")
+            cut <- if (nchar(subtag) == 1)
+                lang_tail_to_singleton(tail)
+            else
+                paste0("substring-after(concat('-', ", cut, "), ",
+                       needle, ")")
         }
-        cursor <- paste0("substring-after(", cursor, ", ", needle, ")")
         anywhere <- FALSE
         anchored <- TRUE
     }
     paste0(lang_attr_ancestor(xhtml), "[",
            paste(conditions, collapse = " and "), "]")
+}
+
+# A lowercased, dash-terminated tail of language subtags ("latn-x-de-"),
+# cut just after its first singleton subtag ("latn-x-"), or left whole
+# if there is none. XPath 1.0 has no regular expressions, so translate()
+# maps every letter and digit to 'a': a singleton then reads "-a-" with
+# a dash put back in front, and substring-before() measures how much of
+# the tail precedes it. Appending "a-" guarantees a match, at the end
+# of the string, when there is no singleton to find.
+lang_tail_to_singleton <- function(tail) {
+    alnum <- paste0(ascii_lower_letters, "0123456789")
+    singleton_at <- paste0(
+        "string-length(substring-before(concat(translate(concat('-', ",
+        tail, "), '", alnum, "', '", strrep("a", nchar(alnum)),
+        "'), 'a-'), '-a-'))")
+    paste0("substring(", tail, ", 1, ", singleton_at, " + 2)")
 }
 
 # The type name of a parse-tree node (or of an XPathExpr), as repr()

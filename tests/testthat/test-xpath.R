@@ -34,18 +34,31 @@ test_that("Generic translator validates language arguments", {
     expect_equal(translator$css_to_xpath("xml:lang(en, de, fr)"), "descendant-or-self::xml[lang('en') or lang('de') or lang('fr')]")
 })
 
+# The XPath the HTML :lang() translation uses to cut a tail of language
+# subtags just after its first singleton subtag (RFC 4647 step 3.C):
+# every letter and digit maps to 'a', so a singleton reads "-a-"
+singleton_cut <- function(tail) {
+    paste0("substring(", tail, ", 1, string-length(substring-before(",
+           "concat(translate(concat('-', ", tail, "), ",
+           "'abcdefghijklmnopqrstuvwxyz0123456789', ",
+           "'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'), 'a-'), '-a-')) + 2)")
+}
+
 test_that("HTML translator validates language arguments", {
     translator <- HTMLTranslator$new()
+    lc <- "translate(@lang, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
     expect_equal(translator$css_to_xpath("html:lang(en)"), "descendant-or-self::html[ancestor-or-self::*[@lang][1][starts-with(concat(translate(@lang, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '-'), 'en-')]]")
     # "en-nz" names two subtags, so RFC 4647 extended filtering applies
     # (see the "extended-filtering exact ranges" test below) rather than
-    # the single-subtag prefix test used for "en" above
+    # the single-subtag prefix test used for "en" above. The "nz" is
+    # searched for only up to the first singleton after the "en".
     expect_equal(translator$css_to_xpath("html:lang(en-nz)"),
                  paste0("descendant-or-self::html[ancestor-or-self::*[@lang][1][",
-                        "starts-with(concat(translate(@lang, ",
-                        "'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '-'), 'en-') and ",
-                        "contains(concat('-', substring-after(concat(translate(@lang, ",
-                        "'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '-'), 'en-')), '-nz-')]]"))
+                        "starts-with(concat(", lc, ", '-'), 'en-') and ",
+                        "contains(concat('-', ",
+                        singleton_cut(paste0("substring-after(concat(", lc,
+                                             ", '-'), 'en-')")),
+                        "), '-nz-')]]"))
 
     expect_error(translator$css_to_xpath("html:lang()"), "Expected at least one argument.*")
     expect_error(translator$css_to_xpath("html:lang(1)"), "Expected string, ident, or \\* arguments.*")
@@ -365,14 +378,15 @@ test_that("HTML translator handles :lang() extended-filtering wildcards", {
     # A leading wildcard "*-CH" matches any tag carrying a "ch" subtag
     # after the first: RFC 4647 step 2 pairs the '*' with the tag's
     # primary subtag, so that subtag is consumed rather than searched
-    # (substring-after drops it before the containment test). Both the
-    # unquoted (tokenized as '*' + "-CH") and quoted spellings
-    # reassemble to the same range and translation.
-    expected_star_ch <- sprintf(
-        paste0("descendant-or-self::*[ancestor-or-self::*[@lang][1]",
-               "[contains(concat('-', substring-after(concat(%s, '-'), '-')), ",
-               "'-ch-')]]"),
-        lc)
+    # (substring-after drops it before the containment test, which looks
+    # no further than the first singleton). Both the unquoted (tokenized
+    # as '*' + "-CH") and quoted spellings reassemble to the same range
+    # and translation.
+    expected_star_ch <- paste0(
+        "descendant-or-self::*[ancestor-or-self::*[@lang][1]",
+        "[contains(concat('-', ",
+        singleton_cut(paste0("substring-after(concat(", lc, ", '-'), '-')")),
+        "), '-ch-')]]")
     expect_equal(translator$css_to_xpath(":lang(*-CH)"), expected_star_ch)
     expect_equal(translator$css_to_xpath('div:lang("*-CH")'),
                  sub("self::\\*", "self::div", expected_star_ch))
@@ -381,11 +395,12 @@ test_that("HTML translator handles :lang() extended-filtering wildcards", {
     # carry a later "de" subtag, in that order (substring-after threads
     # the tail so "de-CH" alone does not match).
     expect_equal(translator$css_to_xpath(":lang(de-*-DE)"),
-                 sprintf(paste0("descendant-or-self::*[ancestor-or-self::*[@lang][1]",
-                                "[starts-with(concat(%1$s, '-'), 'de-') and ",
-                                "contains(concat('-', substring-after(concat(%1$s, '-'), ",
-                                "'de-')), '-de-')]]"),
-                         lc))
+                 paste0("descendant-or-self::*[ancestor-or-self::*[@lang][1]",
+                        "[starts-with(concat(", lc, ", '-'), 'de-') and ",
+                        "contains(concat('-', ",
+                        singleton_cut(paste0("substring-after(concat(", lc,
+                                             ", '-'), 'de-')")),
+                        "), '-de-')]]"))
 
     # A non-trailing wildcard in a comma list translates alongside its
     # neighbours without error
