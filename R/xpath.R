@@ -1222,20 +1222,30 @@ GenericTranslator <- translator_class("GenericTranslator",
             }
             left
         },
-        xpath_argument_condition = function(subselector) {
+        xpath_argument_condition = function(subselector,
+                                            keep_node_test = FALSE) {
             # Translate one functional pseudo-class argument into a
             # condition on the candidate element, returned as
-            # list(condition, is_or) where 'is_or' marks a top-level
-            # or-expression (see 'condition_is_or'). A complex argument
-            # (CombinedSelector) applies its rightmost compound to the
-            # candidate, with everything to its left becoming an
+            # list(condition, is_or, node_test) where 'is_or' marks a
+            # top-level or-expression (see 'condition_is_or'). A complex
+            # argument (CombinedSelector) applies its rightmost compound
+            # to the candidate, with everything to its left becoming an
             # existence test through reversed axes (e.g. :is(a > b)
-            # matches a 'b' whose parent is an 'a')
+            # matches a 'b' whose parent is an 'a').
+            #
+            # The element name of the rightmost compound normally
+            # becomes a 'self::' test in the condition, which then
+            # holds for any candidate and 'node_test' is '*'. With
+            # 'keep_node_test', the name is instead left as
+            # 'node_test', for a caller that writes it as the node test
+            # of its own axis step - exactly as the compound would be
+            # written as a path step outside the pseudo-class
             if (first_class_name(subselector) == "CombinedSelector") {
                 sub_xpath <- self$xpath(subselector$subselector)
                 if (sub_xpath$scoped)
                     stop_non_leading_scope(sub_xpath$scope_pos)
-                sub_xpath$add_name_test()
+                if (!keep_node_test)
+                    sub_xpath$add_name_test()
                 rev_test <- self$reversed_combinator_test(
                     subselector$selector, subselector$combinator)
                 condition <-
@@ -1254,12 +1264,14 @@ GenericTranslator <- translator_class("GenericTranslator",
                         paste0(cond, " and ", rev_test)
                     } else
                         rev_test
-                list(condition = condition, is_or = FALSE)
+                list(condition = condition, is_or = FALSE,
+                     node_test = sub_xpath$element)
             } else {
                 sub_xpath <- self$xpath(subselector)
                 if (sub_xpath$scoped)
                     stop_non_leading_scope(sub_xpath$scope_pos)
-                sub_xpath$add_name_test()
+                if (!keep_node_test)
+                    sub_xpath$add_name_test()
                 # An argument that imposes no condition (a bare '*')
                 # matches everything; return an explicit "true()" so
                 # callers can tell "always true" apart from "no
@@ -1267,9 +1279,11 @@ GenericTranslator <- translator_class("GenericTranslator",
                 # from the selector list
                 if (nzchar(sub_xpath$condition))
                     list(condition = sub_xpath$condition,
-                         is_or = sub_xpath$condition_is_or)
+                         is_or = sub_xpath$condition_is_or,
+                         node_test = sub_xpath$element)
                 else
-                    list(condition = "true()", is_or = FALSE)
+                    list(condition = "true()", is_or = FALSE,
+                         node_test = sub_xpath$element)
             }
         },
         selector_list_condition = function(selector_list) {
@@ -1307,15 +1321,34 @@ GenericTranslator <- translator_class("GenericTranslator",
             # left-hand side of a combinator inside a pseudo-class
             # argument: ' ' -> an ancestor, '>' -> the parent, '~' -> any
             # preceding sibling, '+' -> the immediately preceding sibling.
-            # The left-hand side may itself be complex, so recurse
-            inner <- self$xpath_argument_condition(selector)$condition
+            # The left-hand side may itself be complex, so recurse.
+            #
+            # As in xpath_has_test(), the element name of that
+            # left-hand compound is the node test of the axis step
+            # ('preceding-sibling::span', not
+            # 'preceding-sibling::*[self::span]'): the step then means
+            # just what the compound means as a path step anywhere
+            # else, and libxml2 filters on a name test far faster than
+            # it evaluates a 'self::' predicate on every node of the
+            # axis. A name that cannot be a node test ('*|e', or one
+            # that needs quoting) has already been folded into the
+            # condition, leaving '*'. The exception is '+', where the
+            # position predicate [1] must come before the name test -
+            # the immediately preceding sibling, if it is an 'e' - and
+            # so the name has to move into the predicate after it
+            adjacent <- combinator == "+"
+            inner <- self$xpath_argument_condition(
+                selector, keep_node_test = !adjacent)
             axis <-
-                if (combinator == " ") "ancestor::*"
-                else if (combinator == ">") "parent::*"
-                else if (combinator == "~") "preceding-sibling::*"
-                else if (combinator == "+") "preceding-sibling::*[1]"
+                if (combinator == " ") "ancestor::"
+                else if (combinator == ">") "parent::"
+                else if (combinator %in% c("~", "+")) "preceding-sibling::"
                 else internal_stop("Unknown combinator '", combinator, "'")
-            if (inner == "true()") axis else paste0(axis, "[", inner, "]")
+            step <- paste0(axis, inner$node_test)
+            if (adjacent)
+                step <- paste0(step, "[1]")
+            if (inner$condition == "true()") step
+            else paste0(step, "[", inner$condition, "]")
         },
         xpath_negation = function(negation) {
             xpath <- self$xpath(negation$selector)

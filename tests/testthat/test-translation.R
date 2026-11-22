@@ -172,17 +172,19 @@ test_that("translation from parsed objects to XPath works", {
                  "e[.//*[not(self::f)]]")
     # Selectors Level 4: complex selectors inside functional pseudo-classes
     # apply the rightmost compound to the candidate and walk the rest
-    # through reversed axes
+    # through reversed axes, each naming its element in the node test of
+    # the axis step - except under '+', where the position predicate [1]
+    # must come first
     expect_equal(xpath(':is(a b)'),
-                 "*[self::b and ancestor::*[self::a]]")
+                 "*[self::b and ancestor::a]")
     expect_equal(xpath(':is(a > b)'),
-                 "*[self::b and parent::*[self::a]]")
+                 "*[self::b and parent::a]")
     expect_equal(xpath(':is(a + b)'),
                  "*[self::b and preceding-sibling::*[1][self::a]]")
     expect_equal(xpath(':is(a ~ b)'),
-                 "*[self::b and preceding-sibling::*[self::a]]")
+                 "*[self::b and preceding-sibling::a]")
     expect_equal(xpath(':is(a > b ~ c)'),
-                 "*[self::c and preceding-sibling::*[self::b and parent::*[self::a]]]")
+                 "*[self::c and preceding-sibling::b[parent::a]]")
     # The combinator chain inside a functional pseudo-class parses the
     # same whether or not whitespace surrounds each combinator, and
     # whether or not trailing whitespace precedes the closing ')'/','
@@ -196,13 +198,13 @@ test_that("translation from parsed objects to XPath works", {
     expect_equal(xpath(':is(a > :is(.x, .y))'),
                  paste0("*[(contains(concat(' ', normalize-space(@class), ' '), ' x ')",
                        " or contains(concat(' ', normalize-space(@class), ' '), ' y '))",
-                       " and parent::*[self::a]]"))
+                       " and parent::a]"))
     expect_equal(xpath('e:not(a b)'),
-                 "e[not(self::b and ancestor::*[self::a])]")
+                 "e[not(self::b and ancestor::a)]")
     expect_equal(xpath(':where(a + b)'),
                  "*[self::b and preceding-sibling::*[1][self::a]]")
     expect_equal(xpath(':is(a.x > b#y)'),
-                 "*[@id = 'y' and self::b and parent::*[contains(concat(' ', normalize-space(@class), ' '), ' x ') and self::a]]")
+                 "*[@id = 'y' and self::b and parent::a[contains(concat(' ', normalize-space(@class), ' '), ' x ')]]")
     # The :is()/:where() alternatives must stay grouped: conditions added
     # before or after the pseudo-class AND with the whole selector list,
     # rather than the ORs flattening into the compound's condition chain
