@@ -8,8 +8,7 @@ escape <- paste0("\\\\[0-9a-fA-F]{1,6}(?:\r\n|[ \n\r\t\f])?",
 nonascii <- "[^\1-\177]"
 
 TokenMacros <- list(escape = escape,
-                    string_escape = paste0("\\\\(?:\n|\r\n|\r|\f)|", escape),
-                    nonascii = nonascii)
+                    string_escape = paste0("\\\\(?:\n|\r\n|\r|\f)|", escape))
 
 #### Parse tree
 
@@ -1414,9 +1413,6 @@ hash_ident_hint <- function(name) {
 token_is_delim <- function(token, values) {
     token$type == "DELIM" && token$value %in% values
 }
-
-delims_2ch <- c("~=", "|=", "^=", "$=", "*=", "::")
-delims_1ch <- c(">", "+", "-", "~", ",", ".", "*", "=", "[", "]", "(", ")", "|", ":", "#")
 
 # A name character, one escape sequence counting as one character. The
 # escape alternative covers both unicode escapes (e.g. '\31 ') and
