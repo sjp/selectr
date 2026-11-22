@@ -1268,22 +1268,11 @@ parse_series <- function(tokens) {
     else if (s == "n")
         return(1:0)
     n_pos <- regexpr("n", s, fixed = TRUE)
-    if (n_pos == -1L) {
-        result <- str_int(s)
-        if (is.na(result)) {
-            return(NULL)
-        } else {
-            return(c(0L, result))
-        }
-    }
+    if (n_pos == -1L)
+        return(c(0L, str_int(s)))
     # Split at the first 'n' only
-    a <- trimws(substring(s, 1, n_pos - 1))
-    b <- trimws(substring(s, n_pos + 1))
-
-    intb <- str_int(b)
-    if (!nzchar(a) && is.na(intb))
-        return(NULL)
-
+    a <- substring(s, 1, n_pos - 1)
+    b <- substring(s, n_pos + 1)
     if (!nzchar(a))
         a <- 1L
     else if (a == "-" || a == "+")
