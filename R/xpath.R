@@ -1582,12 +1582,19 @@ GenericTranslator <- translator_class("GenericTranslator",
             # against the ASCII-lowercased value gets there. An empty
             # value needs no lowercasing, and skipping it keeps the
             # existence tests (e.g. 'not(@attr)') exact.
-            fold_value <- !is.null(value) && nzchar(value) &&
-                (identical(selector$flag, "i") ||
-                 (!identical(selector$flag, "s") &&
-                  self$case_insensitive_attribute_values &&
-                  is.null(selector$namespace) &&
-                  local_name %in% html_case_insensitive_attrs))
+            #
+            # HTML's rule covers only an attribute in no namespace, so
+            # under '[*|attr]' it holds for some of the matched
+            # attributes and not others: 'fold_no_namespace' marks that
+            # case, which folds per attribute below
+            has_value <- !is.null(value) && nzchar(value)
+            html_rule <- has_value && is.null(selector$flag) &&
+                self$case_insensitive_attribute_values &&
+                local_name %in% html_case_insensitive_attrs
+            fold_value <- (has_value && identical(selector$flag, "i")) ||
+                (html_rule && is.null(selector$namespace) &&
+                 !selector$any_namespace)
+            fold_no_namespace <- html_rule && selector$any_namespace
 
             xp <- self$xpath(selector$selector)
             method <- self[[method_name]]
@@ -1600,10 +1607,25 @@ GenericTranslator <- translator_class("GenericTranslator",
             # them, but a string function (starts-with(), translate(),
             # ...) sees only the first, so any other value test is run
             # once per attribute, in a predicate on the attribute step
+            #
+            # When only the attributes in no namespace fold, the test
+            # is "(namespace-uri() = '' and folded) or exact". The
+            # exact test needs no "namespace-uri() != ''" of its own:
+            # every operator's exact match implies its folded one, so
+            # for an attribute in no namespace the disjunction is the
+            # folded test alone
             if (selector$any_namespace &&
-                (fold_value || !operator %in% c("exists", "equals"))) {
+                (fold_value || fold_no_namespace ||
+                 !operator %in% c("exists", "equals"))) {
                 each <- if (fold_value) xpath_ascii_lower(".") else "."
                 test <- method(XPathExpr(), each, value)$condition
+                if (fold_no_namespace && !identical(test, "0")) {
+                    folded <- XPathExpr()
+                    folded$add_condition("namespace-uri() = ''")
+                    folded <- method(folded, xpath_ascii_lower("."),
+                                     ascii_lower(value))
+                    test <- paste0(folded$condition, " or ", test)
+                }
                 xp$add_condition(
                     if (identical(test, "0")) "0"
                     else paste0(attrib, "[", test, "]"))

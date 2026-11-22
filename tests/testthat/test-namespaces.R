@@ -273,11 +273,14 @@ test_that("'[*|attr]' value tests run against every matching attribute", {
     # A test that can never match stays a constant
     expect_equal(xpath("[*|lang^='']"), "*[0]")
     expect_equal(xpath("[*|lang~='a b']"), "*[0]")
-    # The HTML translator's per-attribute case rule does not apply to
-    # '*|', but an explicit flag does
+    # The HTML translator's per-attribute case rule applies under '*|'
+    # to the attribute in no namespace alone, and an explicit flag to
+    # every attribute
     ht <- HTMLTranslator$new()
     expect_equal(ht$css_to_xpath("[*|type^=Foo]", prefix = ""),
-                 "*[@*[local-name() = 'type'][starts-with(., 'Foo')]]")
+                 paste0("*[@*[local-name() = 'type'][namespace-uri() = '' ",
+                        "and starts-with(", lower("."), ", 'foo') ",
+                        "or starts-with(., 'Foo')]]"))
     expect_equal(ht$css_to_xpath("[*|type^=Foo i]", prefix = ""),
                  paste0("*[@*[local-name() = 'type']",
                         "[starts-with(", lower("."), ", 'foo')]]"))

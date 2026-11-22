@@ -124,9 +124,12 @@ test_that("the HTML case-insensitive attributes fold their values", {
                  "descendant-or-self::*[@data-type = 'Foo']")
     expect_equal(translator$css_to_xpath('[svg|type="Foo"]'),
                  "descendant-or-self::*[@svg:type = 'Foo']")
+    # Under '*|' the rule still holds for the attribute in no
+    # namespace, and only for that one
     expect_equal(translator$css_to_xpath('[*|type="Foo"]'),
                  paste0("descendant-or-self::*[@*[local-name() = 'type']",
-                        " = 'Foo']"))
+                        "[namespace-uri() = '' and ", lc("."),
+                        " = 'foo' or . = 'Foo']]"))
 
     # The rule is HTML's: neither the xhtml nor the generic translator
     # serves an HTML document
