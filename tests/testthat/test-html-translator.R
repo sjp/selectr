@@ -206,3 +206,42 @@ test_that("the html translator stays lang-only", {
     expect_equal(xml2::xml_attr(querySelectorAll(doc, "p:lang(en)"), "id"),
                  "y")
 })
+
+test_that("a reversed combinator step names the folded HTML element", {
+    ht <- HTMLTranslator$new()
+    xt <- HTMLTranslator$new(xhtml = TRUE)
+
+    # The HTML translator lowercases the name before it becomes the node
+    # test of the axis step, just as it does for a path step; XHTML
+    # keeps the case it was given
+    expect_equal(ht$css_to_xpath(":is(DIV.X > SPAN ~ P)", prefix = ""),
+                 paste0("*[self::p and preceding-sibling::span[parent::div",
+                        "[contains(concat(' ', normalize-space(@class), ' '),",
+                        " ' X ')]]]"))
+    expect_equal(xt$css_to_xpath(":is(Em B)", prefix = ""),
+                 "*[self::B and ancestor::Em]")
+    expect_equal(ht$css_to_xpath(":is(SPAN + P)", prefix = ""),
+                 "*[self::p and preceding-sibling::*[1][self::span]]")
+
+    markup <- paste0('<html><body><DIV id="hd"><SPAN id="hs1"></SPAN>',
+                     '<P id="hp1"></P><p id="hp2"><Em id="he"><b id="hb">x',
+                     '</b></Em></p><span id="hs2"></span><P id="hp3"></P>',
+                     '</DIV></body></html>')
+    cases <- list(":is(SPAN ~ P)" = c("hp1", "hp2", "hp3"),
+                  ":is(Div > p)" = c("hp1", "hp2", "hp3"),
+                  ":is(DIV P EM b)" = "hb",
+                  ":not(div *):is(* > div)" = "hd")
+    if (requireNamespace("xml2", quietly = TRUE)) {
+        doc <- xml2::read_html(markup)
+        for (sel in names(cases))
+            expect_equal(xml2::xml_attr(querySelectorAll(doc, sel), "id"),
+                         cases[[sel]], info = sel)
+    }
+    if (requireNamespace("XML", quietly = TRUE)) {
+        doc <- XML::htmlParse(markup, asText = TRUE)
+        for (sel in names(cases))
+            expect_equal(vapply(querySelectorAll(doc, sel), XML::xmlGetAttr,
+                                character(1), "id"),
+                         cases[[sel]], info = sel)
+    }
+})
