@@ -548,3 +548,125 @@ test_that("a namespace prefix may be any XML name, not just an ASCII one", {
     expect_equal(xml2::xml_attr(querySelectorAll(doc, "é|*", ns = ns), "id"),
                  "one")
 })
+
+test_that("a reversed combinator step names its element when it can", {
+    gt <- GenericTranslator$new()
+    xpath <- function(css) gt$css_to_xpath(css, prefix = "")
+
+    # A name the path step would use as its node test is the node test
+    # of the reversed axis step too, prefixed or not, as is a
+    # namespaced wildcard - with the rest of the compound as a predicate
+    expect_equal(xpath(":is(span ~ p)"), "*[self::p and preceding-sibling::span]")
+    expect_equal(xpath(":is(|span ~ p)"), "*[self::p and preceding-sibling::span]")
+    expect_equal(xpath(":is(a|span ~ p)"),
+                 "*[self::p and preceding-sibling::a:span]")
+    expect_equal(xpath(":is(a|* > p)"), "*[self::p and parent::a:*]")
+    expect_equal(xpath(":is(a|div.x p)"),
+                 paste0("*[self::p and ancestor::a:div[contains(concat(' ', ",
+                        "normalize-space(@class), ' '), ' x ')]]"))
+    expect_equal(xpath(":is(a|div > a|p ~ p)"),
+                 "*[self::p and preceding-sibling::a:p[parent::a:div]]")
+    # A prefixed name that needs quoting keeps its prefix in the node
+    # test and compares the local part, as it does in a path step
+    expect_equal(xpath(":is(a|é ~ p)"),
+                 "*[self::p and preceding-sibling::a:*[local-name() = 'é']]")
+
+    # A compound with no name the node test can carry stays a predicate
+    # on '*': the universal selector, any namespace, no namespace, and
+    # an unprefixed name that needs quoting
+    expect_equal(xpath(":is(* ~ p)"), "*[self::p and preceding-sibling::*]")
+    expect_equal(xpath(":is(*.x ~ p)"),
+                 paste0("*[self::p and preceding-sibling::*[contains(concat(",
+                        "' ', normalize-space(@class), ' '), ' x ')]]"))
+    expect_equal(xpath(":is(*|span ~ p)"),
+                 "*[self::p and preceding-sibling::*[local-name() = 'span']]")
+    expect_equal(xpath(":is(|* > p)"),
+                 "*[self::p and parent::*[namespace-uri() = '']]")
+    expect_equal(xpath(":is(é p)"),
+                 paste0("*[self::p and ancestor::*[name() = 'é' and ",
+                        "namespace-uri() = '']]"))
+    # Under '+' the position predicate comes first, so the name moves
+    # into a predicate after it
+    expect_equal(xpath(":is(span + p)"),
+                 "*[self::p and preceding-sibling::*[1][self::span]]")
+    expect_equal(xpath(":is(a|span + p)"),
+                 "*[self::p and preceding-sibling::*[1][self::a:span]]")
+    expect_equal(xpath(":is(a|é + p)"),
+                 paste0("*[self::p and preceding-sibling::*[1]",
+                        "[local-name() = 'é' and self::a:*]]"))
+})
+
+# Elements in no namespace, in a default namespace and under two
+# prefixes, with an unsafe name and nested chains, so that a node test
+# matching any more or fewer elements than the 'self::' test it
+# replaces would change some selector's result
+reversed_step_markup <- paste0(
+    '<root xmlns:a="urn:a" xmlns:b="urn:b">',
+    '<div id="d1" class="x"><span id="s1"/><p id="p1"/><a:span id="as1"/>',
+    '<p id="p2"/><b:span id="bs1"/><p id="p3"><em id="e1"><p id="p4"/>',
+    '</em></p><é id="acc1"/><a:é id="aacc1"/><p id="p5"/></div>',
+    '<section id="sec" xmlns="urn:a"><span id="ds1"/><p id="dp1"/>',
+    '<div id="dd"><p id="dp2"><span id="ds2"/></p></div></section>',
+    '<ul id="ul1"><li id="li1" class="x"/><li id="li2"/><span id="s2"/>',
+    '<li id="li3"><ul id="ul2"><li id="li4"/></ul></li></ul>',
+    '<a:div id="ad"><a:p id="ap1"/><a:span id="as2"/><a:p id="ap2">',
+    '<p id="p6"/></a:p><span id="s3"/><a:p id="ap3"/></a:div></root>')
+reversed_step_ns <- c(a = "urn:a", b = "urn:b")
+# Each selector with the XPath its argument test had when the
+# left-hand compound was always written as a predicate on '*'
+reversed_step_cases <- list(
+    ":is(span ~ p)" = "//*[self::p and preceding-sibling::*[self::span]]",
+    ":is(div > p)" = "//*[self::p and parent::*[self::div]]",
+    ":is(div p)" = "//*[self::p and ancestor::*[self::div]]",
+    ":not(div *)" = "//*[not(ancestor::*[self::div])]",
+    ":is(a|span ~ p)" = "//*[self::p and preceding-sibling::*[self::a:span]]",
+    ":is(a|* ~ p)" = "//*[self::p and preceding-sibling::*[self::a:*]]",
+    ":is(b|span ~ *)" = "//*[preceding-sibling::*[self::b:span]]",
+    ":is(a|é ~ p)" = paste0("//*[self::p and preceding-sibling::*",
+                            "[local-name() = 'é' and self::a:*]]"),
+    ":is(a|div a|p p)" = paste0("//*[self::p and ancestor::*[self::a:p and ",
+                                "ancestor::*[self::a:div]]]"),
+    ":is(a|div > a|p ~ a|p)" = paste0("//*[self::a:p and preceding-sibling::*",
+                                      "[self::a:p and parent::*[self::a:div]]]"),
+    ":is(div > span ~ p)" = paste0("//*[self::p and preceding-sibling::*",
+                                   "[self::span and parent::*[self::div]]]"),
+    ":is(ul > li.x ~ li)" = paste0("//*[self::li and preceding-sibling::*[",
+                                   "contains(concat(' ', normalize-space(@class),",
+                                   " ' '), ' x ') and self::li and ",
+                                   "parent::*[self::ul]]]"),
+    ":is(p:nth-of-type(2) ~ p)" = paste0("//*[self::p and preceding-sibling::*[",
+                                         "preceding-sibling::p[1] and not(",
+                                         "preceding-sibling::p[2]) and self::p]]"),
+    ":is(ul > li ~ li li)" = paste0("//*[self::li and ancestor::*[self::li and ",
+                                    "preceding-sibling::*[self::li and ",
+                                    "parent::*[self::ul]]]]"))
+
+test_that("a named reversed combinator step matches as before (xml2)", {
+    skip_if_not_installed("xml2")
+
+    doc <- xml2::read_xml(reversed_step_markup)
+    ids <- function(xp) {
+        xml2::xml_attr(xml2::xml_find_all(doc, xp, reversed_step_ns), "id")
+    }
+    for (sel in names(reversed_step_cases)) {
+        new <- css_to_xpath(sel, prefix = "//")
+        expect_false(grepl("::*[self::", new, fixed = TRUE), info = sel)
+        expect_equal(ids(new), ids(reversed_step_cases[[sel]]), info = sel)
+        expect_gt(length(ids(new)), 0)
+    }
+})
+
+test_that("a named reversed combinator step matches as before (XML)", {
+    skip_if_not_installed("XML")
+
+    doc <- XML::xmlParse(reversed_step_markup, asText = TRUE)
+    ids <- function(xp) {
+        unlist(XML::xpathApply(doc, xp, XML::xmlGetAttr, "id",
+                               namespaces = reversed_step_ns))
+    }
+    for (sel in names(reversed_step_cases)) {
+        new <- css_to_xpath(sel, prefix = "//")
+        expect_equal(ids(new), ids(reversed_step_cases[[sel]]), info = sel)
+        expect_gt(length(ids(new)), 0)
+    }
+})
