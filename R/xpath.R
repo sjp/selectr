@@ -172,6 +172,18 @@ XPathExpr <- function(path = "", element = "*") {
         }
         self$element <- "*"
     }
+    # Drop the conjunct 'self::<nodetest>' that add_name_test() writes,
+    # for an expression whose candidate is already known to pass that
+    # node test. Only a whole conjunct is dropped, never one alternative
+    # of an "or", and "0" has no conjuncts to drop
+    self$drop_name_test <- function(nodetest) {
+        keep <- self$conditions != paste0("self::", nodetest)
+        if (!all(keep)) {
+            self$conditions <- self$conditions[keep]
+            if (!length(self$conditions))
+                self$condition_is_or <- FALSE
+        }
+    }
     self$join <- function(combiner, other) {
         self$path <- paste0(self$str(), combiner, other$path)
         self$element <- other$element
@@ -337,6 +349,21 @@ sibling_count_test <- function(axis, nodetest, predicate, op, k) {
            },
            ">=" = at_least(k),
            "<=" = paste0("not(", at_least(k + 1), ")"))
+}
+
+# The node test that every candidate of the compound 'xpath' is known to
+# pass, as a pseudo-class argument would write it in a 'self::' test,
+# or NULL when there is none. Only a plain name test counts: the step
+# then selects nothing else, so a 'self::' test of exactly that name is
+# always true there. A wildcard ('*' or 'ns:*') pins no name, and a name
+# folded into a condition ('*|e', or one that needs quoting) is left for
+# the condition to compare
+implied_name_test <- function(xpath) {
+    element <- xpath$element
+    if (is_safe_nodetest(element) && !grepl("(^|:)\\*$", element))
+        element
+    else
+        NULL
 }
 
 # The condition and node test of a pseudo-class argument translated by
@@ -1262,7 +1289,8 @@ GenericTranslator <- translator_class("GenericTranslator",
             left
         },
         xpath_argument_condition = function(subselector,
-                                            keep_node_test = FALSE) {
+                                            keep_node_test = FALSE,
+                                            implied = NULL) {
             # Translate one functional pseudo-class argument into a
             # condition on the candidate element, returned as
             # list(condition, is_or, node_test) where 'is_or' marks a
@@ -1278,10 +1306,17 @@ GenericTranslator <- translator_class("GenericTranslator",
             # 'keep_node_test', the name is instead left as
             # 'node_test', for a caller that writes it as the node test
             # of its own axis step - exactly as the compound would be
-            # written as a path step outside the pseudo-class
+            # written as a path step outside the pseudo-class.
+            #
+            # 'implied' is the node test the candidate is already known
+            # to pass (see implied_name_test()); a 'self::' test of that
+            # same name is then always true, and is left out
             argument <- self$argument_xpath(subselector)
-            if (!keep_node_test)
+            if (!keep_node_test) {
                 argument$xpath$add_name_test()
+                if (!is.null(implied))
+                    argument$xpath$drop_name_test(implied)
+            }
             argument_condition(argument)
         },
         argument_xpath = function(subselector) {
@@ -1306,7 +1341,8 @@ GenericTranslator <- translator_class("GenericTranslator",
             }
         },
         selector_list_condition = function(selector_list,
-                                           conditions = NULL) {
+                                           conditions = NULL,
+                                           implied = NULL) {
             # OR-join the conditions imposed by a selector list's
             # arguments into a single list(condition, is_or). NULL when
             # the list imposes no condition: either it is absent, or
@@ -1315,12 +1351,14 @@ GenericTranslator <- translator_class("GenericTranslator",
             # A single-argument list is an or-group only if that
             # argument's own condition is one (e.g. a nested :is()).
             # 'conditions' passes in the arguments' conditions when the
-            # caller has already rendered them
+            # caller has already rendered them, and 'implied' is the
+            # node test of the candidate, for xpath_argument_condition()
             if (is.null(selector_list) || length(selector_list) == 0)
                 return(NULL)
             if (is.null(conditions))
                 conditions <- lapply(selector_list,
-                                     self$xpath_argument_condition)
+                                     self$xpath_argument_condition,
+                                     implied = implied)
             exprs <- vapply(conditions, `[[`, character(1), "condition")
             if (any(exprs == "true()"))
                 return(NULL)
@@ -1400,8 +1438,11 @@ GenericTranslator <- translator_class("GenericTranslator",
             # Add the OR of the argument conditions (any match suffices)
             # as a single condition so the alternatives stay grouped and
             # AND with the rest of the compound selector; a list that
-            # matches everything (e.g. :is(a, *)) imposes no condition
-            condition <- self$selector_list_condition(matching$selector_list)
+            # matches everything (e.g. :is(a, *)) imposes no condition.
+            # The arguments test the candidate the compound has already
+            # named, so 'li:is(li)' needs no 'self::li'
+            condition <- self$selector_list_condition(
+                matching$selector_list, implied = implied_name_test(xpath))
             if (!is.null(condition)) {
                 xpath$add_condition(condition$condition, condition$is_or)
             }
@@ -1847,7 +1888,8 @@ GenericTranslator <- translator_class("GenericTranslator",
             # there is always an "n" matching any number of siblings (maybe none)
             if (a == 1 && b_min_1 <= 0) {
                 # CSS Level 4: When selector list is provided, ensure current element matches
-                condition <- self$selector_list_condition(fn$selector_list)
+                condition <- self$selector_list_condition(
+                    fn$selector_list, implied = implied_name_test(xpath))
                 if (!is.null(condition)) {
                     xpath$add_condition(condition$condition, condition$is_or)
                 }
@@ -1888,6 +1930,7 @@ GenericTranslator <- translator_class("GenericTranslator",
             # Build the predicate for selector list filtering (CSS Level 4):
             # only siblings matching the list are counted; a list that
             # matches everything counts all siblings (no predicate)
+            implied <- implied_name_test(xpath)
             if (length(fn$selector_list) == 1) {
                 # A single selector S names its element in the node
                 # test of the sibling step where it can, as a
@@ -1895,11 +1938,14 @@ GenericTranslator <- translator_class("GenericTranslator",
                 # rather than 'preceding-sibling::*[self::li]', which
                 # selects the same siblings but which libxml2 evaluates
                 # far more slowly. The candidate's own test against S
-                # still needs the name in its condition, so fold it in
-                # afterwards from the same translation
+                # still needs the name in its condition, unless the
+                # compound already names it, so fold it in afterwards
+                # from the same translation
                 argument <- self$argument_xpath(fn$selector_list[[1]])
                 counted <- argument_condition(argument)
                 argument$xpath$add_name_test()
+                if (!is.null(implied))
+                    argument$xpath$drop_name_test(implied)
                 selector_list_cond <- self$selector_list_condition(
                     fn$selector_list, list(argument_condition(argument)))
                 nodetest <- counted$node_test
@@ -1908,12 +1954,26 @@ GenericTranslator <- translator_class("GenericTranslator",
                     else paste0("[", counted$condition, "]")
             } else {
                 # A list has no single name to test, and the union of
-                # one step per selector would be slower still
-                selector_list_cond <-
-                    self$selector_list_condition(fn$selector_list)
+                # one step per selector would be slower still. The
+                # siblings are tested against the whole of each
+                # argument; the candidate, as above, without a name
+                # test its compound already makes
+                arguments <- lapply(fn$selector_list, self$argument_xpath)
+                for (argument in arguments)
+                    argument$xpath$add_name_test()
+                counted <- self$selector_list_condition(
+                    fn$selector_list, lapply(arguments, argument_condition))
                 selector_predicate <-
-                    if (is.null(selector_list_cond)) ""
-                    else paste0("[", selector_list_cond$condition, "]")
+                    if (is.null(counted)) ""
+                    else paste0("[", counted$condition, "]")
+                selector_list_cond <- counted
+                if (!is.null(implied)) {
+                    for (argument in arguments)
+                        argument$xpath$drop_name_test(implied)
+                    selector_list_cond <- self$selector_list_condition(
+                        fn$selector_list,
+                        lapply(arguments, argument_condition))
+                }
             }
 
             # count siblings before or after the element. Comparisons
