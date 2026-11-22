@@ -7,7 +7,7 @@
 # closures over this call's frame, so they reach the expression as
 # 'self' and are called as xpath$add_condition() etc., the same as when
 # this was an R6 class.
-XPathExpr <- function(path = "", element = "*", star_prefix = FALSE) {
+XPathExpr <- function(path = "", element = "*") {
     self <- new.env(parent = emptyenv())
     self$path <- path
     self$element <- element
@@ -33,7 +33,6 @@ XPathExpr <- function(path = "", element = "*", star_prefix = FALSE) {
     # any namespace, so its name lives in a local-name() condition
     # (see xpath_element()) rather than in a node test
     self$local_name <- NULL
-    self$star_prefix <- star_prefix
     # When an explicit element name cannot be used as an XPath name
     # test (and so 'element' has been folded into a condition on
     # '*'), an equivalent node test for that name; NULL otherwise.
