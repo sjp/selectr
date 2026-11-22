@@ -1127,13 +1127,17 @@ GenericTranslator <- translator_class("GenericTranslator",
             },
             error = function(e) {
                 # A selector that nests functional pseudo-classes very
-                # deeply (e.g. hundreds of :not()) overflows R's
-                # expression nesting limit. R >= 4.3 raises a dedicated
-                # `expressionStackOverflowError`; older R raises a plain
-                # error with the same message text, so fall back to
-                # matching that.
-                if (inherits(e, "expressionStackOverflowError") ||
-                    grepl("nested too deeply", conditionMessage(e), fixed = TRUE)) {
+                # deeply (e.g. hundreds of :not()) overflows one of R's
+                # stacks: the expression nesting limit, the node stack
+                # or the C stack, whichever runs out first. R >= 4.3
+                # signals each as a subclass of `stackOverflowError`;
+                # older R raises a plain error, so fall back to
+                # matching the message texts.
+                if (inherits(e, "stackOverflowError") ||
+                    any(vapply(c("nested too deeply", "node stack overflow",
+                                 "C stack usage"),
+                               grepl, logical(1), x = conditionMessage(e),
+                               fixed = TRUE))) {
                     selectr_abort("selector nests functional pseudo-classes too deeply",
                                  "selectr_translation_error", selector = css)
                 }

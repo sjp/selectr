@@ -19,6 +19,12 @@
       \code{":not/**/(a)"}. Comments where whitespace is allowed, as in
       \code{":nth-child(2n /**/ + 1)"}, are unaffected.
 
+      \item A selector nesting functional pseudo-classes very deeply
+      is now reported as \code{"selector nests functional pseudo-classes
+      too deeply"} whichever of R's stacks overflows first. Before, only
+      the expression limit was caught, and nesting \code{:not()} 800
+      deep raised a bare \code{"node stack overflow"} error.
+
     }
   }
 }

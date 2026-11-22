@@ -108,6 +108,20 @@ test_that("a selector nesting functional pseudo-classes too deeply is caught", {
     expect_equal(e$selector, deeply_nested)
 })
 
+test_that("deep nesting is caught whichever stack overflows first", {
+    # At R's default limits, deep enough nesting can exhaust the node
+    # stack or the C stack before the expression limit; each must be
+    # reported the same way
+    for (depth in c(800, 3000)) {
+        deeply_nested <- paste0(strrep(":not(", depth), "a",
+                                strrep(")", depth))
+        e <- tryCatch(css_to_xpath(deeply_nested), error = identity)
+        expect_s3_class(e, "selectr_translation_error")
+        expect_equal(conditionMessage(e),
+                     "selector nests functional pseudo-classes too deeply")
+    }
+})
+
 test_that("selectr_argument_error is a structured condition", {
     e <- tryCatch(css_to_xpath(1), error = identity)
     expect_s3_class(e, "selectr_argument_error")
