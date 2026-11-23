@@ -725,3 +725,49 @@ test_that("unimplemented methods throw errors", {
                        "[not(preceding-sibling::svg:g[1])]",
                        sep = ""))
 })
+
+test_that("the of-type pseudo-classes refuse an element in any namespace", {
+    # '*|e' names a local name but not a namespace, and siblings are of
+    # the same type only when their expanded names match: no node test
+    # counts them, so every of-type pseudo-class refuses it as it does
+    # the universal selector
+    of_type <- c("first-of-type", "last-of-type", "only-of-type",
+                 "nth-of-type(2)", "nth-last-of-type(2)")
+    labels <- c("first-of-type", "last-of-type", "only-of-type",
+                "nth-of-type\\(\\)", "nth-last-of-type\\(\\)")
+    translators <- list(GenericTranslator$new(), HTMLTranslator$new(),
+                        HTMLTranslator$new(xhtml = TRUE))
+    for (translator in translators) {
+        for (i in seq_along(of_type)) {
+            expect_error(translator$css_to_xpath(paste0("*|e:", of_type[i])),
+                         paste0("^\\*:", labels[i], " is not implemented"),
+                         class = "selectr_translation_error")
+            expect_error(
+                translator$css_to_xpath(paste0("a + *|e:", of_type[i])),
+                paste0("^\\*:", labels[i], " is not implemented"),
+                class = "selectr_translation_error")
+        }
+        # A named element, in no namespace or a given one, still counts
+        # its siblings by its own node test
+        expect_equal(translator$css_to_xpath("e:first-of-type"),
+                     "descendant-or-self::e[not(preceding-sibling::e[1])]")
+        expect_equal(translator$css_to_xpath("ns|e:first-of-type"),
+                     paste0("descendant-or-self::ns:e",
+                            "[not(preceding-sibling::ns:e[1])]"))
+    }
+})
+
+test_that("'*|e' with an of-type pseudo-class is refused, not mismatched", {
+    skip_if_not_installed("xml2")
+    # 'a:e' and the 'e' in no namespace are each the first of their
+    # own type; counting by local name alone would select only one
+    doc <- xml2::read_xml('<root xmlns:a="A"><a:e id="1"/><e id="2"/></root>')
+    expect_error(querySelectorAll(doc, "*|e:first-of-type"),
+                 class = "selectr_translation_error")
+    expect_equal(xml2::xml_attr(querySelectorAll(doc, "e:first-of-type"),
+                                "id"),
+                 "2")
+    expect_equal(xml2::xml_attr(
+        querySelectorAll(doc, "a|e:first-of-type", ns = c(a = "A")), "id"),
+        "1")
+})
