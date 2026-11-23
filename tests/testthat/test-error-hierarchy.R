@@ -48,7 +48,7 @@ test_that("a translation error points at the construct it refuses", {
     # ... and a :lang() argument, from the token that is wrong
     expect_equal(pos(":lang(en, )"), 11)
     expect_equal(pos(":lang(en-)"), 7)
-    expect_equal(pos(":lang(*-CH)"), 7)
+    expect_equal(pos(":lang(fr, en*)"), 11)
 
     # The two failures no single position describes stay unlocated: a
     # namespace prefix XPath cannot name, and an of-type pseudo-class

@@ -480,20 +480,6 @@ stop_non_leading_scope <- function(pos = NULL) {
         ":scope", pos = pos)
 }
 
-# A wildcard in non-trailing position (e.g. :lang(*-CH) or :lang(de-*-DE),
-# quoted or not) is a valid RFC 4647 extended-filtering range. The HTML
-# translators approximate it from the nearest language-attributed
-# ancestor, but the generic translator's only tool is XPath 1.0's
-# lang() function, which can express a prefix match but not an interior
-# wildcard, so it rejects such ranges rather than silently mismatching.
-stop_lang_interior_wildcard <- function(range, pos = NULL) {
-    translation_stop(
-        paste0("Only a bare '*' or a trailing '...-*' wildcard is ",
-               "supported by the generic translator's :lang(); the range ",
-               range, " has a wildcard in a non-trailing position"),
-        ":lang()", pos = pos)
-}
-
 # A range that is not an RFC 4647 extended language range (see
 # lang_range_well_formed()). Selectors 4 says such a range matches
 # nothing while leaving the selector valid; XPath has no way to say
@@ -2092,18 +2078,17 @@ GenericTranslator <- translator_class("GenericTranslator",
         xpath_lang_function = function(xpath, fn) {
             lang_values <- lang_ranges(fn)
 
-            # Build conditions for each language range. Indices rather
-            # than the values themselves, so that a rejected range can
-            # be pointed at through the token it was read from
-            conditions <- vapply(seq_along(lang_values), function(i) {
-                value <- lang_values[i]
+            # The nearest xml:lang-bearing ancestor-or-self, whose
+            # value is the element's language (xml:lang="" resets it to
+            # unknown). The "xml" prefix is bound in every XPath
+            # context, so the attribute can be walked directly
+            ancestor <- "ancestor-or-self::*[@xml:lang][1]"
+
+            # Build conditions for each language range
+            conditions <- vapply(lang_values, function(value) {
                 # Wildcard * matches any element whose language is
                 # known, i.e. one that inherits a non-empty xml:lang
-                # from its nearest xml:lang-bearing ancestor-or-self
-                # (xml:lang="" resets the language to unknown). The
-                # "xml" prefix is bound in every XPath context, so the
-                # attribute can be walked directly
-                known <- "ancestor-or-self::*[@xml:lang][1][string-length(@xml:lang) > 0]"
+                known <- paste0(ancestor, "[string-length(@xml:lang) > 0]")
                 kind <- lang_range_kind(value)
                 if (kind == "any") {
                     known
@@ -2113,23 +2098,25 @@ GenericTranslator <- translator_class("GenericTranslator",
                     # negation of "any" above, not a literal xml:lang=""
                     # comparison (which lang() would otherwise produce)
                     paste0("not(", known, ")")
-                } else if (kind == "prefix") {
-                    # Wildcard suffix like "en-*" - match any language starting with prefix
-                    # Use XPath's lang() function which does prefix matching.
-                    # Strip the trailing "-*": lang('en') matches "en" and any
-                    # "en-..." tag, whereas lang('en-') would match nothing
-                    # because lang() only extends its argument at a '-' boundary.
-                    prefix <- sub("-?\\*$", "", value)
-                    paste0("lang(", xpath_literal(prefix), ")")
-                } else if (kind == "extended") {
-                    # A wildcard in non-trailing position (e.g. "*-CH"):
-                    # XPath 1.0's lang() cannot express RFC 4647 extended
-                    # filtering, and unlike the HTML translators there is
-                    # no lang-attribute to walk, so reject it
-                    stop_lang_interior_wildcard(value, fn$ranges[[i]]$pos)
+                } else if (kind == "extended" ||
+                           lang_range_multi_subtag(value)) {
+                    # A range naming more than one subtag ("en-US") or
+                    # with a non-trailing wildcard ("*-CH", "de-*-DE")
+                    # needs RFC 4647 extended filtering, which lang()'s
+                    # plain prefix test cannot express ("en-US" must
+                    # also match "en-Latn-US"). The nearest xml:lang is
+                    # matched directly instead, as the HTML translators
+                    # match their language attribute
+                    lang_extended_condition(value, ancestor,
+                                            xpath_ascii_lower("@xml:lang"))
                 } else {
-                    # Regular language tag
-                    paste0("lang(", xpath_literal(value), ")")
+                    # A single subtag, with or without a trailing
+                    # wildcard ("en", "en-*"): XPath's lang() is exactly
+                    # the prefix test needed, case-insensitive and
+                    # inherited. The "-*" is stripped, since lang() only
+                    # extends its argument at a '-' boundary and
+                    # lang('en-') would match nothing
+                    paste0("lang(", xpath_literal(sub("-\\*$", "", value)), ")")
                 }
             }, character(1), USE.NAMES = FALSE)
 

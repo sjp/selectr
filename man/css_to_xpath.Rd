@@ -101,25 +101,21 @@ css_to_xpath(selector,
   \code{:lang()} ranges are matched as RFC 4647 language ranges, so a
   wildcard may appear as a whole range (\code{:lang(*)}), as a trailing
   subtag (\code{:lang(en-*)}), or in a non-trailing position
-  (\code{:lang(*-CH)}, \code{:lang(de-*-DE)}; quoted or not). The
-  \code{html} and \code{xhtml} translators implement RFC 4647 extended
-  filtering for any range naming more than one subtag, approximated
-  from the nearest language-attributed ancestor: a wildcard, explicit
-  or not, may skip any subtag, so \code{:lang(de-DE)} - with no
-  wildcard at all - matches \code{lang="de-Latn-DE"}. The first
+  (\code{:lang(*-CH)}, \code{:lang(de-*-DE)}; quoted or not). Every
+  translator implements RFC 4647 extended filtering for any range
+  naming more than one subtag, approximated from the nearest
+  language-attributed ancestor: a wildcard, explicit or not, may skip
+  any subtag, so \code{:lang(de-DE)} - with no wildcard at all -
+  matches \code{lang="de-Latn-DE"}, but not \code{lang="de-x-DE"},
+  since the search stops at a singleton subtag. The first
   subtags of range and tag are always paired, though, so a leading
   wildcard \emph{consumes} the tag's primary subtag rather than
   skipping over it: \code{:lang(*-CH)} matches \code{lang="de-CH"} and
   \code{lang="fr-Latn-CH"}, but neither \code{lang="ch"} nor
   \code{lang="ch-DE"}. A single-subtag range
   (\code{:lang(en)}, \code{:lang(en-*)}) is a plain prefix test, as
-  before. The generic translator has only XPath's \code{lang()}
-  function, which does Selectors 3 \code{|=}-style prefix matching and
-  cannot express extended filtering: a non-trailing wildcard is
-  rejected there with an error rather than silently mis-matching, and a
-  multi-subtag range with no wildcard (e.g. \code{:lang(de-DE)}) is
-  matched as a prefix only - it does \emph{not} skip subtags the way
-  the \code{html}/\code{xhtml} translators do.
+  before; the generic translator translates it to XPath's
+  \code{lang()}.
 
   Every range must be an RFC 4647 \emph{extended language range}:
   each subtag is either a whole \code{*} or one to eight
@@ -144,8 +140,8 @@ css_to_xpath(selector,
   \code{html} translator reads \code{lang}, while the \code{xhtml}
   translator reads \code{xml:lang} or \code{lang}, preferring
   \code{xml:lang} where an element carries both, as the HTML language
-  determination does. The generic translator uses XPath's \code{lang()}
-  function, which is defined in terms of \code{xml:lang} alone. With
+  determination does. The generic translator reads \code{xml:lang}
+  alone, as XPath's \code{lang()} function does. With
   every translator the language comes from the nearest ancestor-or-self
   that declares one, and an empty value there resets the language to
   unknown.
