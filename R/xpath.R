@@ -272,15 +272,21 @@ is_safe_nodetest <- function(name) {
 # siblings would mean comparing their names against the matched
 # element's own name, which XPath 1.0 cannot express (no current()
 # outside XSLT) - so that case is not implemented, an error shared
-# with the Python cssselect library
+# with the Python cssselect library.
+#
+# '*|e' is refused for the same reason: its type is the expanded name,
+# namespace included, so 'a:e' and an 'e' in no namespace are different
+# types, yet the only node test it has compares local-name() alone and
+# would count them together. Its compound records no 'name_test', so it
+# reads as the universal selector here
 of_type_nodetest <- function(xpath) {
     # 'name_test' takes precedence over 'element': it is only ever
     # recorded when the compound's name is not the node test on the
-    # path step, because the name cannot be written as one - the bare
-    # '*' of '*|e', or the namespaced 'ns:*' of 'ns|é'. Reading
-    # 'element' first would mistake such a named element for the
-    # universal selector and refuse a selector that has a type to
-    # count by
+    # path step, because the name cannot be written as one - the
+    # namespaced 'ns:*' of 'ns|é', or the '*' of a name that needs
+    # quoting. Reading 'element' first would mistake such a named
+    # element for the universal selector and refuse a selector that has
+    # a type to count by
     nodetest <- if (!is.null(xpath$name_test))
         xpath$name_test
     else
@@ -1733,10 +1739,12 @@ GenericTranslator <- translator_class("GenericTranslator",
                 # '*|e': 'e' in any namespace, including none.  An
                 # unprefixed XPath name test only matches the null
                 # namespace, so test against local-name() instead.
+                # No 'name_test' is recorded: local-name() ignores the
+                # namespace, so it cannot count siblings of the same
+                # expanded name (see of_type_nodetest()).
                 condition <- paste0("local-name() = ", xpath_literal(element))
                 xpath <- XPathExpr()
                 xpath$add_condition(condition)
-                xpath$name_test <- paste0("*[", condition, "]")
                 xpath$local_name <- element
                 return(xpath)
             }

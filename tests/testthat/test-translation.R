@@ -142,9 +142,12 @@ test_that("translation from parsed objects to XPath works", {
                  "*[name() = 'é' and namespace-uri() = '' and preceding-sibling::*[name() = 'é' and namespace-uri() = ''][1] and not(preceding-sibling::*[name() = 'é' and namespace-uri() = ''][2])]")
     expect_equal(xpath('é:nth-last-of-type(2)'),
                  "*[name() = 'é' and namespace-uri() = '' and following-sibling::*[name() = 'é' and namespace-uri() = ''][1] and not(following-sibling::*[name() = 'é' and namespace-uri() = ''][2])]")
-    # likewise for elements in any namespace, via local-name()
-    expect_equal(xpath('*|e:first-of-type'),
-                 "*[local-name() = 'e' and not(preceding-sibling::*[local-name() = 'e'][1])]")
+    # an element in any namespace has no node test that counts siblings
+    # of its own expanded name: local-name() would count 'a:e' and an
+    # 'e' in no namespace together, so it is refused like '*'
+    expect_error(xpath('*|e:first-of-type'),
+                 "\\*:first-of-type is not implemented",
+                 class = "selectr_translation_error")
     expect_equal(xpath('e:empty'),
                  "e[not(*) and not(string-length())]")
     expect_equal(xpath('e:EmPTY'),
