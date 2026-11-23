@@ -577,6 +577,86 @@ test_that("'|e' with an unsafe name does not match a default namespace", {
     expect_equal(ids("|é:first-of-type"), "plain")
 })
 
+test_that("an unprefixed unsafe attribute name is pinned to no namespace", {
+    translators <- list(GenericTranslator$new(), HTMLTranslator$new(),
+                        HTMLTranslator$new(xhtml = TRUE))
+    pinned <- "attribute::*[name() = 'a:b' and namespace-uri() = '']"
+    folded <- paste0("translate(", pinned, ", 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ",
+                     "'abcdefghijklmnopqrstuvwxyz')")
+    for (tr in translators) {
+        xpath <- function(css) tr$css_to_xpath(css, prefix = "")
+        expect_equal(xpath("[a\\:b]"), paste0("*[", pinned, "]"))
+        expect_equal(xpath("[|a\\:b]"), paste0("*[", pinned, "]"))
+        expect_equal(xpath("[a\\:b=x]"), paste0("*[", pinned, " = 'x']"))
+        expect_equal(xpath("[a\\:b^=x]"),
+                     paste0("*[starts-with(", pinned, ", 'x')]"))
+        expect_equal(xpath("[a\\:b*=x]"),
+                     paste0("*[contains(", pinned, ", 'x')]"))
+        expect_equal(xpath("[a\\:b|=x]"),
+                     paste0("*[", pinned, " = 'x' or starts-with(",
+                            pinned, ", 'x-')]"))
+        expect_equal(xpath("[a\\:b=X i]"), paste0("*[", folded, " = 'x']"))
+        expect_equal(xpath("[a\\:b=X s]"), paste0("*[", pinned, " = 'X']"))
+    }
+    # The HTML translator lowercases the name first
+    expect_equal(HTMLTranslator$new()$css_to_xpath("[A\\:B]", prefix = ""),
+                 paste0("*[", pinned, "]"))
+})
+
+unsafe_attr_xml <- paste0(
+    '<r xmlns:a="urn:a"><p id="prefixed" a:b="x"/>',
+    '<p id="lang" xml:lang="en"/></r>')
+unsafe_attr_html <- paste0(
+    '<div><p id="literal" a:b="x" xml:lang="EN"></p>',
+    '<p id="none"></p></div>')
+
+test_that("an escaped colon does not match a namespaced attribute (xml2)", {
+    skip_if_not_installed("xml2")
+
+    doc <- xml2::read_xml(unsafe_attr_xml)
+    ids <- function(doc, sel)
+        xml2::xml_attr(querySelectorAll(doc, sel), "id")
+
+    # 'a:b' here is 'b' in namespace 'urn:a', not an attribute in no
+    # namespace named 'a:b'
+    expect_equal(ids(doc, "[a\\:b]"), character(0))
+    expect_equal(ids(doc, "[a\\:b=x]"), character(0))
+    expect_equal(ids(doc, "[a|b]"), "prefixed")
+    # likewise 'xml:lang', which is namespaced in an XML document
+    expect_equal(ids(doc, "[xml\\:lang]"), character(0))
+    expect_equal(ids(doc, "[xml|lang]"), "lang")
+
+    # An HTML parser keeps such names as plain attribute names in no
+    # namespace, so they are still matched
+    html <- xml2::read_html(unsafe_attr_html)
+    expect_equal(ids(html, "[a\\:b]"), "literal")
+    expect_equal(ids(html, "[a\\:b=x]"), "literal")
+    expect_equal(ids(html, "[xml\\:lang]"), "literal")
+    expect_equal(ids(html, "[xml\\:lang|=en i]"), "literal")
+})
+
+test_that("an escaped colon does not match a namespaced attribute (XML)", {
+    skip_if_not_installed("XML")
+
+    ids <- function(doc, sel) {
+        vapply(querySelectorAll(doc, sel), XML::xmlGetAttr,
+               character(1), "id")
+    }
+
+    doc <- XML::xmlParse(unsafe_attr_xml, asText = TRUE)
+    expect_equal(ids(doc, "[a\\:b]"), character(0))
+    expect_equal(ids(doc, "[a\\:b=x]"), character(0))
+    expect_equal(ids(doc, "[a|b]"), "prefixed")
+    expect_equal(ids(doc, "[xml\\:lang]"), character(0))
+    expect_equal(ids(doc, "[xml|lang]"), "lang")
+
+    html <- XML::htmlParse(unsafe_attr_html, asText = TRUE)
+    expect_equal(ids(html, "[a\\:b]"), "literal")
+    expect_equal(ids(html, "[a\\:b=x]"), "literal")
+    expect_equal(ids(html, "[xml\\:lang]"), "literal")
+    expect_equal(ids(html, "[xml\\:lang|=en i]"), "literal")
+})
+
 test_that("a zero-length 'ns' means no namespace map", {
     skip_if_not_installed("xml2")
     skip_if_not_installed("XML")
