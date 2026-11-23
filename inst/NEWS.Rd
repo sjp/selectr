@@ -49,6 +49,11 @@
       at a singleton subtag (RFC 4647), so \code{":lang(de-DE)"} no
       longer matches \code{lang="de-x-DE"}.
 
+      \item An of-type pseudo-class on an element in any namespace,
+      such as \code{"*|e:first-of-type"}, now raises the same
+      \code{"not implemented"} error as \code{"*:first-of-type"},
+      instead of counting \code{e} in other namespaces as the same type.
+
     }
   }
 }
