@@ -54,6 +54,12 @@
       \code{"not implemented"} error as \code{"*:first-of-type"},
       instead of counting \code{e} in other namespaces as the same type.
 
+      \item An attribute name with an escaped colon, such as
+      \code{"[a\\:b]"}, now matches only an attribute in no namespace
+      with that name, not \code{b} in a namespace bound to \code{a}. In
+      an XML document \code{"[xml\\:lang]"} therefore no longer
+      matches \code{xml:lang}; use \code{"[xml|lang]"} instead.
+
     }
   }
 }
