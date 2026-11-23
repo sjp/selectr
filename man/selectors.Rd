@@ -40,11 +40,14 @@
     \code{#id} \tab ID \tab \code{descendant-or-self::*[@id = 'id']} \cr
   }
 
-  Class matching splits \code{@class} on XML whitespace
-  (space/tab/CR/LF) via \code{normalize-space()}; HTML's own
-  "set of space-separated tokens" also treats U+000C form feed as a
-  separator, which this does not - negligible in practice, since form
-  feed in a \code{class} attribute is vanishingly rare.
+  Class matching, like \code{[attr~=val]}, splits the value on XML
+  whitespace (space/tab/CR/LF) via \code{normalize-space()}. HTML also
+  treats U+000C form feed as a separator, so a browser gives
+  \code{class="a<FF>b"} the classes \code{a} and \code{b}, but
+  \code{.a} does not match it here: XPath 1.0, as \pkg{libxml2}
+  implements it, cannot express that character. This only affects HTML
+  parsed with \code{read_html()} or \code{htmlParse()}, since form feed
+  cannot appear in XML.
 }
 \section{Attribute selectors}{
   \tabular{lll}{
