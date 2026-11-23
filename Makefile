@@ -20,8 +20,18 @@ check: $(PKG_NAME)_$(PKG_VERSION).tar.gz
 test:
 	Rscript -e 'testthat::test_local()'
 
+# Lint against a throwaway install so lintr can resolve the package's own
+# functions without touching the user's R library. Exits non-zero on lints.
 lint:
-	Rscript -e 'lintr::lint_package()'
+	@tmp=$$(mktemp -d) || exit 1; \
+	trap 'rm -rf "$${tmp:?}"' EXIT; \
+	trap 'exit 1' HUP INT TERM; \
+	mkdir "$$tmp/lib" || exit 1; \
+	if ! R CMD INSTALL --no-docs --no-test-load -l "$$tmp/lib" . \
+		>"$$tmp/install.log" 2>&1; then \
+		cat "$$tmp/install.log" >&2; exit 1; \
+	fi; \
+	R_LIBS="$$tmp/lib" LINTR_ERROR_ON_LINT=true Rscript -e 'lintr::lint_package()'
 
 install: $(PKG_NAME)_$(PKG_VERSION).tar.gz
 	R CMD INSTALL $<
