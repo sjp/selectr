@@ -63,10 +63,10 @@ test_that("namespace selectors translate faithfully", {
     expect_equal(xpath("[|a='v']"), "*[@a = 'v']")
     expect_equal(xpath("[ns|a]"), "*[@ns:a]")
     # An attribute name unusable as an XPath name test is compared with
-    # name(), which needs no namespace pin: an unprefixed attribute has
-    # no namespace, unlike an element in a default namespace
+    # name(), which returns the qualified name, so it is pinned to no
+    # namespace as an element name is
     expect_equal(xpath("[\\31 href]"),
-                 "*[attribute::*[name() = '1href']]")
+                 "*[attribute::*[name() = '1href' and namespace-uri() = '']]")
     # An unsafe local name keeps the prefix in the node test, as on the
     # element path
     expect_equal(xpath("[ns|\\31 href]"),

@@ -147,7 +147,8 @@ test_that("the HTML translator folds names as an HTML parser does", {
     expect_equal(translator$css_to_xpath("\\C4[\\C4=x]"),
                  paste0("descendant-or-self::*[name() = '\u00c4' and ",
                         "namespace-uri() = '' and ",
-                        "attribute::*[name() = '\u00c4'] = 'x']"))
+                        "attribute::*[name() = '\u00c4' and ",
+                        "namespace-uri() = ''] = 'x']"))
     # U+041B CYRILLIC CAPITAL LETTER EL
     expect_equal(translator$css_to_xpath("\\41b"),
                  paste0("descendant-or-self::*[name() = '\u041b' and ",
@@ -175,7 +176,8 @@ test_that("ASCII folds cope with a name containing a noncharacter", {
         # An attribute name, lowercased the same way
         expect_equal(translator$css_to_xpath(paste0("[", esc, "=x]"),
                                              prefix = ""),
-                     paste0("*[attribute::*[name() = '", ch, "'] = 'x']"))
+                     paste0("*[attribute::*[name() = '", ch,
+                            "' and namespace-uri() = ''] = 'x']"))
         # A :lang() range: no fold to reach - a noncharacter cannot
         # appear in an RFC 4647 language range - but the range still
         # has to be named in a selectr condition, not crash the

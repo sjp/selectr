@@ -38,7 +38,7 @@ test_that("translation from parsed objects to XPath works", {
     expect_equal(xpath("\\31 23"),
                  "*[name() = '123' and namespace-uri() = '']")
     expect_equal(xpath("[\\31 23]"),
-                 "*[attribute::*[name() = '123']]")
+                 "*[attribute::*[name() = '123' and namespace-uri() = '']]")
     expect_equal(xpath("e[foo='\\31 23']"), "e[@foo = '123']")
     expect_equal(xpath("e[foo='x\\79 z']"), "e[@foo = 'xyz']")
     expect_equal(xpath("e[foo='\\4a']"), "e[@foo = 'J']")
@@ -280,12 +280,13 @@ test_that("translation from parsed objects to XPath works", {
         expect_equal(xpath('di\ua0v'),
                      "*[name() = 'di v' and namespace-uri() = '']") # div\ua0v
         expect_equal(xpath('[h\ua0ref]'),
-                     "*[attribute::*[name() = 'h ref']]") # h\ua0ref
+                     paste0("*[attribute::*[name() = 'h ref' and ", # h\ua0ref
+                            "namespace-uri() = '']]"))
     }
     expect_equal(xpath('di\\[v'),
                  "*[name() = 'di[v' and namespace-uri() = '']")
     expect_equal(xpath('[h\\]ref]'),
-                 "*[attribute::*[name() = 'h]ref']]")
+                 "*[attribute::*[name() = 'h]ref' and namespace-uri() = '']]")
 })
 
 test_that("an escaped delimiter names an element instead of being one", {
