@@ -1634,14 +1634,22 @@ GenericTranslator <- translator_class("GenericTranslator",
                         paste0("@", namespace, ":*[local-name() = ",
                                xpath_literal(name), "]")
             } else {
-                # An unprefixed attribute has no namespace, so name()
-                # is its local name and needs no pin of its own
+                # An unprefixed attribute selects one in no namespace,
+                # which is what an unprefixed XPath attribute test
+                # matches. A name that cannot be written as one is
+                # compared against name() instead, and name() returns
+                # the *qualified* name: an attribute 'b' in a namespace
+                # bound to prefix 'a' has name() 'a:b' too. Pin
+                # namespace-uri() alongside it, as for element names
+                # (see add_quoted_name_test()), so '[a\:b]' matches only
+                # an attribute in no namespace literally named 'a:b'
                 attrib <-
                     if (safe)
                         paste0("@", name)
                     else
                         paste0("attribute::*[name() = ",
-                               xpath_literal(name), "]")
+                               xpath_literal(name),
+                               " and namespace-uri() = '']")
             }
             value <- selector$value
 
