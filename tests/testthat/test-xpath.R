@@ -572,6 +572,128 @@ test_that("HTML :lang() singleton cut is case-insensitive", {
                  "b")
 })
 
+test_that("generic :lang() translation sits alongside the HTML ones", {
+    generic <- GenericTranslator$new()
+    html <- HTMLTranslator$new()
+    xhtml <- HTMLTranslator$new(xhtml = TRUE)
+    xhtml_lang <- paste0("concat(@xml:lang, substring(@lang, 1, ",
+                         "string-length(@lang) * not(@xml:lang)))")
+    as_generic <- function(xp) gsub("@lang", "@xml:lang", xp, fixed = TRUE)
+    as_xhtml <- function(xp) {
+        xp <- gsub("[@lang][1]", "[@xml:lang or @lang][1]", xp, fixed = TRUE)
+        gsub("translate(@lang,", paste0("translate(", xhtml_lang, ","), xp,
+             fixed = TRUE)
+    }
+
+    # A single-subtag range stays XPath's lang() in the generic
+    # translator, alone or in a list
+    expect_equal(generic$css_to_xpath("p:lang(en)"),
+                 "descendant-or-self::p[lang('en')]")
+    expect_equal(generic$css_to_xpath("p:lang(en, fr)"),
+                 "descendant-or-self::p[lang('en') or lang('fr')]")
+
+    # A range naming more than one subtag, a singleton, or a non-trailing
+    # wildcard is matched as the HTML translators match it, with the
+    # nearest xml:lang standing in for lang
+    for (range in c("en-US", "EN-us", "de-x-foo", "x-foo", "*-CH",
+                    "de-*-DE", "en-US-*")) {
+        css <- paste0("p:lang(", range, ")")
+        expect_equal(generic$css_to_xpath(css),
+                     as_generic(html$css_to_xpath(css)), label = css)
+        expect_equal(xhtml$css_to_xpath(css),
+                     as_xhtml(html$css_to_xpath(css)), label = css)
+    }
+
+    # In a list, each range takes its own form
+    expect_equal(generic$css_to_xpath("p:lang(en, fr-CA)"),
+                 paste0("descendant-or-self::p[lang('en') or ",
+                        sub("^descendant-or-self::p\\[(.*)\\]$", "\\1",
+                            generic$css_to_xpath("p:lang(fr-CA)")),
+                        "]"))
+    for (css in c("p:lang(en)", "p:lang(en-US)", "p:lang(en, fr-CA)"))
+        expect_equal(xhtml$css_to_xpath(css),
+                     as_xhtml(html$css_to_xpath(css)), label = css)
+})
+
+test_that("generic :lang() applies extended filtering to xml:lang", {
+    doc_text <- paste0(
+        "<r>",
+        "<p id='latn' xml:lang='en-Latn-US'/>",
+        "<p id='us' xml:lang='en-US'/>",
+        "<p id='upper' xml:lang='EN-LATN-us'/>",
+        "<p id='gb' xml:lang='en-GB'/>",
+        "<p id='en' xml:lang='en'/>",
+        "<p id='us-x' xml:lang='en-x-US'/>",
+        "<p id='us-priv' xml:lang='en-US-x-foo'/>",
+        "<div xml:lang='en-Latn-US'>",
+        "<p id='inherited'/>",
+        "<p id='reset' xml:lang=''/>",
+        "<div xml:lang=''><p id='reset-inherited'/></div>",
+        "<p id='nearer' xml:lang='en-GB'/>",
+        "</div>",
+        "<p id='de' xml:lang='de-DE'/>",
+        "<p id='de-x' xml:lang='de-x-DE'/>",
+        "<p id='de-latn' xml:lang='de-Latn-DE'/>",
+        "</r>")
+    expected <- list(
+        # subtags may be skipped, case aside, but not past a singleton
+        "en-US" = c("latn", "us", "upper", "us-priv", "inherited"),
+        "EN-us" = c("latn", "us", "upper", "us-priv", "inherited"),
+        "de-DE" = c("de", "de-latn"),
+        "en-US, de-DE" = c("latn", "us", "upper", "us-priv", "inherited",
+                           "de", "de-latn"),
+        "en, de-DE" = c("latn", "us", "upper", "gb", "en", "us-x",
+                        "us-priv", "inherited", "nearer", "de", "de-latn"),
+        "*-US" = c("latn", "us", "upper", "us-priv", "inherited"),
+        "en-*-US" = c("latn", "us", "upper", "us-priv", "inherited"),
+        "en-x-US" = "us-x")
+    for (range in names(expected)) {
+        css <- paste0("p:lang(", range, ")")
+        if (requireNamespace("xml2", quietly = TRUE)) {
+            doc <- xml2::read_xml(doc_text)
+            ids <- xml2::xml_attr(querySelectorAll(doc, css), "id")
+            expect_equal(ids, expected[[range]], label = css)
+        }
+        if (requireNamespace("XML", quietly = TRUE)) {
+            doc <- XML::xmlParse(doc_text, asText = TRUE)
+            ids <- vapply(querySelectorAll(doc, css), XML::xmlGetAttr,
+                          character(1), name = "id")
+            expect_equal(ids, expected[[range]], label = css)
+        }
+    }
+})
+
+test_that("generic and HTML :lang() agree on singleton subtags", {
+    skip_if_not_installed("xml2")
+    tags <- c("de-DE", "de-x-DE", "de-Latn-x-DE", "de-a-foo-DE",
+              "de-DE-x-foo", "de-Latn-DE", "de-1-DE", "x-foo", "i-klingon",
+              "x-de", "de", "de-x-foo", "de-DE-x-foo-y-bar", "de-y-bar-x-foo",
+              "de-x-a-foo", "DE-X-de", "De-Latn-dE")
+    html_doc <- xml2::read_html(paste0(
+        "<html><body>",
+        paste0(sprintf('<p id="%s" lang="%s">x</p>', tags, tags),
+               collapse = ""),
+        "</body></html>"))
+    xml_doc <- xml2::read_xml(paste0(
+        "<r>",
+        paste0(sprintf('<p id="%s" xml:lang="%s"/>', tags, tags),
+               collapse = ""),
+        "</r>"))
+    ids <- function(doc, css, translator)
+        xml2::xml_attr(xml2::xml_find_all(
+            doc, css_to_xpath(css, translator = translator)), "id")
+    expect_equal(ids(xml_doc, "p:lang(de-DE)", "generic"),
+                 c("de-DE", "de-DE-x-foo", "de-Latn-DE",
+                   "de-DE-x-foo-y-bar", "De-Latn-dE"))
+    for (range in c("de-DE", "de-Latn-DE", "\\*-DE", "de-*-DE", "de-x-foo",
+                    "de-x-*-bar", "de-y-bar", "x-foo", "i-klingon",
+                    "\\*-foo", "de", "x", "de-*", "de-DE-*", "DE-x-DE")) {
+        css <- paste0("p:lang(", range, ")")
+        expect_equal(ids(xml_doc, css, "generic"),
+                     ids(html_doc, css, "html"), label = css)
+    }
+})
+
 test_that(':lang("") matches elements with no tagged language', {
     skip_if_not_installed("xml2")
     # The document element itself carries no lang/xml:lang either, so
