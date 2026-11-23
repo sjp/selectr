@@ -45,9 +45,14 @@
       case for a \code{type} attribute in no namespace, as
       \code{"[type=Foo]"} does.
 
-      \item The HTML and XHTML translators' \code{:lang()} now stops
-      at a singleton subtag (RFC 4647), so \code{":lang(de-DE)"} no
-      longer matches \code{lang="de-x-DE"}.
+      \item The generic translator's \code{:lang()} now uses RFC 4647
+      extended filtering on \code{xml:lang} for ranges of two or more
+      subtags, as the HTML and XHTML translators do, so
+      \code{":lang(en-US)"} matches \code{xml:lang="en-Latn-US"} and
+      \code{":lang(*-CH)"} is no longer an error. All three now stop
+      at a singleton subtag, so \code{":lang(de-DE)"} no longer
+      matches \code{"de-x-DE"}. \code{":lang(en)"} still translates
+      to XPath's \code{lang('en')}.
 
       \item An of-type pseudo-class on an element in any namespace,
       such as \code{"*|e:first-of-type"}, now raises the same
