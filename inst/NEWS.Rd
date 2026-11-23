@@ -46,24 +46,21 @@
       \code{"[type=Foo]"} does.
 
       \item The generic translator's \code{:lang()} now uses RFC 4647
-      extended filtering on \code{xml:lang} for ranges of two or more
-      subtags, as the HTML and XHTML translators do, so
-      \code{":lang(en-US)"} matches \code{xml:lang="en-Latn-US"} and
-      \code{":lang(*-CH)"} is no longer an error. All three now stop
-      at a singleton subtag, so \code{":lang(de-DE)"} no longer
-      matches \code{"de-x-DE"}. \code{":lang(en)"} still translates
-      to XPath's \code{lang('en')}.
+      extended filtering, as the HTML translator does, so
+      \code{":lang(en-US)"} matches \code{"en-Latn-US"} and
+      \code{":lang(*-CH)"} is no longer an error. Every translator now
+      stops at a singleton subtag, so \code{":lang(de-DE)"} no longer
+      matches \code{"de-x-DE"}.
 
-      \item An of-type pseudo-class on an element in any namespace,
-      such as \code{"*|e:first-of-type"}, now raises the same
-      \code{"not implemented"} error as \code{"*:first-of-type"},
-      instead of counting \code{e} in other namespaces as the same type.
+      \item \code{"*|e:first-of-type"} and the other of-type
+      pseudo-classes on \code{*|e} now raise a \code{"not implemented"}
+      error instead of counting \code{e} in other namespaces as the
+      same type.
 
-      \item An attribute name with an escaped colon, such as
-      \code{"[a\\:b]"}, now matches only an attribute in no namespace
-      with that name, not \code{b} in a namespace bound to \code{a}. In
-      an XML document \code{"[xml\\:lang]"} therefore no longer
-      matches \code{xml:lang}; use \code{"[xml|lang]"} instead.
+      \item An escaped colon in an attribute name, as in
+      \code{"[a\\:b]"}, now matches only an attribute in no namespace,
+      not \code{b} in a namespace bound to \code{a}. For
+      \code{xml:lang} in XML documents, use \code{"[xml|lang]"}.
 
     }
   }
