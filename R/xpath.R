@@ -557,7 +557,7 @@ lang_range_kind <- function(value) {
 # "en-GB" and "en-GB-*" are multi-subtag but "en" and "en-*" are not.
 # A range with more than one subtag needs RFC 4647 extended filtering
 # to match correctly (subtags may be skipped between the ones named),
-# not a plain prefix test - see lang_extended_html_condition().
+# not a plain prefix test - see lang_extended_condition().
 lang_range_multi_subtag <- function(value) {
     grepl("-", sub("-\\*$", "", value), fixed = TRUE)
 }
@@ -629,12 +629,13 @@ lang_attr_value_lc <- function(xhtml) {
     xpath_ascii_lower(lang_attr_value(xhtml))
 }
 
-# The HTML :lang() translation of an RFC 4647 extended-filtering range
-# (one with a wildcard in non-trailing position, e.g. "*-CH" or
-# "de-*-DE"). It tests the nearest language-attributed ancestor,
-# dash-terminating the lowercased language string as "<lang>-" so that
-# each subtag is delimited, then walks the range's subtags left to
-# right: the range's first subtag is paired with the tag's first, so a
+# The :lang() translation of an RFC 4647 extended-filtering range (one
+# naming more than one subtag, e.g. "de-DE", or with a wildcard in
+# non-trailing position, e.g. "*-CH" or "de-*-DE"). `ancestor` is the
+# step selecting the nearest language-declaring ancestor-or-self and
+# `lang` its lowercased language string. The condition on that step
+# dash-terminates the string as "<lang>-" so that each subtag is
+# delimited, then walks the range's subtags left to right: the range's first subtag is paired with the tag's first, so a
 # literal there must start the tag and a '*' consumes it; a literal
 # subtag after a '*' may appear anywhere further along (contains, over
 # the tail re-bracketed with a leading dash so that it too matches
@@ -654,8 +655,7 @@ lang_attr_value_lc <- function(xhtml) {
 # is threaded alongside, and a matched singleton re-cuts it for the
 # search that follows. A literal found before the cut is at the same
 # place in both, so substring-after advances them together.
-lang_extended_html_condition <- function(value, xhtml) {
-    lang <- lang_attr_value_lc(xhtml)
+lang_extended_condition <- function(value, ancestor, lang) {
     tail <- paste0("concat(", lang, ", '-')")
     cut <- NULL  # the tail up to its first singleton, past the primary
     subtags <- strsplit(ascii_lower(value), "-", fixed = TRUE)[[1]]
@@ -702,8 +702,7 @@ lang_extended_html_condition <- function(value, xhtml) {
         anywhere <- FALSE
         anchored <- TRUE
     }
-    paste0(lang_attr_ancestor(xhtml), "[",
-           paste(conditions, collapse = " and "), "]")
+    paste0(ancestor, "[", paste(conditions, collapse = " and "), "]")
 }
 
 # A lowercased, dash-terminated tail of language subtags ("latn-x-de-"),
@@ -2523,7 +2522,9 @@ HTMLTranslator <- translator_class("HTMLTranslator",
                     # approximated from the nearest language-attributed
                     # ancestor. A single-subtag range needs no walk - the
                     # plain prefix test below is equivalent and cheaper
-                    lang_extended_html_condition(value, self$xhtml)
+                    lang_extended_condition(value,
+                                            lang_attr_ancestor(self$xhtml),
+                                            lang_attr_value_lc(self$xhtml))
                 } else {
                     # An exact tag ("en", "en-GB") or a trailing-wildcard
                     # prefix range ("en-*"), both of which match the
